@@ -1,4 +1,4 @@
-# Reze Studio — Tasks
+# Animation Studio — Tasks
 
 ## Core
 

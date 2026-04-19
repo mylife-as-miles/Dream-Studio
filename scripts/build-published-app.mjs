@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const editorDist = path.join(repoRoot, "apps", "editor", "dist");
 const animationDist = path.join(repoRoot, "apps", "animation-editor", "dist");
-const characterDist = path.join(repoRoot, "apps", "reze-studio", "dist");
+const characterDist = path.join(repoRoot, "apps", "animation-studio", "dist");
 const vanillaDist = path.join(repoRoot, "apps", "three-vanilla-playground", "dist");
 const publishedAnimationDir = path.join(editorDist, "animation");
 const publishedCharacterDir = path.join(editorDist, "character");
@@ -17,7 +17,7 @@ run("npm run build -w @blud/editor");
 run("npm run build -w animation-editor", {
   VITE_BASE_PATH: "/animation/"
 });
-run("npm run build -w reze-studio", {
+run("npm run build -w animation-studio", {
   VITE_BASE_PATH: "/character/"
 });
 run("npm run build -w @blud/three-vanilla-playground", {

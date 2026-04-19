@@ -19,7 +19,7 @@ The project is in **public alpha**. Expect rapid iteration, breaking changes, re
 | Animation Editor | `apps/animation-editor` | Animation graph authoring and clip import/export |
 | Website | `apps/website` | Docs and onboarding site |
 | Three Vanilla Playground | `apps/three-vanilla-playground` | Isolated runtime experimentation app |
-| Reze Studio | `apps/reze-studio` | Additional studio app |
+| Animation Studio | `apps/animation-studio` | Additional studio app |
 
 ### Core Packages
 

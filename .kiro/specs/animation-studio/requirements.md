@@ -1,8 +1,8 @@
-# Reze Studio — Requirements
+# Animation Studio — Requirements
 
 ## Overview
 
-Reze Studio is an additional studio application in the BLUD monorepo that integrates the Reze Engine for extended game development capabilities.
+Animation Studio is an additional studio application in the BLUD monorepo that integrates the Reze Engine for extended game development capabilities.
 
 ## Functional Requirements
 

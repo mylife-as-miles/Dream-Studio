@@ -11,12 +11,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "^0.19.2",
-    "@blud/gameplay-runtime": "*",
-    "@blud/render-pipeline": "*",
-    "@blud/runtime-audio": "*",
-    "@blud/runtime-physics-rapier": "*",
-    "@blud/runtime-scripting": "*",
     "@blud/shared": "*",
     "@blud/three-runtime": "*",
     "three": "^0.181.1"
