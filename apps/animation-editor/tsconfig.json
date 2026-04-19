@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["apps/animation-editor/src/*"],
+      "@blud/anim-compiler": ["packages/anim-compiler/src/index.ts"],
+      "@blud/anim-core": ["packages/anim-core/src/index.ts"],
+      "@blud/anim-editor-core": ["packages/anim-editor-core/src/index.ts"],
+      "@blud/anim-exporter": ["packages/anim-exporter/src/index.ts"],
+      "@blud/anim-runtime": ["packages/anim-runtime/src/index.ts"],
+      "@blud/anim-schema": ["packages/anim-schema/src/index.ts"],
+      "@blud/anim-three": ["packages/anim-three/src/index.ts"],
+      "@blud/anim-utils": ["packages/anim-utils/src/index.ts"],
+      "@blud/dev-sync": ["packages/dev-sync/src/index.ts"]
+    },
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src", "vite.config.ts"]
+}

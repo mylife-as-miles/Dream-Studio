@@ -1,0 +1,31 @@
+{
+  "name": "@blud/three-vanilla-playground",
+  "private": true,
+  "version": "0.0.3",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --config vite.config.ts",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.2",
+    "@blud/gameplay-runtime": "*",
+    "@blud/render-pipeline": "*",
+    "@blud/runtime-audio": "*",
+    "@blud/runtime-physics-rapier": "*",
+    "@blud/runtime-scripting": "*",
+    "@blud/shared": "*",
+    "@blud/three-runtime": "*",
+    "three": "^0.181.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/three": "^0.181.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

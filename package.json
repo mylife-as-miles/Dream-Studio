@@ -1,0 +1,44 @@
+{
+  "name": "blud-gaming",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @blud/editor",
+    "dev:all": "npm run dev -w @blud/editor -w @blud/three-vanilla-playground",
+    "start": "npm run dev -w @blud/orchestrator",
+    "changeset": "changeset",
+    "build": "npm run build -w @blud/editor",
+    "build:orchestrator": "npm run build -w @blud/orchestrator",
+    "typecheck": "npm run typecheck -w @blud/editor",
+    "typecheck:orchestrator": "npm run typecheck -w @blud/orchestrator",
+    "dev:website": "npm run dev -w @blud/website",
+    "build:website": "npm run build -w @blud/website",
+    "typecheck:website": "npm run typecheck -w @blud/website",
+    "dev:animation-editor": "npm run dev -w animation-editor",
+    "build:animation-editor": "npm run build -w animation-editor",
+    "typecheck:animation-editor": "tsc -p apps/animation-editor/tsconfig.json --noEmit",
+    "build:packages": "node ./scripts/release-packages.mjs build",
+    "version:packages": "changeset version",
+    "publish:packages:dry-run": "node ./scripts/release-packages.mjs publish --dry-run",
+    "publish:packages": "node ./scripts/release-packages.mjs publish",
+    "dev:three-vanilla": "npm run dev -w @blud/three-vanilla-playground",
+    "build:three-vanilla": "npm run build -w @blud/three-vanilla-playground",
+    "typecheck:three-vanilla": "npm run typecheck -w @blud/three-vanilla-playground",
+    "build:published": "node ./scripts/build-published-app.mjs"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.30.0",
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.2",
+    "@replit/connectors-sdk": "^0.3.0",
+    "three-mesh-bvh": "^0.9.2"
+  }
+}

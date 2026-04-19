@@ -1,0 +1,36 @@
+{
+  "name": "create-blud",
+  "version": "0.1.11",
+  "description": "Bootstrap BLUD apps with an interactive framework-style CLI.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "template",
+    "README.md"
+  ],
+  "bin": {
+    "create-blud": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup --config ../../scripts/tsup.package.config.mjs",
+    "test": "bun test src/cli.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vibe-stack/blob.git",
+    "directory": "packages/create-blud"
+  },
+  "bugs": {
+    "url": "https://github.com/vibe-stack/blob/issues"
+  },
+  "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/create-blud",
+  "devDependencies": {
+    "@types/node": "^24.10.1"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "picocolors": "^1.1.1"
+  }
+}

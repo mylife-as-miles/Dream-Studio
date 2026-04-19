@@ -1,0 +1,33 @@
+{
+  "name": "__PROJECT_NAME__",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@blud/anim-core": "^0.1.8",
+    "@blud/anim-exporter": "^0.1.8",
+    "@blud/anim-runtime": "^0.1.8",
+    "@blud/anim-schema": "^0.1.8",
+    "@blud/anim-three": "^0.1.8",
+    "@blud/game-dev": "^0.1.8",
+    "@blud/gameplay-runtime": "^0.1.8",
+    "@blud/render-pipeline": "^0.1.8",
+    "@blud/runtime-format": "^0.1.8",
+    "@blud/runtime-physics-crashcat": "^0.1.8",
+    "@blud/shared": "^0.1.8",
+    "@blud/three-runtime": "^0.1.8",
+    "three": "^0.181.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.181.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

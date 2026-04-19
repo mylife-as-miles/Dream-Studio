@@ -1,0 +1,33 @@
+{
+  "name": "@blud/anim-editor-core",
+  "version": "0.1.11",
+  "description": "React-independent animation graph editor domain logic and state store.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config ../../scripts/tsup.package.config.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@blud/anim-compiler": "*",
+    "@blud/anim-schema": "*",
+    "@blud/anim-utils": "*",
+    "zod": "^3.25.76"
+  }
+}

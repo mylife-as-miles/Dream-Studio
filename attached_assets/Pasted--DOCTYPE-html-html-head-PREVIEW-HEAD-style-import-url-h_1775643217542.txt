@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- __PREVIEW_HEAD__ -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; outline: none !important; box-sizing: border-box; }
+    html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #f5f5f7; }
+    canvas { display: block; outline: none !important; }
+
+    #fpsIndicator {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      padding: 4px 10px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+      z-index: 1000;
+    }
+
+    #gameUI {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 100;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    #gameUI * { pointer-events: auto; }
+
+    /* ── Toolbar (defined in bottom section) ── */
+
+    .toolbar-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 24px;
+      background: rgba(255,255,255,0.12);
+      flex-shrink: 0;
+    }
+
+    .brick-count {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+      white-space: nowrap;
+      padding: 0 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Brick size dropdown ── */
+    .size-dot-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px 4px 8px;
+      height: 30px;
+      box-sizing: border-box;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: rgba(255,255,255,0.8);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .size-dot-btn:hover { background: rgba(255,255,255,0.14); }
+    .size-dot-btn svg { color: rgba(255,255,255,0.35); flex-shrink: 0; }
+    .size-dot-label {
+      white-space: nowrap;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .size-btn-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .size-popover {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) scale(0.95);
+      background: rgba(28,28,30,0.92);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 400;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      min-width: 90px;
+    }
+    .size-popover.open {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      pointer-events: auto;
+    }
+    .size-popover-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.7);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.12s ease;
+      white-space: nowrap;
+    }
+    .size-popover-item:hover { background: rgba(255,255,255,0.08); }
+    .size-popover-item.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-weight: 600;
+    }
+    .size-popover-item .size-check {
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0;
+    }
+    .size-popover-item.active .size-check { opacity: 1; }
+
+    /* ── Color dot button + popover ── */
+    .color-dot-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px 4px 5px;
+      height: 30px;
+      box-sizing: border-box;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .color-dot-btn:hover { background: rgba(255,255,255,0.14); }
+    .color-dot-btn svg { color: rgba(255,255,255,0.35); flex-shrink: 0; }
+    .color-dot-preview {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.25);
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+    }
+
+    .color-popover {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%) scale(0.95);
+      background: rgba(28,28,30,0.92);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 400;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .color-popover.open {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+      pointer-events: auto;
+    }
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+    .color-grid-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .color-grid-btn:hover { transform: scale(1.15); }
+    .color-grid-btn.active {
+      border-color: #fff;
+      box-shadow: 0 0 0 1.5px rgba(28,28,30,0.6);
+    }
+
+    /* ── Icon buttons ── */
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255,255,255,0.4);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.8);
+    }
+
+    .icon-btn.danger:hover {
+      background: rgba(255,59,48,0.15);
+      color: #ff453a;
+    }
+
+    /* ── HDR Picker (top right) ── */
+    .hdr-panel {
+      display: none;
+    }
+
+    .hdr-panel-hidden {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      background: rgba(255,255,255,0.72);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      padding: 8px;
+      display: flex;
+      gap: 6px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);
+    }
+
+    .hdr-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hdr-btn:hover { transform: scale(1.06); }
+
+    .hdr-btn.active {
+      border-color: #1d1d1f;
+      box-shadow: 0 0 0 1.5px #1d1d1f;
+    }
+
+    .hdr-btn .hdr-label {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.45);
+      color: #fff;
+      font-size: 7px;
+      font-weight: 600;
+      text-align: center;
+      padding: 1px 0;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    /* ── Properties Panel ── */
+    #propsToggle {
+      position: fixed;
+      top: 12px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(28,28,30,0.72);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    #propsToggle:hover {
+      background: rgba(28,28,30,0.88);
+      color: #fff;
+    }
+    #propsToggle.open {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    #propsPanel {
+      position: fixed;
+      top: 54px;
+      right: 14px;
+      width: 300px;
+      max-height: calc(100vh - 100px);
+      background: rgba(28,28,30,0.82);
+      backdrop-filter: blur(60px) saturate(200%);
+      -webkit-backdrop-filter: blur(60px) saturate(200%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      z-index: 190;
+      opacity: 0;
+      transform: scale(0.96) translateY(-8px);
+      transform-origin: top right;
+      pointer-events: none;
+      transition: opacity 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.2s cubic-bezier(0.4,0,0.2,1);
+      overflow-y: auto;
+      overflow-x: hidden;
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: #fff;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.35), 0 0 0 0.5px rgba(0,0,0,0.12);
+    }
+    #propsPanel.open {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+    #propsPanel::-webkit-scrollbar { width: 4px; }
+    #propsPanel::-webkit-scrollbar-track { background: transparent; }
+    #propsPanel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+    .props-header {
+      padding: 14px 16px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      position: sticky;
+      top: 0;
+      background: rgba(28,28,30,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 16px 16px 0 0;
+      z-index: 10;
+      letter-spacing: 0.2px;
+    }
+
+    .props-section {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .props-section:last-child { border-bottom: none; }
+    .props-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 8px;
+    }
+
+    .prop-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .prop-row:last-child { margin-bottom: 0; }
+
+    .prop-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      flex-shrink: 0;
+      min-width: 80px;
+    }
+
+    .prop-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .prop-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.12);
+      outline: none;
+      cursor: pointer;
+    }
+    .prop-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .prop-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .prop-value {
+      font-size: 10px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.4);
+      min-width: 32px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .prop-toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .prop-toggle.on {
+      background: rgba(52,199,89,0.8);
+    }
+    .prop-toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .prop-toggle.on::after {
+      transform: translateX(16px);
+    }
+
+    .prop-select {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.75);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 8px;
+      cursor: pointer;
+      outline: none;
+    }
+    .prop-select option {
+      background: #2c2c2e;
+      color: #fff;
+    }
+
+    .prop-color-input {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      cursor: pointer;
+      background: none;
+      padding: 0;
+      overflow: hidden;
+    }
+    .prop-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+    .prop-color-input::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+    /* ── HDR Dropdown ── */
+    .hdr-select-wrap { position: relative; flex: 1; }
+    .hdr-select-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.8);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .hdr-select-btn:hover { background: rgba(255,255,255,0.12); }
+    .hdr-select-btn .hdr-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .hdr-select-btn .hdr-arrow {
+      margin-left: auto;
+      opacity: 0.4;
+      transition: transform 0.2s ease;
+      font-size: 9px;
+    }
+    .hdr-select-btn.open .hdr-arrow { transform: rotate(180deg); }
+    .hdr-dropdown {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: rgba(44,44,46,0.95);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 4px;
+      opacity: 0;
+      transform: translateY(4px);
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 300;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .hdr-dropdown.open {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .hdr-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.75);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.12s ease;
+    }
+    .hdr-dropdown-item:hover { background: rgba(255,255,255,0.08); }
+    .hdr-dropdown-item.active {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+    .hdr-dropdown-item .hdr-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .hdr-dropdown-item .hdr-check {
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0;
+    }
+    .hdr-dropdown-item.active .hdr-check { opacity: 1; }
+
+    /* ── Toolbar polish ── */
+    .toolbar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(28,28,30,0.78);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(0,0,0,0.15);
+    }
+
+    .icon-btn.active-rotate {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+
+    /* ── Preset Dropdown (top center) ── */
+    .preset-bar {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+    .preset-trigger {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px 7px 12px;
+      background: rgba(28,28,30,0.72);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.85);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.22);
+    }
+    .preset-trigger:hover { background: rgba(28,28,30,0.88); color: #fff; }
+    .preset-trigger .preset-arrow {
+      margin-left: 2px;
+      opacity: 0.4;
+      font-size: 9px;
+      transition: transform 0.2s ease;
+      border-radius: 3px;
+    }
+    .preset-trigger.open .preset-arrow { transform: rotate(180deg); }
+    .preset-trigger .preset-icon {
+      font-size: 13px;
+      opacity: 0.65;
+    }
+    .preset-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      min-width: 190px;
+      max-height: 320px;
+      overflow-y: auto;
+      background: rgba(28,28,30,0.92);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 510;
+    }
+    .preset-dropdown.open {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+    .preset-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.65);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.12s ease;
+      white-space: nowrap;
+    }
+    .preset-dropdown-item:hover { background: rgba(255,255,255,0.08); }
+    .preset-dropdown-item.active {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-weight: 600;
+    }
+    .preset-dropdown-item .preset-item-icon {
+      font-size: 14px;
+      width: 20px;
+      text-align: center;
+    }
+    .preset-dropdown-item .preset-check {
+      margin-left: auto;
+      font-size: 12px;
+      opacity: 0;
+    }
+    .preset-dropdown-item.active .preset-check { opacity: 1; }
+
+    /* ── HDR grid (old) hide ── */
+    .hdr-grid { display: none !important; }
+    .hdr-chip { display: none !important; }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three":              "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.module.js",
+      "three/webgpu":       "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.webgpu.js",
+      "three/tsl":          "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.tsl.js",
+      "three/addons/":      "https://cdn.jsdelivr.net/npm/three@0.183.2/examples/jsm/",
+      "@splinetool/hana-runtime": "https://cdn.spline.design/@splinetool/hana-runtime/HanaRuntime.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="fpsIndicator">-- FPS</div>
+  <script>
+    window.onerror = function(msg, url, line, col, err) {
+      var errorMsg = (err && err.message) || msg || 'Unknown error';
+      window.parent.postMessage({ type: 'preview-error', message: errorMsg, line: line }, '*');
+      var errDiv = document.createElement('div'); errDiv.className = 'error'; errDiv.textContent = 'Error: ' + errorMsg; document.body.innerHTML = ''; document.body.appendChild(errDiv);
+      return true;
+    };
+    window.addEventListener('unhandledrejection', function(e) {
+      var msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
+      window.parent.postMessage({ type: 'preview-error', message: msg }, '*');
+    });
+  </script>
+  <script type="module" src="/index.js"></script>
+  <!-- __PREVIEW_BODY__ -->
+</body>
+</html>

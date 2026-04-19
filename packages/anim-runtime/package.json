@@ -1,0 +1,32 @@
+{
+  "name": "@blud/anim-runtime",
+  "version": "0.1.11",
+  "description": "Animator runtime evaluator for compiled blud animation graphs.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config ../../scripts/tsup.package.config.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@blud/anim-core": "*",
+    "@blud/anim-schema": "*",
+    "@blud/anim-utils": "*"
+  }
+}

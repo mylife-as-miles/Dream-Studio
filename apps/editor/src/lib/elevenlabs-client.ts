@@ -1,0 +1,164 @@
+/**
+ * elevenlabs-client.ts
+ *
+ * Thin browser-side client for the /api/elevenlabs/* Vite server plugin.
+ * Uses the Replit connectors SDK on the server side — no API key needed here.
+ */
+
+export interface ElevenLabsVoice {
+  voice_id: string;
+  name: string;
+  preview_url: string | null;
+  category: string;
+}
+
+export interface TtsOptions {
+  voiceId?: string;
+  modelId?: string;
+}
+
+/**
+ * Convert text to speech. Returns an AudioBuffer ready to play via Web Audio API.
+ * Streams the mp3 from the server plugin then decodes it in the browser.
+ */
+export async function textToSpeech(text: string, opts: TtsOptions = {}): Promise<AudioBuffer> {
+  const response = await fetch("/api/elevenlabs/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, ...opts }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
+    throw new Error(`ElevenLabs TTS failed: ${err.error}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const audioCtx = getAudioContext();
+  return audioCtx.decodeAudioData(arrayBuffer);
+}
+
+/**
+ * Play text directly. Resolves when playback finishes.
+ */
+export async function speak(text: string, opts: TtsOptions = {}): Promise<void> {
+  const buffer = await textToSpeech(text, opts);
+  return playBuffer(buffer);
+}
+
+/**
+ * Play a decoded AudioBuffer once.
+ */
+export function playBuffer(buffer: AudioBuffer): Promise<void> {
+  return new Promise((resolve) => {
+    const ctx = getAudioContext();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.onended = () => resolve();
+    source.start();
+  });
+}
+
+/**
+ * Fetch available voices from the ElevenLabs API (proxied via server plugin).
+ */
+export async function fetchVoices(): Promise<ElevenLabsVoice[]> {
+  const response = await fetch("/api/elevenlabs/voices");
+  if (!response.ok) throw new Error("Failed to fetch ElevenLabs voices");
+  const data = await response.json() as { voices: ElevenLabsVoice[] };
+  return data.voices ?? [];
+}
+
+/**
+ * Generate a sound effect from a text description.
+ * Returns an AudioBuffer ready to play via Web Audio API.
+ */
+export async function generateSoundEffect(
+  description: string,
+  durationSeconds?: number,
+): Promise<AudioBuffer> {
+  const response = await fetch("/api/elevenlabs/sfx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description, durationSeconds }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
+    throw new Error(`ElevenLabs SFX failed: ${err.error}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const audioCtx = getAudioContext();
+  return audioCtx.decodeAudioData(arrayBuffer);
+}
+
+/**
+ * Clone a voice from an audio file blob.
+ * Returns the new voice_id.
+ */
+export async function cloneVoice(name: string, audioFile: File): Promise<string> {
+  const form = new FormData();
+  form.append("name", name);
+  form.append("files", audioFile);
+
+  const response = await fetch("/api/elevenlabs/voices/add", {
+    method: "POST",
+    body: form,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
+    throw new Error(`Voice clone failed: ${err.error}`);
+  }
+
+  const data = await response.json() as { voice_id: string };
+  return data.voice_id;
+}
+
+/**
+ * Generate a sound effect and return a persistent blob URL.
+ * Stores the audio as a blob URL suitable for persisting in scene settings.
+ */
+export async function generateSoundEffectUrl(
+  description: string,
+  durationSeconds?: number,
+): Promise<string> {
+  const response = await fetch("/api/elevenlabs/sfx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description, durationSeconds }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
+    throw new Error(`ElevenLabs SFX failed: ${err.error}`);
+  }
+
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Delete a cloned voice.
+ */
+export async function deleteVoice(voiceId: string): Promise<void> {
+  const response = await fetch(`/api/elevenlabs/voices/${voiceId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete voice ${voiceId}`);
+  }
+}
+
+let _audioCtx: AudioContext | null = null;
+function getAudioContext(): AudioContext {
+  if (!_audioCtx || _audioCtx.state === "closed") {
+    _audioCtx = new AudioContext();
+  }
+  if (_audioCtx.state === "suspended") {
+    _audioCtx.resume().catch(() => {});
+  }
+  return _audioCtx;
+}

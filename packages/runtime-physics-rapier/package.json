@@ -1,0 +1,46 @@
+{
+  "name": "@blud/runtime-physics-rapier",
+  "version": "0.1.11",
+  "description": "Rapier physics adapters for Web Hammer runtime scenes.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config ../../scripts/tsup.package.config.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vibe-stack/blob.git",
+    "directory": "packages/runtime-physics-rapier"
+  },
+  "bugs": {
+    "url": "https://github.com/vibe-stack/blob/issues"
+  },
+  "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/runtime-physics-rapier",
+  "devDependencies": {
+    "@types/three": "^0.181.0"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.2",
+    "@blud/render-pipeline": "*",
+    "@blud/runtime-format": "*",
+    "@blud/shared": "*",
+    "three": "^0.181.1"
+  }
+}

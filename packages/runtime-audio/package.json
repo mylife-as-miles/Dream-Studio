@@ -1,0 +1,40 @@
+{
+  "name": "@blud/runtime-audio",
+  "version": "0.1.11",
+  "description": "Web Audio API adapter for Web Hammer runtime scenes with 3D spatial audio support.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config ../../scripts/tsup.package.config.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vibe-stack/blob.git",
+    "directory": "packages/runtime-audio"
+  },
+  "bugs": {
+    "url": "https://github.com/vibe-stack/blob/issues"
+  },
+  "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/runtime-audio",
+  "dependencies": {
+    "@blud/runtime-format": "*",
+    "@blud/shared": "*"
+  }
+}
