@@ -17,7 +17,7 @@ export default defineConfig(() => ({
     host: "0.0.0.0",
     port: 5000,
     strictPort: true,
-    allowedHosts: true
+    allowedHosts: true as const
   },
   preview: {
     host: "0.0.0.0",
