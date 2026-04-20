@@ -1,13 +1,13 @@
 import {
-  ChevronUp,
+  Clapperboard,
   Gamepad2,
   Lock,
-  PenLine,
+  Monitor,
   Play,
   Plus,
+  Settings,
   Settings2,
   Square,
-  UserCircle,
   Users,
   X
 } from "lucide-react";
@@ -35,75 +35,73 @@ export function GamesScreen({
   onClose
 }: GamesScreenProps) {
   const projects = snapshot?.projects ?? [];
-  const recentProject = projects[0] ?? null;
+  const selectedProject = projects.find((project) => project.isSelected) ?? null;
+  const activeView = snapshot?.activeView;
+  const studioNavItems = [
+    {
+      icon: <Monitor size={17} />,
+      title: "Dream Studio",
+      subtitle: "World Editor",
+      view: "blob" as ViewId,
+      disabled: !snapshot
+    },
+    {
+      icon: <Clapperboard size={17} />,
+      title: "Animation Studio",
+      subtitle: "Motion Editor",
+      view: "animation-studio" as ViewId,
+      disabled: !snapshot
+    },
+    {
+      icon: <Users size={17} />,
+      title: "Character Studio",
+      subtitle: "Character Editor",
+      view: "character-studio" as ViewId,
+      disabled: !snapshot
+    },
+    {
+      icon: <Gamepad2 size={17} />,
+      title: "Game",
+      subtitle: "Play Mode",
+      view: "game" as ViewId,
+      disabled: !snapshot || !selectedProject
+    }
+  ];
 
   return (
     <div className="games-screen-overlay">
       <aside className="games-sidebar" aria-label="Launcher sidebar">
-        <div className="games-brand">
-          <span className="games-brand-mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span>BLUD</span>
-        </div>
+        <nav className="games-sidebar-menu" aria-label="Studio navigation">
+          {studioNavItems.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              className={`games-sidebar-nav-item ${
+                activeView === item.view ? "games-sidebar-nav-item-active" : ""
+              }`}
+              disabled={item.disabled}
+              onClick={() => onSetView(item.view)}
+            >
+              <span className="games-sidebar-nav-icon">{item.icon}</span>
+              <span className="games-sidebar-nav-copy">
+                <span>{item.title}</span>
+                <span>{item.subtitle}</span>
+              </span>
+            </button>
+          ))}
 
-        <nav className="games-nav" aria-label="Primary">
-          <button type="button" className="games-nav-item games-nav-item-active" onClick={onClose}>
-            <PenLine size={18} />
-            <span>Create</span>
-          </button>
-          <button
-            type="button"
-            className="games-nav-item"
-            disabled={!snapshot}
-            onClick={() => onSetView("blob")}
-          >
-            <Users size={18} />
-            <span>Community</span>
+          <span className="games-sidebar-separator" aria-hidden="true" />
+
+          <button type="button" className="games-sidebar-nav-item" onClick={onOpenSettings}>
+            <span className="games-sidebar-nav-icon">
+              <Settings size={17} />
+            </span>
+            <span className="games-sidebar-nav-copy">
+              <span>Settings</span>
+              <span>Projects &amp; Editors</span>
+            </span>
           </button>
         </nav>
-
-        <button type="button" className="games-new-project" onClick={onOpenSettings}>
-          <Plus size={18} />
-          <span>New project</span>
-        </button>
-
-        <section className="games-recents" aria-label="Recent projects">
-          <h2>Recent</h2>
-          <p>This week</p>
-          {recentProject ? (
-            <button
-              type="button"
-              className="games-recent-project"
-              onClick={() => onSelect(recentProject.id)}
-            >
-              <span className="games-recent-thumb">
-                <Gamepad2 size={15} />
-              </span>
-              <span>{recentProject.name}</span>
-            </button>
-          ) : (
-            <button type="button" className="games-recent-project" onClick={onOpenSettings}>
-              <span className="games-recent-thumb" />
-              <span>New project</span>
-            </button>
-          )}
-        </section>
-
-        <div className="games-sidebar-spacer" />
-
-        <button type="button" className="games-account" onClick={onOpenSettings}>
-          <span className="games-account-avatar">
-            <UserCircle size={21} />
-          </span>
-          <span className="games-account-copy">
-            <span>BLUD</span>
-            <span>Local workspace</span>
-          </span>
-          <ChevronUp size={15} />
-        </button>
       </aside>
 
       <main className="games-panel">

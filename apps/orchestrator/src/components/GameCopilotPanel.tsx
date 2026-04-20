@@ -87,7 +87,7 @@ export function GameCopilotPanel(props: GameCopilotPanelProps) {
               </div>
               <p className="text-xs leading-relaxed text-white/46">
                 {props.isConfigured
-                  ? "Ask Codex to inspect or change the currently open game. Use it for code, and switch to Blob or Animation Studio when the work belongs there."
+                  ? "Ask Codex to inspect or change the currently open game. Use it for code, and switch to Dream Studio or Animation Studio when the work belongs there."
                   : props.statusMessage ?? 'Install Codex CLI and run "codex login" in a terminal.'}
               </p>
             </div>

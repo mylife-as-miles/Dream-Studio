@@ -84,7 +84,7 @@ export function SettingsSheet({
   onClose
 }: SettingsSheetProps) {
   return (
-    <aside className="settings-sheet">
+    <main className="settings-sheet" aria-label="Dream Studio settings">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 px-6 py-5">
         <div>
@@ -92,7 +92,7 @@ export function SettingsSheet({
             <Settings size={10} className="inline-block" />
             Settings
           </p>
-          <h1 className="mt-3 text-xl font-semibold tracking-tight text-white">BLUD</h1>
+          <h1 className="mt-3 text-xl font-semibold tracking-tight text-white">Dream Studio</h1>
           <p className="mt-1.5 text-xs leading-5 text-white/46">
             Manage editors, projects, and the live viewport.
           </p>
@@ -116,7 +116,7 @@ export function SettingsSheet({
           <p className="mb-4 mt-1 text-xs text-white/42">{snapshot?.viewport.subtitle}</p>
           <div className="flex flex-wrap gap-2">
             <SheetButton icon={<Monitor size={12} />} onClick={() => onSetView("blob")}>
-              World Studio
+              Dream Studio
             </SheetButton>
             <SheetButton
               icon={<Clapperboard size={12} />}
@@ -251,7 +251,7 @@ export function SettingsSheet({
         <section className="settings-block">
           <SectionHeader icon={<Wand2 size={13} />} title="Create New Game" />
           <p className="mb-4 mt-1 text-xs text-white/42">
-            Scaffolds a fresh game outside this repo using create-blud.
+            Scaffolds a fresh game outside this repo with the Dream Studio starter.
           </p>
           <form className="space-y-3" onSubmit={onCreateProject}>
             <label className="space-y-1.5">
@@ -322,7 +322,7 @@ export function SettingsSheet({
           </form>
         </section>
       </div>
-    </aside>
+    </main>
   );
 }
 

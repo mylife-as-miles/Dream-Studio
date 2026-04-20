@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Clapperboard, Gamepad2, Home, Monitor, Settings, Users } from "lucide-react";
+import { Clapperboard, Gamepad2, Monitor, Settings, Users } from "lucide-react";
 import type { DockMode, OrchestratorSnapshot, ViewId } from "../types";
 
 interface OrbDockProps {
@@ -12,7 +12,6 @@ interface OrbDockProps {
   selectedProjectName: string | null;
   onSetView: (view: ViewId) => void;
   onOpenSettings: () => void;
-  onOpenGames: () => void;
   busyKey: string | null;
 }
 
@@ -26,7 +25,6 @@ export function OrbDock({
   selectedProjectName,
   onSetView,
   onOpenSettings,
-  onOpenGames,
   busyKey
 }: OrbDockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,18 +59,10 @@ export function OrbDock({
           aria-label="View switcher"
         >
           <DockButton
-            active={activeDockMode === "welcome"}
-            disabled={!snapshot}
-            icon={<Home size={14} />}
-            label="Games"
-            subtitle="Launcher"
-            onClick={() => closeAndCall(onOpenGames)}
-          />
-          <DockButton
             active={activeDockMode === "blob"}
             disabled={!snapshot}
             icon={<Monitor size={14} />}
-            label="World Studio"
+            label="Dream Studio"
             subtitle="World editor"
             onClick={() => closeAndCall(() => onSetView("blob"))}
             busy={busyKey === "view:blob"}

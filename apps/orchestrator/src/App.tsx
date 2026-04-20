@@ -15,7 +15,6 @@ import { GameCopilot } from "./components/GameCopilot";
 import { GameSceneBar } from "./components/GameSceneBar";
 import { OrbDock } from "./components/OrbDock";
 import { SettingsSheet } from "./components/SettingsSheet";
-import { ViewportFallback } from "./components/ViewportFallback";
 
 export function App() {
   const [snapshot, setSnapshot] = useState<OrchestratorSnapshot | null>(null);
@@ -355,11 +354,6 @@ export function App() {
         visible={gameCopilotVisible}
       />
 
-      {/* Fallback — shown only when no iframes are available for the current view */}
-      {!activeGameUrl && !activeEditorUrl ? (
-        <ViewportFallback snapshot={snapshot} />
-      ) : null}
-
       {notice ? (
         <div className="pointer-events-none absolute left-1/2 top-5 z-30 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 px-2">
           <div
@@ -393,7 +387,7 @@ export function App() {
             type="button"
             aria-label="Close settings"
             className="absolute inset-0 z-20 bg-black/44 backdrop-blur-[2px]"
-            onClick={() => setSettingsOpen(false)}
+            onClick={handleOpenGames}
           />
           <SettingsSheet
             snapshot={snapshot}
@@ -420,13 +414,13 @@ export function App() {
             onRemoveProject={handleRemoveProject}
             onRestartEditor={handleRestartEditor}
             onSetView={handleSetView}
-            onClose={() => setSettingsOpen(false)}
+            onClose={handleOpenGames}
           />
         </>
       ) : null}
 
       <OrbDock
-        visible={orbVisible && !gamesOpen}
+        visible={orbVisible && !gamesOpen && !settingsOpen}
         dockOpen={dockOpen}
         onToggleDock={() => setDockOpen((prev) => !prev)}
         onCloseDock={() => setDockOpen(false)}
@@ -435,7 +429,6 @@ export function App() {
         selectedProjectName={selectedProject?.name ?? null}
         onSetView={handleSetView}
         onOpenSettings={handleOpenSettings}
-        onOpenGames={handleOpenGames}
         busyKey={busyKey}
       />
     </div>

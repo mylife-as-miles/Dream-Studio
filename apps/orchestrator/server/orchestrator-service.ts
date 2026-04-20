@@ -164,7 +164,7 @@ export class OrchestratorService {
         cwd: join(repoRoot, "apps/editor"),
         id: "blob",
         kind: "editor",
-        label: "World Studio",
+        label: "Dream Studio",
         port: TRIDENT_PORT
       })
     };
@@ -842,7 +842,7 @@ function resolveViewport(options: {
   if (options.activeView === "blob") {
     const editor = options.editors.find((entry) => entry.id === "blob");
     return {
-      label: "World Studio",
+      label: "Dream Studio",
       subtitle: editor?.status === "running" ? "World editing" : "Preview server unavailable",
       url: editor?.status === "running" ? editor.url : null,
       view: "blob"
