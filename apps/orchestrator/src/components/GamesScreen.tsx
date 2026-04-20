@@ -1,13 +1,13 @@
 import {
-  Clapperboard,
+  ChevronUp,
   Gamepad2,
-  Home,
   Lock,
-  Monitor,
+  PenLine,
   Play,
   Plus,
   Settings2,
   Square,
+  UserCircle,
   Users,
   X
 } from "lucide-react";
@@ -35,7 +35,7 @@ export function GamesScreen({
   onClose
 }: GamesScreenProps) {
   const projects = snapshot?.projects ?? [];
-  const selectedProject = projects.find((project) => project.isSelected) ?? null;
+  const recentProject = projects[0] ?? null;
 
   return (
     <div className="games-screen-overlay">
@@ -49,52 +49,61 @@ export function GamesScreen({
           <span>BLUD</span>
         </div>
 
-        <div className="games-sidebar-card" role="navigation" aria-label="View switcher">
-          <SidebarButton
-            active
+        <nav className="games-nav" aria-label="Primary">
+          <button type="button" className="games-nav-item games-nav-item-active" onClick={onClose}>
+            <PenLine size={18} />
+            <span>Create</span>
+          </button>
+          <button
+            type="button"
+            className="games-nav-item"
             disabled={!snapshot}
-            icon={<Home size={14} />}
-            label="Games"
-            subtitle="Launcher"
-            onClick={onClose}
-          />
-          <SidebarButton
-            disabled={!snapshot}
-            icon={<Monitor size={14} />}
-            label="World Studio"
-            subtitle="World editor"
             onClick={() => onSetView("blob")}
-          />
-          <SidebarButton
-            disabled={!snapshot}
-            icon={<Clapperboard size={14} />}
-            label="Animation Studio"
-            subtitle="Motion editor"
-            onClick={() => onSetView("animation-studio")}
-          />
-          <SidebarButton
-            disabled={!snapshot}
-            icon={<Users size={14} />}
-            label="Character Studio"
-            subtitle="Character editor"
-            onClick={() => onSetView("character-studio")}
-          />
-          <SidebarButton
-            disabled={!snapshot || !selectedProject}
-            icon={<Gamepad2 size={14} />}
-            label={selectedProject?.name ?? "Game"}
-            subtitle="Play mode"
-            onClick={() => onSetView("game")}
-          />
-          <div className="games-sidebar-divider" />
-          <SidebarButton
-            disabled={!snapshot}
-            icon={<Settings2 size={14} />}
-            label="Settings"
-            subtitle="Projects & editors"
-            onClick={onOpenSettings}
-          />
-        </div>
+          >
+            <Users size={18} />
+            <span>Community</span>
+          </button>
+        </nav>
+
+        <button type="button" className="games-new-project" onClick={onOpenSettings}>
+          <Plus size={18} />
+          <span>New project</span>
+        </button>
+
+        <section className="games-recents" aria-label="Recent projects">
+          <h2>Recent</h2>
+          <p>This week</p>
+          {recentProject ? (
+            <button
+              type="button"
+              className="games-recent-project"
+              onClick={() => onSelect(recentProject.id)}
+            >
+              <span className="games-recent-thumb">
+                <Gamepad2 size={15} />
+              </span>
+              <span>{recentProject.name}</span>
+            </button>
+          ) : (
+            <button type="button" className="games-recent-project" onClick={onOpenSettings}>
+              <span className="games-recent-thumb" />
+              <span>New project</span>
+            </button>
+          )}
+        </section>
+
+        <div className="games-sidebar-spacer" />
+
+        <button type="button" className="games-account" onClick={onOpenSettings}>
+          <span className="games-account-avatar">
+            <UserCircle size={21} />
+          </span>
+          <span className="games-account-copy">
+            <span>BLUD</span>
+            <span>Local workspace</span>
+          </span>
+          <ChevronUp size={15} />
+        </button>
       </aside>
 
       <main className="games-panel">
@@ -152,37 +161,6 @@ export function GamesScreen({
         </section>
       </main>
     </div>
-  );
-}
-
-function SidebarButton({
-  active = false,
-  disabled,
-  icon,
-  label,
-  subtitle,
-  onClick
-}: {
-  active?: boolean;
-  disabled: boolean;
-  icon: React.ReactNode;
-  label: string;
-  subtitle: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`games-sidebar-button ${active ? "games-sidebar-button-active" : ""}`}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <span className="games-sidebar-button-icon">{icon}</span>
-      <span className="games-sidebar-button-copy">
-        <span>{label}</span>
-        <span>{subtitle}</span>
-      </span>
-    </button>
   );
 }
 
