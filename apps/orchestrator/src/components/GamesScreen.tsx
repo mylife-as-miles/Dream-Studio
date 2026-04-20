@@ -1,5 +1,17 @@
-import { Play, Plus, Settings2, Square, X } from "lucide-react";
-import type { OrchestratorSnapshot, ProjectSnapshot, RuntimeStatus } from "../types";
+import {
+  Clapperboard,
+  Gamepad2,
+  Home,
+  Lock,
+  Monitor,
+  Play,
+  Plus,
+  Settings2,
+  Square,
+  Users,
+  X
+} from "lucide-react";
+import type { OrchestratorSnapshot, ProjectSnapshot, ViewId } from "../types";
 
 interface GamesScreenProps {
   snapshot: OrchestratorSnapshot | null;
@@ -7,6 +19,7 @@ interface GamesScreenProps {
   onStart: (id: string) => void;
   onStop: (id: string) => void;
   onSelect: (id: string) => void;
+  onSetView: (view: ViewId) => void;
   onOpenSettings: () => void;
   onClose: () => void;
 }
@@ -17,71 +30,163 @@ export function GamesScreen({
   onStart,
   onStop,
   onSelect,
+  onSetView,
   onOpenSettings,
   onClose
 }: GamesScreenProps) {
   const projects = snapshot?.projects ?? [];
+  const selectedProject = projects.find((project) => project.isSelected) ?? null;
 
   return (
     <div className="games-screen-overlay">
-      <div className="games-panel">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white">Games</h1>
-            <p className="mt-1 text-xs text-white/38">
-              {projects.length === 0
-                ? "No games registered yet"
-                : `${projects.length} game${projects.length !== 1 ? "s" : ""} registered`}
-            </p>
-          </div>
-          <button type="button" className="icon-btn mt-0.5" onClick={onClose} aria-label="Close">
-            <X size={14} />
-          </button>
+      <aside className="games-sidebar" aria-label="Launcher sidebar">
+        <div className="games-brand">
+          <span className="games-brand-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>BLUD</span>
         </div>
 
-        {projects.length > 0 ? (
-          <div className="space-y-2">
-            {projects.map((project) => (
-              <GameRow
-                key={project.id}
-                project={project}
-                busyKey={busyKey}
-                onSelect={onSelect}
-                onStart={onStart}
-                onStop={onStop}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="py-10 text-center">
-            <p className="text-sm text-white/38">No games yet.</p>
-            <button
-              type="button"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-zinc-800/70 px-4 py-2 text-sm text-white/60 transition-colors hover:bg-zinc-700/80 hover:text-white/90"
-              onClick={onOpenSettings}
-            >
-              <Plus size={13} />
-              Add a game
-            </button>
-          </div>
-        )}
-
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-xs text-white/32 transition-colors hover:text-white/56"
+        <div className="games-sidebar-card" role="navigation" aria-label="View switcher">
+          <SidebarButton
+            active
+            disabled={!snapshot}
+            icon={<Home size={14} />}
+            label="Games"
+            subtitle="Launcher"
+            onClick={onClose}
+          />
+          <SidebarButton
+            disabled={!snapshot}
+            icon={<Monitor size={14} />}
+            label="World Studio"
+            subtitle="World editor"
+            onClick={() => onSetView("blob")}
+          />
+          <SidebarButton
+            disabled={!snapshot}
+            icon={<Clapperboard size={14} />}
+            label="Animation Studio"
+            subtitle="Motion editor"
+            onClick={() => onSetView("animation-studio")}
+          />
+          <SidebarButton
+            disabled={!snapshot}
+            icon={<Users size={14} />}
+            label="Character Studio"
+            subtitle="Character editor"
+            onClick={() => onSetView("character-studio")}
+          />
+          <SidebarButton
+            disabled={!snapshot || !selectedProject}
+            icon={<Gamepad2 size={14} />}
+            label={selectedProject?.name ?? "Game"}
+            subtitle="Play mode"
+            onClick={() => onSetView("game")}
+          />
+          <div className="games-sidebar-divider" />
+          <SidebarButton
+            disabled={!snapshot}
+            icon={<Settings2 size={14} />}
+            label="Settings"
+            subtitle="Projects & editors"
             onClick={onOpenSettings}
-          >
-            <Settings2 size={11} />
-            Manage projects & editors
-          </button>
+          />
         </div>
-      </div>
+      </aside>
+
+      <main className="games-panel">
+        <button type="button" className="games-close-btn icon-btn" onClick={onClose} aria-label="Close">
+          <X size={14} />
+        </button>
+
+        <section className="games-hero" aria-labelledby="games-title">
+          <h1 id="games-title">Start building</h1>
+          <p>Open a fresh project, jump into the editor, and keep the rest of your work close by.</p>
+          <button type="button" className="games-hero-cta" onClick={onOpenSettings}>
+            <Plus size={17} />
+            <span>Create a new project</span>
+          </button>
+        </section>
+
+        <section className="games-projects" aria-label="Registered games">
+          <h2>Pick up where you left off.</h2>
+
+          {projects.length > 0 ? (
+            <div className="games-project-grid">
+              {projects.map((project) => (
+                <GameProjectCard
+                  key={project.id}
+                  project={project}
+                  busyKey={busyKey}
+                  onSelect={onSelect}
+                  onStart={onStart}
+                  onStop={onStop}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="games-empty-main">
+              <div className="games-empty-preview">
+                <span className="games-project-status">
+                  <Lock size={13} />
+                  Private
+                </span>
+                <span className="games-project-settings">
+                  <Settings2 size={12} />
+                </span>
+                <span className="games-project-placeholder">No preview</span>
+              </div>
+              <div className="games-empty-copy">
+                <h3>New project</h3>
+                <p>Updated 1w ago</p>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="games-featured" aria-label="Featured projects">
+          <h2>Featured projects</h2>
+        </section>
+      </main>
     </div>
   );
 }
 
-function GameRow({
+function SidebarButton({
+  active = false,
+  disabled,
+  icon,
+  label,
+  subtitle,
+  onClick
+}: {
+  active?: boolean;
+  disabled: boolean;
+  icon: React.ReactNode;
+  label: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`games-sidebar-button ${active ? "games-sidebar-button-active" : ""}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="games-sidebar-button-icon">{icon}</span>
+      <span className="games-sidebar-button-copy">
+        <span>{label}</span>
+        <span>{subtitle}</span>
+      </span>
+    </button>
+  );
+}
+
+function GameProjectCard({
   project,
   busyKey,
   onSelect,
@@ -99,54 +204,47 @@ function GameRow({
   const isStarting = status === "starting";
 
   return (
-    <div className={`games-row ${project.isSelected ? "games-row-selected" : ""}`}>
-      <button
-        type="button"
-        className="min-w-0 flex-1 text-left"
-        onClick={() => onSelect(project.id)}
-      >
-        <div className="flex items-center gap-2.5">
-          <StatusDot status={status} />
-          <span className="text-[13px] font-medium text-white">{project.name}</span>
-        </div>
+    <article className={`games-project-card ${project.isSelected ? "games-project-card-selected" : ""}`}>
+      <button type="button" className="games-project-preview" onClick={() => onSelect(project.id)}>
+        <span className="games-project-status">
+          <Lock size={13} />
+          Private
+        </span>
+        <span className="games-project-settings">
+          <Settings2 size={12} />
+        </span>
+        <span className="games-project-placeholder">No preview</span>
       </button>
 
-      <div className="flex flex-shrink-0 gap-1.5">
-        {isRunning ? (
-          <button
-            type="button"
-            className="icon-btn"
-            title="Stop"
-            onClick={() => onStop(project.id)}
-            disabled={busyKey === `stop:${project.id}`}
-          >
-            <Square size={11} />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="icon-btn"
-            title="Start"
-            onClick={() => onStart(project.id)}
-            disabled={busyKey === `start:${project.id}` || isStarting}
-          >
-            <Play size={11} />
-          </button>
-        )}
+      <div className="games-project-meta">
+        <button type="button" className="games-project-title" onClick={() => onSelect(project.id)}>
+          {project.name}
+        </button>
+
+        <div className="games-project-actions">
+          {isRunning ? (
+            <button
+              type="button"
+              className="icon-btn"
+              title="Stop"
+              onClick={() => onStop(project.id)}
+              disabled={busyKey === `stop:${project.id}`}
+            >
+              <Square size={12} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="icon-btn"
+              title="Start"
+              onClick={() => onStart(project.id)}
+              disabled={busyKey === `start:${project.id}` || isStarting}
+            >
+              <Play size={12} />
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </article>
   );
-}
-
-function StatusDot({ status }: { status: RuntimeStatus }) {
-  const cls =
-    status === "running"
-      ? "bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.55)]"
-      : status === "starting"
-        ? "bg-amber-400"
-        : status === "error"
-          ? "bg-rose-400"
-          : "bg-zinc-600";
-
-  return <span className={`block h-1.5 w-1.5 flex-shrink-0 rounded-full ${cls}`} />;
 }

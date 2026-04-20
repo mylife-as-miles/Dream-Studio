@@ -381,6 +381,7 @@ export function App() {
           onStart={handleStartProject}
           onStop={handleStopProject}
           onSelect={handleSelectProject}
+          onSetView={handleSetView}
           onOpenSettings={handleOpenSettings}
           onClose={() => setGamesOpen(false)}
         />
@@ -425,7 +426,7 @@ export function App() {
       ) : null}
 
       <OrbDock
-        visible={orbVisible}
+        visible={orbVisible && !gamesOpen}
         dockOpen={dockOpen}
         onToggleDock={() => setDockOpen((prev) => !prev)}
         onCloseDock={() => setDockOpen(false)}
