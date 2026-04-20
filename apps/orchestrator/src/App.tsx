@@ -9,11 +9,10 @@ import {
 } from "react";
 
 import { requestJson } from "./api";
-import type { DockMode, Notice, OrchestratorSnapshot, PackageManager, ViewId } from "./types";
+import type { Notice, OrchestratorSnapshot, PackageManager, ViewId } from "./types";
 import { GamesScreen } from "./components/GamesScreen";
 import { GameCopilot } from "./components/GameCopilot";
 import { GameSceneBar } from "./components/GameSceneBar";
-import { OrbDock } from "./components/OrbDock";
 import { SettingsSheet } from "./components/SettingsSheet";
 
 export function App() {
@@ -29,9 +28,7 @@ export function App() {
   const [initializeGit, setInitializeGit] = useState(false);
   const [force, setForce] = useState(false);
 
-  const [orbVisible, setOrbVisible] = useState(true);
   const [gamesOpen, setGamesOpen] = useState(true);
-  const [dockOpen, setDockOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [requestedGameSceneId, setRequestedGameSceneId] = useState<string | null>(null);
   const [gameReloadToken, setGameReloadToken] = useState(0);
@@ -47,17 +44,6 @@ export function App() {
     const interval = window.setInterval(() => void refreshSnapshot(), 2_000);
     return () => window.clearInterval(interval);
   }, [refreshSnapshot]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "." && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOrbVisible((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   const selectedProject = useMemo(
     () => snapshot?.projects.find((p) => p.isSelected) ?? null,
@@ -99,13 +85,7 @@ export function App() {
     }
   }, [activeGameUrl, snapshot?.activeView]);
 
-  const activeDockMode: DockMode = settingsOpen
-    ? "settings"
-    : gamesOpen
-      ? "welcome"
-      : (snapshot?.activeView ?? "welcome");
   const gameCopilotVisible =
-    orbVisible &&
     !gamesOpen &&
     !settingsOpen &&
     snapshot?.activeView === "game" &&
@@ -371,13 +351,8 @@ export function App() {
       {gamesOpen && !settingsOpen ? (
         <GamesScreen
           snapshot={snapshot}
-          busyKey={busyKey}
-          onStart={handleStartProject}
-          onStop={handleStopProject}
-          onSelect={handleSelectProject}
           onSetView={handleSetView}
           onOpenSettings={handleOpenSettings}
-          onClose={() => setGamesOpen(false)}
         />
       ) : null}
 
@@ -419,18 +394,6 @@ export function App() {
         </>
       ) : null}
 
-      <OrbDock
-        visible={orbVisible && !gamesOpen && !settingsOpen}
-        dockOpen={dockOpen}
-        onToggleDock={() => setDockOpen((prev) => !prev)}
-        onCloseDock={() => setDockOpen(false)}
-        activeDockMode={activeDockMode}
-        snapshot={snapshot}
-        selectedProjectName={selectedProject?.name ?? null}
-        onSetView={handleSetView}
-        onOpenSettings={handleOpenSettings}
-        busyKey={busyKey}
-      />
     </div>
   );
 }

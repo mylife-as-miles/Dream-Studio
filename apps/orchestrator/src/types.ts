@@ -1,7 +1,6 @@
 export type PackageManager = "bun" | "npm" | "pnpm" | "yarn";
 export type RuntimeStatus = "stopped" | "starting" | "running" | "error";
 export type ViewId = "blob" | "animation-studio" | "character-studio" | "game";
-export type DockMode = ViewId | "settings" | "welcome";
 
 export type RuntimeSnapshot = {
   commandLabel: string;
