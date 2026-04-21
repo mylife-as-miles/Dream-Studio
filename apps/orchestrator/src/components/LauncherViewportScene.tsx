@@ -139,7 +139,7 @@ export function LauncherViewportScene() {
     const clock = new THREE.Clock();
     let cancelled = false;
 
-    void fetchModelPaths().then((paths) => {
+    void fetchModelPaths().then(async (paths) => {
       if (cancelled) return;
 
       if (paths.length === 0) {
@@ -154,48 +154,48 @@ export function LauncherViewportScene() {
       const totalWidth = (paths.length - 1) * spacing;
       const startX = -totalWidth / 2;
 
-      paths.forEach((modelPath, index) => {
-        loader.load(
-          modelPath,
-          (gltf) => {
-            if (cancelled) return;
+      // Load models one at a time to avoid choking the browser
+      for (let index = 0; index < paths.length; index++) {
+        if (cancelled) return;
+        const modelPath = paths[index];
 
-            const model = gltf.scene;
+        try {
+          const gltf = await loader.loadAsync(modelPath);
+          if (cancelled) return;
 
-            // Normalize model size: fit within a 3-unit bounding box
-            const box = new THREE.Box3().setFromObject(model);
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const scale = maxDim > 0 ? 3 / maxDim : 1;
-            model.scale.setScalar(scale);
+          const model = gltf.scene;
 
-            // Recalculate bounds after scaling and place on the floor
-            box.setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
-            model.position.x = startX + index * spacing - center.x;
-            model.position.y = -box.min.y;
-            model.position.z = -center.z;
+          // Normalize model size: fit within a 3-unit bounding box
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const scale = maxDim > 0 ? 3 / maxDim : 1;
+          model.scale.setScalar(scale);
 
-            scene.add(model);
-            loadedModels.push(model);
+          // Recalculate bounds after scaling and place on the floor
+          box.setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.x = startX + index * spacing - center.x;
+          model.position.y = -box.min.y;
+          model.position.z = -center.z;
 
-            console.info(`[LauncherViewport] Loaded: ${modelPath} (scale=${scale.toFixed(3)})`);
+          scene.add(model);
+          loadedModels.push(model);
 
-            // Play animations if the model has any
-            if (gltf.animations.length > 0) {
-              const mixer = new THREE.AnimationMixer(model);
-              for (const clip of gltf.animations) {
-                mixer.clipAction(clip).play();
-              }
-              mixers.push(mixer);
+          console.info(`[LauncherViewport] Loaded: ${modelPath} (scale=${scale.toFixed(3)})`);
+
+          // Play animations if the model has any
+          if (gltf.animations.length > 0) {
+            const mixer = new THREE.AnimationMixer(model);
+            for (const clip of gltf.animations) {
+              mixer.clipAction(clip).play();
             }
-          },
-          undefined,
-          (error) => {
-            console.warn(`[LauncherViewport] Failed to load ${modelPath}:`, error);
+            mixers.push(mixer);
           }
-        );
-      });
+        } catch (error) {
+          console.warn(`[LauncherViewport] Failed to load ${modelPath}:`, error);
+        }
+      }
     });
 
     // --- Orbit & interaction ---
