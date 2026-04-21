@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Plugin, PreviewServer, ViteDevServer } from "vite";
+import type { Plugin, PreviewServer, ResolvedConfig, ViteDevServer } from "vite";
 import {
   checkCodexAvailability,
   registerOrchestratorCodexWebSocket,
@@ -13,20 +12,23 @@ import { OrchestratorService, type ViewId } from "./orchestrator-service";
 type MiddlewareHost = Pick<ViteDevServer, "middlewares"> | Pick<PreviewServer, "middlewares">;
 
 const services = new Map<string, OrchestratorService>();
-const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function createOrchestratorPlugin(options: { repoRoot: string }): Plugin {
   const service = getService(options.repoRoot);
+  let resolvedRoot = "";
 
   return {
     name: "web-hammer-orchestrator",
+    configResolved(config: ResolvedConfig) {
+      resolvedRoot = config.root;
+    },
     configureServer(server) {
-      registerApi(server, service);
+      registerApi(server, service, () => resolvedRoot);
       registerOrchestratorCodexWebSocket(server, service);
       void service.initialize();
     },
     configurePreviewServer(server) {
-      registerApi(server, service);
+      registerApi(server, service, () => resolvedRoot);
       void service.initialize();
     }
   };
@@ -44,7 +46,7 @@ function getService(repoRoot: string) {
   return next;
 }
 
-function registerApi(server: MiddlewareHost, service: OrchestratorService) {
+function registerApi(server: MiddlewareHost, service: OrchestratorService, getRoot: () => string) {
   server.middlewares.use(async (req, res, next) => {
     const pathname = req.url?.split("?")[0];
 
@@ -59,7 +61,7 @@ function registerApi(server: MiddlewareHost, service: OrchestratorService) {
       }
 
       if (req.method === "GET" && pathname === "/api/orchestrator/models") {
-        const modelsDir = path.resolve(pluginRoot, "public/models");
+        const modelsDir = path.resolve(getRoot(), "public/models");
         let files: string[] = [];
         try {
           const entries = fs.readdirSync(modelsDir);

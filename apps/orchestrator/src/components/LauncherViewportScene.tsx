@@ -6,14 +6,38 @@ const CAMERA_RADIUS = 15;
 const MIN_POLAR = 0.86;
 const MAX_POLAR = 1.32;
 
+/**
+ * Discover model files by probing known paths from the API,
+ * falling back to a HEAD-request scan of common extensions.
+ */
 async function fetchModelPaths(): Promise<string[]> {
+  // Try the server API first
   try {
     const response = await fetch("/api/orchestrator/models");
-    const data = (await response.json()) as { models?: string[] };
-    return data.models ?? [];
+    if (response.ok) {
+      const data = (await response.json()) as { models?: string[] };
+      if (data.models && data.models.length > 0) {
+        return data.models;
+      }
+    }
   } catch {
-    return [];
+    // API not available, fall through
   }
+
+  // Fallback: try to fetch a manifest file from public/models/
+  try {
+    const response = await fetch("/models/manifest.json");
+    if (response.ok) {
+      const data = (await response.json()) as { models?: string[] };
+      if (data.models && data.models.length > 0) {
+        return data.models;
+      }
+    }
+  } catch {
+    // No manifest either
+  }
+
+  return [];
 }
 
 export function LauncherViewportScene() {
@@ -37,24 +61,31 @@ export function LauncherViewportScene() {
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x06070c, 9, 29);
+    // Push fog far enough so models near origin are fully visible
+    scene.fog = new THREE.Fog(0x06070c, 20, 40);
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 90);
     const target = new THREE.Vector3(0, 0, 0);
 
-    // --- Lighting for loaded models ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xc8d0ff, 1.2);
+    const directionalLight = new THREE.DirectionalLight(0xc8d0ff, 1.5);
     directionalLight.position.set(5, 10, 7);
     scene.add(directionalLight);
 
-    const fillLight = new THREE.DirectionalLight(0x6a5cff, 0.3);
+    const fillLight = new THREE.DirectionalLight(0x6a5cff, 0.4);
     fillLight.position.set(-5, 3, -5);
     scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    rimLight.position.set(0, 5, -10);
+    scene.add(rimLight);
 
     // --- Floor & grids ---
     const floor = new THREE.Mesh(
@@ -109,7 +140,14 @@ export function LauncherViewportScene() {
     let cancelled = false;
 
     void fetchModelPaths().then((paths) => {
-      if (cancelled || paths.length === 0) return;
+      if (cancelled) return;
+
+      if (paths.length === 0) {
+        console.info("[LauncherViewport] No models found in /models/");
+        return;
+      }
+
+      console.info("[LauncherViewport] Loading models:", paths);
 
       const loader = new GLTFLoader();
       const spacing = 4;
@@ -141,6 +179,8 @@ export function LauncherViewportScene() {
             scene.add(model);
             loadedModels.push(model);
 
+            console.info(`[LauncherViewport] Loaded: ${modelPath} (scale=${scale.toFixed(3)})`);
+
             // Play animations if the model has any
             if (gltf.animations.length > 0) {
               const mixer = new THREE.AnimationMixer(model);
@@ -152,7 +192,7 @@ export function LauncherViewportScene() {
           },
           undefined,
           (error) => {
-            console.warn(`Failed to load model ${modelPath}:`, error);
+            console.warn(`[LauncherViewport] Failed to load ${modelPath}:`, error);
           }
         );
       });
@@ -263,7 +303,6 @@ export function LauncherViewportScene() {
       canvasElement.removeEventListener("pointerup", onPointerUp);
       canvasElement.removeEventListener("pointercancel", onPointerUp);
 
-      // Dispose loaded models
       for (const model of loadedModels) {
         scene.remove(model);
         model.traverse((child) => {
@@ -278,7 +317,6 @@ export function LauncherViewportScene() {
         });
       }
 
-      // Stop animation mixers
       for (const mixer of mixers) {
         mixer.stopAllAction();
       }
@@ -298,6 +336,7 @@ export function LauncherViewportScene() {
       ambientLight.dispose();
       directionalLight.dispose();
       fillLight.dispose();
+      rimLight.dispose();
       renderer.dispose();
     };
   }, []);
