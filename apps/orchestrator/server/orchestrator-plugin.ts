@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin, PreviewServer, ViteDevServer } from "vite";
 import {
@@ -10,6 +13,7 @@ import { OrchestratorService, type ViewId } from "./orchestrator-service";
 type MiddlewareHost = Pick<ViteDevServer, "middlewares"> | Pick<PreviewServer, "middlewares">;
 
 const services = new Map<string, OrchestratorService>();
+const pluginRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export function createOrchestratorPlugin(options: { repoRoot: string }): Plugin {
   const service = getService(options.repoRoot);
@@ -52,6 +56,18 @@ function registerApi(server: MiddlewareHost, service: OrchestratorService) {
     try {
       if (req.method === "GET" && pathname === "/api/orchestrator/state") {
         return sendJson(res, 200, await service.getSnapshot());
+      }
+
+      if (req.method === "GET" && pathname === "/api/orchestrator/models") {
+        const modelsDir = path.resolve(pluginRoot, "public/models");
+        let files: string[] = [];
+        try {
+          const entries = fs.readdirSync(modelsDir);
+          files = entries.filter((f) => /\.(glb|gltf)$/i.test(f));
+        } catch {
+          // directory may not exist yet
+        }
+        return sendJson(res, 200, { models: files.map((f) => `/models/${f}`) });
       }
 
       if (req.method === "GET" && pathname === "/api/orchestrator/codex/status") {

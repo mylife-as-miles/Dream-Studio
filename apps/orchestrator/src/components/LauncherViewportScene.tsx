@@ -1,9 +1,20 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const CAMERA_RADIUS = 15;
 const MIN_POLAR = 0.86;
 const MAX_POLAR = 1.32;
+
+async function fetchModelPaths(): Promise<string[]> {
+  try {
+    const response = await fetch("/api/orchestrator/models");
+    const data = (await response.json()) as { models?: string[] };
+    return data.models ?? [];
+  } catch {
+    return [];
+  }
+}
 
 export function LauncherViewportScene() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -33,6 +44,19 @@ export function LauncherViewportScene() {
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 90);
     const target = new THREE.Vector3(0, 0, 0);
 
+    // --- Lighting for loaded models ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xc8d0ff, 1.2);
+    directionalLight.position.set(5, 10, 7);
+    scene.add(directionalLight);
+
+    const fillLight = new THREE.DirectionalLight(0x6a5cff, 0.3);
+    fillLight.position.set(-5, 3, -5);
+    scene.add(fillLight);
+
+    // --- Floor & grids ---
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(58, 58),
       new THREE.MeshBasicMaterial({
@@ -78,6 +102,63 @@ export function LauncherViewportScene() {
     horizon.position.set(0, 0.18, -17);
     scene.add(horizon);
 
+    // --- Load models from public/models/ ---
+    const loadedModels: THREE.Object3D[] = [];
+    const mixers: THREE.AnimationMixer[] = [];
+    const clock = new THREE.Clock();
+    let cancelled = false;
+
+    void fetchModelPaths().then((paths) => {
+      if (cancelled || paths.length === 0) return;
+
+      const loader = new GLTFLoader();
+      const spacing = 4;
+      const totalWidth = (paths.length - 1) * spacing;
+      const startX = -totalWidth / 2;
+
+      paths.forEach((modelPath, index) => {
+        loader.load(
+          modelPath,
+          (gltf) => {
+            if (cancelled) return;
+
+            const model = gltf.scene;
+
+            // Normalize model size: fit within a 3-unit bounding box
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = maxDim > 0 ? 3 / maxDim : 1;
+            model.scale.setScalar(scale);
+
+            // Recalculate bounds after scaling and place on the floor
+            box.setFromObject(model);
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.x = startX + index * spacing - center.x;
+            model.position.y = -box.min.y;
+            model.position.z = -center.z;
+
+            scene.add(model);
+            loadedModels.push(model);
+
+            // Play animations if the model has any
+            if (gltf.animations.length > 0) {
+              const mixer = new THREE.AnimationMixer(model);
+              for (const clip of gltf.animations) {
+                mixer.clipAction(clip).play();
+              }
+              mixers.push(mixer);
+            }
+          },
+          undefined,
+          (error) => {
+            console.warn(`Failed to load model ${modelPath}:`, error);
+          }
+        );
+      });
+    });
+
+    // --- Orbit & interaction ---
     const pointer = {
       active: false,
       lastX: 0,
@@ -115,8 +196,15 @@ export function LauncherViewportScene() {
     let animationFrame = 0;
     const render = () => {
       frame += 1;
+      const delta = clock.getDelta();
+
       if (!pointer.active) {
         orbit.targetTheta += 0.00055;
+      }
+
+      // Update animation mixers
+      for (const mixer of mixers) {
+        mixer.update(delta);
       }
 
       floor.material.opacity = 0.82 + Math.sin(frame * 0.012) * 0.02;
@@ -167,12 +255,34 @@ export function LauncherViewportScene() {
     render();
 
     return () => {
+      cancelled = true;
       window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       canvasElement.removeEventListener("pointerdown", onPointerDown);
       canvasElement.removeEventListener("pointermove", onPointerMove);
       canvasElement.removeEventListener("pointerup", onPointerUp);
       canvasElement.removeEventListener("pointercancel", onPointerUp);
+
+      // Dispose loaded models
+      for (const model of loadedModels) {
+        scene.remove(model);
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+              for (const mat of child.material) mat.dispose();
+            } else {
+              child.material.dispose();
+            }
+          }
+        });
+      }
+
+      // Stop animation mixers
+      for (const mixer of mixers) {
+        mixer.stopAllAction();
+      }
+
       floor.geometry.dispose();
       floor.material.dispose();
       grid.geometry.dispose();
@@ -185,6 +295,9 @@ export function LauncherViewportScene() {
       }
       horizon.geometry.dispose();
       horizon.material.dispose();
+      ambientLight.dispose();
+      directionalLight.dispose();
+      fillLight.dispose();
       renderer.dispose();
     };
   }, []);
