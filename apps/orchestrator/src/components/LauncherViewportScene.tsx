@@ -50,21 +50,21 @@ export function LauncherViewportScene() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 1.4;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x06070c, 20, 40);
+    scene.fog = new THREE.Fog(0x06070c, 35, 60);
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 90);
     const target = new THREE.Vector3(0, 0, 0);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xc8d0ff, 1.5);
+    const directionalLight = new THREE.DirectionalLight(0xc8d0ff, 2.5);
     directionalLight.position.set(5, 10, 7);
     scene.add(directionalLight);
-    const fillLight = new THREE.DirectionalLight(0x6a5cff, 0.4);
+    const fillLight = new THREE.DirectionalLight(0x6a5cff, 1.0);
     fillLight.position.set(-5, 3, -5);
     scene.add(fillLight);
 
@@ -119,11 +119,11 @@ export function LauncherViewportScene() {
 
           const model = gltf.scene;
 
-          // Fit model within a 3-unit bounding box
+          // Fit model within a 5-unit bounding box
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = maxDim > 0 ? 3 / maxDim : 1;
+          const scale = maxDim > 0 ? 5 / maxDim : 1;
           model.scale.setScalar(scale);
 
           // Place on floor at origin
