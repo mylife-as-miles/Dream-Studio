@@ -6,38 +6,27 @@ const CAMERA_RADIUS = 15;
 const MIN_POLAR = 0.86;
 const MAX_POLAR = 1.32;
 
-/**
- * Discover model files by probing known paths from the API,
- * falling back to a HEAD-request scan of common extensions.
- */
-async function fetchModelPaths(): Promise<string[]> {
-  // Try the server API first
+/** Load the manifest and pick one random model to display. */
+async function pickOneModel(): Promise<string | null> {
   try {
-    const response = await fetch("/api/orchestrator/models");
-    if (response.ok) {
-      const data = (await response.json()) as { models?: string[] };
-      if (data.models && data.models.length > 0) {
-        return data.models;
-      }
+    const res = await fetch("/api/orchestrator/models");
+    if (res.ok) {
+      const data = (await res.json()) as { models?: string[] };
+      const list = data.models ?? [];
+      if (list.length > 0) return list[Math.floor(Math.random() * list.length)];
     }
-  } catch {
-    // API not available, fall through
-  }
+  } catch { /* ignore */ }
 
-  // Fallback: try to fetch a manifest file from public/models/
   try {
-    const response = await fetch("/models/manifest.json");
-    if (response.ok) {
-      const data = (await response.json()) as { models?: string[] };
-      if (data.models && data.models.length > 0) {
-        return data.models;
-      }
+    const res = await fetch("/models/manifest.json");
+    if (res.ok) {
+      const data = (await res.json()) as { models?: string[] };
+      const list = data.models ?? [];
+      if (list.length > 0) return list[Math.floor(Math.random() * list.length)];
     }
-  } catch {
-    // No manifest either
-  }
+  } catch { /* ignore */ }
 
-  return [];
+  return null;
 }
 
 export function LauncherViewportScene() {
@@ -46,7 +35,6 @@ export function LauncherViewportScene() {
   useEffect(() => {
     const maybeCanvas = canvasRef.current;
     const maybeParent = maybeCanvas?.parentElement;
-
     if (!maybeCanvas || !maybeParent) return;
 
     const canvasElement = maybeCanvas as HTMLCanvasElement;
@@ -65,36 +53,26 @@ export function LauncherViewportScene() {
     renderer.toneMappingExposure = 1.0;
 
     const scene = new THREE.Scene();
-    // Push fog far enough so models near origin are fully visible
     scene.fog = new THREE.Fog(0x06070c, 20, 40);
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 90);
     const target = new THREE.Vector3(0, 0, 0);
 
-    // --- Lighting ---
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
-
     const directionalLight = new THREE.DirectionalLight(0xc8d0ff, 1.5);
     directionalLight.position.set(5, 10, 7);
     scene.add(directionalLight);
-
     const fillLight = new THREE.DirectionalLight(0x6a5cff, 0.4);
     fillLight.position.set(-5, 3, -5);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    rimLight.position.set(0, 5, -10);
-    scene.add(rimLight);
-
-    // --- Floor & grids ---
+    // Floor & grids
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(58, 58),
       new THREE.MeshBasicMaterial({
-        color: 0x070911,
-        opacity: 0.86,
-        side: THREE.DoubleSide,
-        transparent: true
+        color: 0x070911, opacity: 0.86, side: THREE.DoubleSide, transparent: true
       })
     );
     floor.rotation.x = -Math.PI / 2;
@@ -104,126 +82,86 @@ export function LauncherViewportScene() {
     const grid = new THREE.GridHelper(58, 58, 0x3b3f51, 0x1c202c);
     grid.position.y = 0.01;
     const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
-    for (const material of gridMaterials) {
-      material.transparent = true;
-      material.opacity = 0.32;
-      material.depthWrite = false;
-    }
+    for (const m of gridMaterials) { m.transparent = true; m.opacity = 0.32; m.depthWrite = false; }
     scene.add(grid);
 
     const nearGrid = new THREE.GridHelper(14, 14, 0x6a5cff, 0x272b3a);
     nearGrid.position.y = 0.018;
     nearGrid.position.z = 4.5;
-    const nearGridMaterials = Array.isArray(nearGrid.material) ? nearGrid.material : [nearGrid.material];
-    for (const material of nearGridMaterials) {
-      material.transparent = true;
-      material.opacity = 0.15;
-      material.depthWrite = false;
-    }
+    const nearGridMats = Array.isArray(nearGrid.material) ? nearGrid.material : [nearGrid.material];
+    for (const m of nearGridMats) { m.transparent = true; m.opacity = 0.15; m.depthWrite = false; }
     scene.add(nearGrid);
 
     const horizon = new THREE.Mesh(
       new THREE.PlaneGeometry(60, 2.5),
-      new THREE.MeshBasicMaterial({
-        color: 0x161927,
-        opacity: 0.16,
-        transparent: true
-      })
+      new THREE.MeshBasicMaterial({ color: 0x161927, opacity: 0.16, transparent: true })
     );
     horizon.position.set(0, 0.18, -17);
     scene.add(horizon);
 
-    // --- Load models from public/models/ ---
-    const loadedModels: THREE.Object3D[] = [];
-    const mixers: THREE.AnimationMixer[] = [];
+    // --- Single showcase model (loaded lazily after first paint) ---
+    let loadedModel: THREE.Object3D | null = null;
+    let mixer: THREE.AnimationMixer | null = null;
     const clock = new THREE.Clock();
     let cancelled = false;
 
-    void fetchModelPaths().then(async (paths) => {
+    // Defer model loading so the scene renders immediately
+    const loadTimeout = window.setTimeout(() => {
       if (cancelled) return;
 
-      if (paths.length === 0) {
-        console.info("[LauncherViewport] No models found in /models/");
-        return;
-      }
-
-      console.info("[LauncherViewport] Loading models:", paths);
-
-      const loader = new GLTFLoader();
-      const spacing = 4;
-      const totalWidth = (paths.length - 1) * spacing;
-      const startX = -totalWidth / 2;
-
-      // Load models one at a time to avoid choking the browser
-      for (let index = 0; index < paths.length; index++) {
-        if (cancelled) return;
-        const modelPath = paths[index];
+      void pickOneModel().then(async (modelPath) => {
+        if (cancelled || !modelPath) return;
 
         try {
+          const loader = new GLTFLoader();
           const gltf = await loader.loadAsync(modelPath);
           if (cancelled) return;
 
           const model = gltf.scene;
 
-          // Normalize model size: fit within a 3-unit bounding box
+          // Fit model within a 3-unit bounding box
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
           const scale = maxDim > 0 ? 3 / maxDim : 1;
           model.scale.setScalar(scale);
 
-          // Recalculate bounds after scaling and place on the floor
+          // Place on floor at origin
           box.setFromObject(model);
           const center = box.getCenter(new THREE.Vector3());
-          model.position.x = startX + index * spacing - center.x;
-          model.position.y = -box.min.y;
-          model.position.z = -center.z;
+          model.position.set(-center.x, -box.min.y, -center.z);
 
           scene.add(model);
-          loadedModels.push(model);
+          loadedModel = model;
 
-          console.info(`[LauncherViewport] Loaded: ${modelPath} (scale=${scale.toFixed(3)})`);
-
-          // Play animations if the model has any
           if (gltf.animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(model);
+            mixer = new THREE.AnimationMixer(model);
             for (const clip of gltf.animations) {
               mixer.clipAction(clip).play();
             }
-            mixers.push(mixer);
           }
-        } catch (error) {
-          console.warn(`[LauncherViewport] Failed to load ${modelPath}:`, error);
+        } catch (err) {
+          console.warn("[LauncherViewport] Failed to load model:", err);
         }
-      }
-    });
+      });
+    }, 500); // 500ms delay so the grid renders first
 
-    // --- Orbit & interaction ---
-    const pointer = {
-      active: false,
-      lastX: 0,
-      lastY: 0
-    };
-    const orbit = {
-      polar: 1.08,
-      targetPolar: 1.08,
-      targetTheta: 0,
-      theta: 0
-    };
+    // --- Orbit & render loop ---
+    const pointer = { active: false, lastX: 0, lastY: 0 };
+    const orbit = { polar: 1.08, targetPolar: 1.08, targetTheta: 0, theta: 0 };
 
     function updateSize() {
       const rect = parentElement.getBoundingClientRect();
-      const width = Math.max(1, Math.floor(rect.width));
-      const height = Math.max(1, Math.floor(rect.height));
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
 
     function placeCamera() {
       orbit.theta = THREE.MathUtils.lerp(orbit.theta, orbit.targetTheta, 0.08);
       orbit.polar = THREE.MathUtils.lerp(orbit.polar, orbit.targetPolar, 0.08);
-
       camera.position.set(
         Math.sin(orbit.theta) * Math.sin(orbit.polar) * CAMERA_RADIUS,
         Math.cos(orbit.polar) * CAMERA_RADIUS + 1.8,
@@ -237,50 +175,27 @@ export function LauncherViewportScene() {
     const render = () => {
       frame += 1;
       const delta = clock.getDelta();
-
-      if (!pointer.active) {
-        orbit.targetTheta += 0.00055;
-      }
-
-      // Update animation mixers
-      for (const mixer of mixers) {
-        mixer.update(delta);
-      }
-
+      if (!pointer.active) orbit.targetTheta += 0.00055;
+      if (mixer) mixer.update(delta);
       floor.material.opacity = 0.82 + Math.sin(frame * 0.012) * 0.02;
       placeCamera();
       renderer.render(scene, camera);
       animationFrame = window.requestAnimationFrame(render);
     };
 
-    function onPointerDown(event: PointerEvent) {
-      pointer.active = true;
-      pointer.lastX = event.clientX;
-      pointer.lastY = event.clientY;
-      canvasElement.setPointerCapture(event.pointerId);
+    function onPointerDown(e: PointerEvent) {
+      pointer.active = true; pointer.lastX = e.clientX; pointer.lastY = e.clientY;
+      canvasElement.setPointerCapture(e.pointerId);
     }
-
-    function onPointerMove(event: PointerEvent) {
+    function onPointerMove(e: PointerEvent) {
       if (!pointer.active) return;
-
-      const deltaX = event.clientX - pointer.lastX;
-      const deltaY = event.clientY - pointer.lastY;
-      pointer.lastX = event.clientX;
-      pointer.lastY = event.clientY;
-
-      orbit.targetTheta -= deltaX * 0.006;
-      orbit.targetPolar = THREE.MathUtils.clamp(
-        orbit.targetPolar + deltaY * 0.004,
-        MIN_POLAR,
-        MAX_POLAR
-      );
+      orbit.targetTheta -= (e.clientX - pointer.lastX) * 0.006;
+      orbit.targetPolar = THREE.MathUtils.clamp(orbit.targetPolar + (e.clientY - pointer.lastY) * 0.004, MIN_POLAR, MAX_POLAR);
+      pointer.lastX = e.clientX; pointer.lastY = e.clientY;
     }
-
-    function onPointerUp(event: PointerEvent) {
+    function onPointerUp(e: PointerEvent) {
       pointer.active = false;
-      if (canvasElement.hasPointerCapture(event.pointerId)) {
-        canvasElement.releasePointerCapture(event.pointerId);
-      }
+      if (canvasElement.hasPointerCapture(e.pointerId)) canvasElement.releasePointerCapture(e.pointerId);
     }
 
     const resizeObserver = new ResizeObserver(updateSize);
@@ -296,6 +211,7 @@ export function LauncherViewportScene() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(loadTimeout);
       window.cancelAnimationFrame(animationFrame);
       resizeObserver.disconnect();
       canvasElement.removeEventListener("pointerdown", onPointerDown);
@@ -303,9 +219,9 @@ export function LauncherViewportScene() {
       canvasElement.removeEventListener("pointerup", onPointerUp);
       canvasElement.removeEventListener("pointercancel", onPointerUp);
 
-      for (const model of loadedModels) {
-        scene.remove(model);
-        model.traverse((child) => {
+      if (loadedModel) {
+        scene.remove(loadedModel);
+        loadedModel.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.geometry.dispose();
             if (Array.isArray(child.material)) {
@@ -316,27 +232,13 @@ export function LauncherViewportScene() {
           }
         });
       }
+      if (mixer) mixer.stopAllAction();
 
-      for (const mixer of mixers) {
-        mixer.stopAllAction();
-      }
-
-      floor.geometry.dispose();
-      floor.material.dispose();
-      grid.geometry.dispose();
-      for (const material of gridMaterials) {
-        material.dispose();
-      }
-      nearGrid.geometry.dispose();
-      for (const material of nearGridMaterials) {
-        material.dispose();
-      }
-      horizon.geometry.dispose();
-      horizon.material.dispose();
-      ambientLight.dispose();
-      directionalLight.dispose();
-      fillLight.dispose();
-      rimLight.dispose();
+      floor.geometry.dispose(); floor.material.dispose();
+      grid.geometry.dispose(); for (const m of gridMaterials) m.dispose();
+      nearGrid.geometry.dispose(); for (const m of nearGridMats) m.dispose();
+      horizon.geometry.dispose(); horizon.material.dispose();
+      ambientLight.dispose(); directionalLight.dispose(); fillLight.dispose();
       renderer.dispose();
     };
   }, []);
