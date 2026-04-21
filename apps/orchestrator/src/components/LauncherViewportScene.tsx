@@ -109,20 +109,29 @@ export function LauncherViewportScene() {
 
           const model = gltf.scene;
 
-          // Fit model within a 5-unit bounding box
-          const box = new THREE.Box3().setFromObject(model);
+          // Wrap in a group so we can normalize transforms cleanly
+          const wrapper = new THREE.Group();
+          wrapper.add(model);
+
+          // Measure original bounds
+          const box = new THREE.Box3().setFromObject(wrapper);
           const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+
+          // Scale to fit within 5 units tall
           const maxDim = Math.max(size.x, size.y, size.z);
           const scale = maxDim > 0 ? 5 / maxDim : 1;
-          model.scale.setScalar(scale);
+          wrapper.scale.setScalar(scale);
 
-          // Place on floor at origin
-          box.setFromObject(model);
-          const center = box.getCenter(new THREE.Vector3());
-          model.position.set(-center.x, -box.min.y, -center.z);
+          // Center horizontally and place feet on the floor
+          wrapper.position.set(
+            -center.x * scale,
+            -box.min.y * scale,
+            -center.z * scale
+          );
 
-          scene.add(model);
-          loadedModel = model;
+          scene.add(wrapper);
+          loadedModel = wrapper;
 
           if (gltf.animations.length > 0) {
             mixer = new THREE.AnimationMixer(model);
