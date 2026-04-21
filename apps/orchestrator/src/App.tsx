@@ -34,13 +34,18 @@ export function App() {
   const [gameReloadToken, setGameReloadToken] = useState(0);
   const [gameSceneLoading, setGameSceneLoading] = useState(false);
 
+  const backendAvailable = useRef(true);
+
   const refreshSnapshot = useEffectEvent(async () => {
+    if (!backendAvailable.current) return;
+
     try {
       const next = await requestJson<OrchestratorSnapshot>("/api/orchestrator/state");
       startTransition(() => setSnapshot(next));
     } catch {
       // Backend not available (e.g. static Vercel deployment).
-      // Provide a fallback snapshot so the launcher UI still renders.
+      // Stop polling and provide a fallback snapshot so the launcher UI still renders.
+      backendAvailable.current = false;
       startTransition(() =>
         setSnapshot((prev) =>
           prev ?? {
@@ -120,6 +125,10 @@ export function App() {
   };
 
   const runAction = useEffectEvent(async <T,>(busyLabel: string, action: () => Promise<T>) => {
+    if (!backendAvailable.current) {
+      setNotice({ kind: "error", text: "Backend not available. Running in static mode." });
+      return undefined as T;
+    }
     setBusyKey(busyLabel);
     setNotice(null);
     try {
