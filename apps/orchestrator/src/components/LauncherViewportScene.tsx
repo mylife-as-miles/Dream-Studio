@@ -9,15 +9,6 @@ const MAX_POLAR = 1.32;
 /** Load the manifest and pick one random model to display. */
 async function pickOneModel(): Promise<string | null> {
   try {
-    const res = await fetch("/api/orchestrator/models");
-    if (res.ok) {
-      const data = (await res.json()) as { models?: string[] };
-      const list = data.models ?? [];
-      if (list.length > 0) return list[Math.floor(Math.random() * list.length)];
-    }
-  } catch { /* ignore */ }
-
-  try {
     const res = await fetch("/models/manifest.json");
     if (res.ok) {
       const data = (await res.json()) as { models?: string[] };
@@ -53,7 +44,6 @@ export function LauncherViewportScene() {
     renderer.toneMappingExposure = 1.4;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x06070c, 35, 60);
 
     const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 90);
     const target = new THREE.Vector3(0, 0, 0);

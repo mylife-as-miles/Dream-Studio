@@ -1,7 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Plugin, PreviewServer, ResolvedConfig, ViteDevServer } from "vite";
+import type { Plugin, PreviewServer, ViteDevServer } from "vite";
 import {
   checkCodexAvailability,
   registerOrchestratorCodexWebSocket,
@@ -15,20 +13,16 @@ const services = new Map<string, OrchestratorService>();
 
 export function createOrchestratorPlugin(options: { repoRoot: string }): Plugin {
   const service = getService(options.repoRoot);
-  let resolvedRoot = "";
 
   return {
     name: "web-hammer-orchestrator",
-    configResolved(config: ResolvedConfig) {
-      resolvedRoot = config.root;
-    },
     configureServer(server) {
-      registerApi(server, service, () => resolvedRoot);
+      registerApi(server, service);
       registerOrchestratorCodexWebSocket(server, service);
       void service.initialize();
     },
     configurePreviewServer(server) {
-      registerApi(server, service, () => resolvedRoot);
+      registerApi(server, service);
       void service.initialize();
     }
   };
@@ -46,7 +40,7 @@ function getService(repoRoot: string) {
   return next;
 }
 
-function registerApi(server: MiddlewareHost, service: OrchestratorService, getRoot: () => string) {
+function registerApi(server: MiddlewareHost, service: OrchestratorService) {
   server.middlewares.use(async (req, res, next) => {
     const pathname = req.url?.split("?")[0];
 
@@ -58,18 +52,6 @@ function registerApi(server: MiddlewareHost, service: OrchestratorService, getRo
     try {
       if (req.method === "GET" && pathname === "/api/orchestrator/state") {
         return sendJson(res, 200, await service.getSnapshot());
-      }
-
-      if (req.method === "GET" && pathname === "/api/orchestrator/models") {
-        const modelsDir = path.resolve(getRoot(), "public/models");
-        let files: string[] = [];
-        try {
-          const entries = fs.readdirSync(modelsDir);
-          files = entries.filter((f) => /\.(glb|gltf)$/i.test(f));
-        } catch {
-          // directory may not exist yet
-        }
-        return sendJson(res, 200, { models: files.map((f) => `/models/${f}`) });
       }
 
       if (req.method === "GET" && pathname === "/api/orchestrator/codex/status") {
