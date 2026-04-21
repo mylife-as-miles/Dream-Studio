@@ -13,7 +13,7 @@ import { OrchestratorService, type ViewId } from "./orchestrator-service";
 type MiddlewareHost = Pick<ViteDevServer, "middlewares"> | Pick<PreviewServer, "middlewares">;
 
 const services = new Map<string, OrchestratorService>();
-const pluginRoot = path.dirname(fileURLToPath(import.meta.url));
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export function createOrchestratorPlugin(options: { repoRoot: string }): Plugin {
   const service = getService(options.repoRoot);
