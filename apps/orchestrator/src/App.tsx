@@ -126,8 +126,7 @@ export function App() {
 
   const runAction = useEffectEvent(async <T,>(busyLabel: string, action: () => Promise<T>) => {
     if (!backendAvailable.current) {
-      setNotice({ kind: "error", text: "Backend not available. Running in static mode." });
-      return undefined as T;
+      throw new Error("Backend not available. Running in static mode.");
     }
     setBusyKey(busyLabel);
     setNotice(null);
