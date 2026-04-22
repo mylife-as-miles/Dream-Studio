@@ -64,7 +64,7 @@ export function CopilotPanel({
   const [input, setInput] = useState("");
   const [attachedImages, setAttachedImages] = useState<CopilotImageAttachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isActive = session.status === "thinking" || session.status === "executing";
 
@@ -103,6 +103,9 @@ export function CopilotPanel({
     const images = attachedImages.length > 0 ? [...attachedImages] : undefined;
     setInput("");
     setAttachedImages([]);
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
     onSendMessage(trimmed || "What do you see in this image?", images);
   };
 
@@ -285,11 +288,16 @@ export function CopilotPanel({
           >
             <Paperclip className="size-3.5" />
           </button>
-          <Input
+          <textarea
             autoFocus
-            className="h-9 flex-1 rounded-xl border-white/10 bg-white/[0.045] text-xs"
+            className="max-h-32 min-h-9 flex-1 resize-none rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-xs text-foreground placeholder:text-foreground/36 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isActive || !isConfigured}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              setInput(event.target.value);
+              const el = event.target;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -299,6 +307,7 @@ export function CopilotPanel({
             onPaste={handlePaste}
             placeholder={isConfigured ? "Describe what to build..." : "Set up API key first"}
             ref={inputRef}
+            rows={1}
             value={input}
           />
           {isActive ? (

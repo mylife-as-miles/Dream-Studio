@@ -16,6 +16,7 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<CopilotSettings>(loadCopilotSettings);
   const [showKey, setShowKey] = useState(false);
+  const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
 
   const handleSave = () => {
     saveCopilotSettings({ ...settings, provider: "gemini" });
@@ -103,6 +104,32 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
               <span>Precise</span>
               <span>Creative</span>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
+              ElevenLabs API Key
+            </label>
+            <div className="relative">
+              <Input
+                className="h-10 rounded-xl border-white/10 bg-white/[0.045] pr-10 text-sm font-mono"
+                onChange={(e) => setSettings({ ...settings, elevenlabsApiKey: e.target.value })}
+                placeholder="Enter your ElevenLabs API key"
+                type={showElevenLabsKey ? "text" : "password"}
+                value={settings.elevenlabsApiKey}
+              />
+              <Button
+                className="absolute right-1 top-1 size-8 rounded-lg text-foreground/48"
+                onClick={() => setShowElevenLabsKey(!showElevenLabsKey)}
+                size="icon-sm"
+                variant="ghost"
+              >
+                {showElevenLabsKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </Button>
+            </div>
+            <p className="text-[10px] text-foreground/36">
+              Used for voice and audio features. Stored locally in your browser.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

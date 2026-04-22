@@ -13,6 +13,7 @@ export type CopilotSettings = {
   gemini: { apiKey: string; model: GeminiModelId };
   codex: { model: CodexModelId };
   temperature: number;
+  elevenlabsApiKey: string;
 };
 
 // ── Messages ──────────────────────────────────────────────────

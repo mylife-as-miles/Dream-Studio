@@ -9,7 +9,8 @@ const DEFAULT_SETTINGS: CopilotSettings = {
   provider: "codex",
   gemini: { apiKey: "", model: "gemini-3-flash-preview" },
   codex: { model: "gpt-5.4" },
-  temperature: 0.3
+  temperature: 0.3,
+  elevenlabsApiKey: ""
 };
 
 export function loadCopilotSettings(): CopilotSettings {
@@ -28,7 +29,8 @@ export function loadCopilotSettings(): CopilotSettings {
           model: isGeminiModel(parsed.model) ? parsed.model : DEFAULT_SETTINGS.gemini.model
         },
         codex: { ...DEFAULT_SETTINGS.codex },
-        temperature: validTemperature(parsed.temperature)
+        temperature: validTemperature(parsed.temperature),
+        elevenlabsApiKey: typeof parsed.elevenlabsApiKey === "string" ? parsed.elevenlabsApiKey : ""
       };
     }
 
@@ -42,7 +44,8 @@ export function loadCopilotSettings(): CopilotSettings {
       codex: {
         model: isCodexModel(parsed.codex?.model) ? parsed.codex.model : DEFAULT_SETTINGS.codex.model
       },
-      temperature: validTemperature(parsed.temperature)
+      temperature: validTemperature(parsed.temperature),
+      elevenlabsApiKey: typeof parsed.elevenlabsApiKey === "string" ? parsed.elevenlabsApiKey : ""
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
