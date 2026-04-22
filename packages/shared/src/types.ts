@@ -33,6 +33,16 @@ export type SkateparkElementType =
   | "hip"
   | "hubba-ledge";
 
+export type ArchitectureElementType =
+  | "wall"
+  | "slab"
+  | "ceiling"
+  | "roof"
+  | "zone"
+  | "item"
+  | "guide"
+  | "scan";
+
 export type Vec3 = {
   x: number;
   y: number;
