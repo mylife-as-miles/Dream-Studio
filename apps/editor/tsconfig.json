@@ -13,6 +13,7 @@
       "@blud/anim-schema": ["packages/anim-schema/src/index.ts"],
       "@blud/anim-three": ["packages/anim-three/src/index.ts"],
       "@blud/anim-utils": ["packages/anim-utils/src/index.ts"],
+      "@blud/architecture": ["packages/architecture/src/index.ts"],
       "@blud/dev-sync": ["packages/dev-sync/src/index.ts"],
       "@blud/dev-sync/node": ["packages/dev-sync/src/node.ts"],
       "@blud/editor-core": ["packages/editor-core/src/index.ts"],

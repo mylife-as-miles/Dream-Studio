@@ -109,6 +109,56 @@ function findTopmostAncestor(object: Object3D): Object3D {
   return current;
 }
 
+type MorphTargetBinding = {
+  influences: number[];
+  index: number;
+};
+
+function createMorphTargetBindings(root: Object3D): Map<string, MorphTargetBinding[]> {
+  const bindings = new Map<string, MorphTargetBinding[]>();
+
+  root.traverse((object) => {
+    const candidate = object as Object3D & {
+      morphTargetDictionary?: Record<string, number>;
+      morphTargetInfluences?: number[];
+    };
+
+    if (!candidate.morphTargetDictionary || !candidate.morphTargetInfluences) {
+      return;
+    }
+
+    Object.entries(candidate.morphTargetDictionary).forEach(([morphName, index]) => {
+      const morphBindings = bindings.get(morphName);
+      const binding = {
+        influences: candidate.morphTargetInfluences!,
+        index
+      };
+
+      if (morphBindings) {
+        morphBindings.push(binding);
+      } else {
+        bindings.set(morphName, [binding]);
+      }
+    });
+  });
+
+  return bindings;
+}
+
+function applyMorphWeightsToBindings(morphNames: readonly string[], weights: Float32Array, bindings: Map<string, MorphTargetBinding[]>): void {
+  morphNames.forEach((morphName, index) => {
+    const morphBindings = bindings.get(morphName);
+    if (!morphBindings) {
+      return;
+    }
+
+    const weight = weights[index] ?? 0;
+    morphBindings.forEach((binding) => {
+      binding.influences[binding.index] = weight;
+    });
+  });
+}
+
 function readCanonicalBoneLocalMatrix(bone: Bone, out: Matrix4): Matrix4 {
   bone.updateMatrixWorld(true);
   const parentBone = findNearestAncestorBone(bone.parent);
@@ -181,6 +231,21 @@ function areQuaternionsUniform(values: number[], epsilon = 1e-4): boolean {
   return true;
 }
 
+function areScalarsUniform(values: number[], epsilon = 1e-4): boolean {
+  if (values.length <= 1) {
+    return true;
+  }
+
+  const base = values[0] ?? 0;
+  for (let index = 1; index < values.length; index += 1) {
+    if (Math.abs((values[index] ?? 0) - base) > epsilon) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function isTripletDifferentFromBind(values: number[], bindX: number, bindY: number, bindZ: number, epsilon = 1e-4): boolean {
   for (let index = 0; index < values.length; index += 3) {
     if (
@@ -211,12 +276,23 @@ function isQuaternionDifferentFromBind(values: number[], bindX: number, bindY: n
   return false;
 }
 
+function isScalarDifferentFromValue(values: number[], bindValue: number, epsilon = 1e-4): boolean {
+  for (let index = 0; index < values.length; index += 1) {
+    if (Math.abs((values[index] ?? 0) - bindValue) > epsilon) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function createBakedClipAssetFromScene(clip: AnimationClip, skeleton: Skeleton): AnimationClipAsset {
   const root = findTopmostAncestor(skeleton.bones[0]!);
   const wrapper = new Object3D();
   wrapper.add(root);
   const rig = createRigFromSkeleton(skeleton);
   const times = collectClipSampleTimes(clip);
+  const morphBindings = createMorphTargetBindings(wrapper);
   const matrix = new Matrix4();
   const translation = new Vector3();
   const rotation = new Quaternion();
@@ -246,6 +322,7 @@ function createBakedClipAssetFromScene(clip: AnimationClip, skeleton: Skeleton):
     const sampledTranslations = Array.from({ length: skeleton.bones.length }, () => [] as number[]);
     const sampledRotations = Array.from({ length: skeleton.bones.length }, () => [] as number[]);
     const sampledScales = Array.from({ length: skeleton.bones.length }, () => [] as number[]);
+    const sampledMorphs = new Map<string, number[]>();
 
     times.forEach((time) => {
       mixer.setTime(time);
@@ -256,6 +333,17 @@ function createBakedClipAssetFromScene(clip: AnimationClip, skeleton: Skeleton):
         sampledTranslations[boneIndex]!.push(translation.x, translation.y, translation.z);
         sampledRotations[boneIndex]!.push(rotation.x, rotation.y, rotation.z, rotation.w);
         sampledScales[boneIndex]!.push(scale.x, scale.y, scale.z);
+      });
+
+      morphBindings.forEach((bindings, morphName) => {
+        const total = bindings.reduce((sum, binding) => sum + (binding.influences[binding.index] ?? 0), 0);
+        const samples = sampledMorphs.get(morphName);
+        if (samples) {
+          samples.push(total / Math.max(bindings.length, 1));
+          return;
+        }
+
+        sampledMorphs.set(morphName, [total / Math.max(bindings.length, 1)]);
       });
     });
 
@@ -315,12 +403,25 @@ function createBakedClipAssetFromScene(clip: AnimationClip, skeleton: Skeleton):
       }
     });
 
+    const morphTracks = Array.from(sampledMorphs.entries()).flatMap(([morphName, values]) => {
+      if (!isScalarDifferentFromValue(values, 0)) {
+        return [];
+      }
+
+      return [{
+        morphName,
+        times: areScalarsUniform(values) ? Float32Array.from([0]) : Float32Array.from(times),
+        values: areScalarsUniform(values) ? Float32Array.from([values[0] ?? 0]) : Float32Array.from(values)
+      }];
+    });
+
     return {
       id: clip.name,
       name: clip.name,
       duration: clip.duration,
       rootBoneIndex: inferClipRootBoneIndex(skeleton, bakedTracks),
       tracks: Array.from(bakedTracks.values()).sort((left, right) => left.boneIndex - right.boneIndex),
+      morphTracks
     };
   } finally {
     action.stop();
@@ -673,13 +774,43 @@ export function applyPoseToSkeleton(animator: AnimatorInstance, skeleton: Skelet
   applyPoseBufferToSkeleton(animator.outputPose, skeleton);
 }
 
+export function collectMorphTargetNamesFromSkeleton(skeleton: Skeleton): string[] {
+  const root = skeleton.bones[0] ? findTopmostAncestor(skeleton.bones[0]) : null;
+  if (!root) {
+    return [];
+  }
+
+  return Array.from(createMorphTargetBindings(root).keys()).sort((left, right) => left.localeCompare(right));
+}
+
+export function applyAnimatorOutputToSkeleton(animator: AnimatorInstance, skeleton: Skeleton): void {
+  applyPoseBufferToSkeleton(animator.outputPose, skeleton);
+
+  if (animator.morphNames.length === 0 || !skeleton.bones[0]) {
+    return;
+  }
+
+  applyMorphWeightsToBindings(
+    animator.morphNames,
+    animator.outputMorphWeights,
+    createMorphTargetBindings(findTopmostAncestor(skeleton.bones[0]))
+  );
+}
+
 export function createThreeAnimatorBridge(animator: AnimatorInstance, skeleton: Skeleton) {
+  const morphBindings = skeleton.bones[0]
+    ? createMorphTargetBindings(findTopmostAncestor(skeleton.bones[0]))
+    : new Map<string, MorphTargetBinding[]>();
+
   return {
     animator,
     skeleton,
     update(deltaTime: number) {
       const result = animator.update(deltaTime);
-      applyPoseToSkeleton(animator, skeleton);
+      applyPoseBufferToSkeleton(animator.outputPose, skeleton);
+      if (animator.morphNames.length > 0) {
+        applyMorphWeightsToBindings(animator.morphNames, animator.outputMorphWeights, morphBindings);
+      }
       return result;
     }
   };

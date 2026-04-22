@@ -122,6 +122,16 @@ function sampleScalarTriplet(times: Float32Array, values: Float32Array, time: nu
   out[2] = values[aOffset + 2]! + (values[bOffset + 2]! - values[aOffset + 2]!) * t;
 }
 
+function sampleScalar(times: Float32Array, values: Float32Array, time: number): number {
+  if (times.length === 1) {
+    return values[0] ?? 0;
+  }
+
+  const index = findKeyframeIndex(times, time);
+  const t = clamp(inverseLerp(times[index]!, times[index + 1]!, time), 0, 1);
+  return (values[index] ?? 0) + ((values[index + 1] ?? 0) - (values[index] ?? 0)) * t;
+}
+
 function sampleQuaternion(times: Float32Array, values: Float32Array, time: number, out: Float32Array): void {
   if (times.length === 1) {
     out[0] = values[0]!;
@@ -175,6 +185,29 @@ function sampleQuaternion(times: Float32Array, values: Float32Array, time: numbe
   out[1] = ay / length;
   out[2] = az / length;
   out[3] = aw / length;
+}
+
+export function sampleClipMorphWeights(
+  clip: AnimationClipAsset,
+  time: number,
+  morphIndexByName: ReadonlyMap<string, number>,
+  outWeights: Float32Array,
+  outTouched?: Uint8Array,
+  loop = true
+): void {
+  const normalizedTime = normalizeClipTime(clip, time, loop);
+
+  for (const track of clip.morphTracks ?? []) {
+    const morphIndex = morphIndexByName.get(track.morphName);
+    if (morphIndex === undefined) {
+      continue;
+    }
+
+    outWeights[morphIndex] = sampleScalar(track.times, track.values, normalizedTime);
+    if (outTouched) {
+      outTouched[morphIndex] = 1;
+    }
+  }
 }
 
 function sampleTrackChannel(

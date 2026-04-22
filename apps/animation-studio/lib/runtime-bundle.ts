@@ -14,6 +14,7 @@ const EXPORT_CLIP_NAME = "__reze_runtime_export__"
 const RUNTIME_FPS = 30
 const TRANSLATION_EPSILON = 1e-4
 const ROTATION_EPSILON = 1e-4
+const MORPH_EPSILON = 1e-4
 
 type RuntimeAccess = {
   runtimeSkeleton: {
@@ -190,6 +191,16 @@ function isQuaternionDifferentFromIdentity(values: number[], epsilon = ROTATION_
   return false
 }
 
+function isScalarDifferentFromValue(values: number[], bindValue: number, epsilon = MORPH_EPSILON) {
+  for (let index = 0; index < values.length; index += 1) {
+    if (Math.abs((values[index] ?? 0) - bindValue) > epsilon) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function areQuaternionsUniform(values: number[], epsilon = ROTATION_EPSILON) {
   if (values.length <= 4) return true
 
@@ -206,6 +217,19 @@ function areQuaternionsUniform(values: number[], epsilon = ROTATION_EPSILON) {
       baseW * (values[index + 3] ?? 1),
     )
     if (1 - dot > epsilon) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function areScalarsUniform(values: number[], epsilon = MORPH_EPSILON) {
+  if (values.length <= 1) return true
+
+  const base = values[0] ?? 0
+  for (let index = 1; index < values.length; index += 1) {
+    if (Math.abs((values[index] ?? 0) - base) > epsilon) {
       return false
     }
   }
@@ -323,11 +347,14 @@ function createSingleClipGraph(input: {
 
 function bakeRezeClipToRuntimeAsset(model: Model, clip: AnimationClip, rig: RigDefinition, clipName: string): AnimationClipAsset {
   const skeleton = model.getSkeleton()
+  const morphing = model.getMorphing()
+  const morphWeights = model.getMorphWeights()
   const runtimeSkeleton = (model as unknown as RuntimeAccess).runtimeSkeleton
   const sampleCount = Math.max(1, Math.floor(clip.frameCount) + 1)
   const sampleTimes = Array.from({ length: sampleCount }, (_, frame) => frame / RUNTIME_FPS)
   const translationSamples = Array.from({ length: skeleton.bones.length }, () => [] as number[])
   const rotationSamples = Array.from({ length: skeleton.bones.length }, () => [] as number[])
+  const morphSamples = Array.from({ length: morphing.morphs.length }, () => [] as number[])
   const originalProgress = model.getAnimationProgress()
   try {
     model.loadClip(EXPORT_CLIP_NAME, clip)
@@ -355,6 +382,10 @@ function bakeRezeClipToRuntimeAsset(model: Model, clip: AnimationClip, rig: RigD
           rotation.z,
           rotation.w,
         )
+      }
+
+      for (let morphIndex = 0; morphIndex < morphing.morphs.length; morphIndex += 1) {
+        morphSamples[morphIndex]!.push(morphWeights[morphIndex] ?? 0)
       }
     }
   } finally {
@@ -406,6 +437,18 @@ function bakeRezeClipToRuntimeAsset(model: Model, clip: AnimationClip, rig: RigD
     duration: clip.frameCount / RUNTIME_FPS,
     rootBoneIndex: undefined,
     tracks,
+    morphTracks: morphing.morphs.flatMap((morph, morphIndex) => {
+      const values = morphSamples[morphIndex] ?? []
+      if (!isScalarDifferentFromValue(values, 0)) {
+        return []
+      }
+
+      return [{
+        morphName: morph.name,
+        times: areScalarsUniform(values) ? Float32Array.from([0]) : Float32Array.from(sampleTimes),
+        values: areScalarsUniform(values) ? Float32Array.from([values[0] ?? 0]) : Float32Array.from(values),
+      }]
+    }),
   }
 
   return {
@@ -446,11 +489,6 @@ function buildRuntimeBundleFiles(input: {
     ],
   })
   const warnings: string[] = []
-  const morphTrackCount = Array.from(input.clip.morphTracks.values()).reduce((count, track) => count + track.length, 0)
-
-  if (morphTrackCount > 0) {
-    warnings.push(`Omitted ${morphTrackCount} morph keyframe(s); the current game runtime only supports bone animation.`)
-  }
 
   const files = new Map<string, Uint8Array>()
   files.set("animation.bundle.json", strToU8(serializeAnimationBundle(manifest)))

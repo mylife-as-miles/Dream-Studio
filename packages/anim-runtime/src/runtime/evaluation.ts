@@ -1,12 +1,12 @@
-import { blendPoses, copyPose, createPoseBufferFromRig, estimateClipDuration, sampleClipPose, sampleClipPoseOnBase, sampleClipRootMotionDelta } from "@blud/anim-core";
+import { blendPoses, copyPose, createPoseBufferFromRig, estimateClipDuration, sampleClipMorphWeights, sampleClipPose, sampleClipPoseOnBase, sampleClipRootMotionDelta } from "@blud/anim-core";
 import type { PoseBuffer, RootMotionDelta } from "@blud/anim-core";
 import type { CompiledCondition, CompiledGraphNode, CompiledMotionGraph } from "@blud/anim-schema";
 import { applyBlendCurve, blendRootMotion, computeBlend2DChildren, evaluateCondition, findBlend1DChildren, findSelectorChild, forceRootMotionChainToBindPose, getEffectiveRootBoneIndex, getNodeDuration, getStateDuration, getSyncedTransitionTime, resolveSyncGroupTimes } from "./helpers";
 import { applyOrientationWarp, applyOrientationWarpToRootMotion } from "./orientation-warp";
 import { applySecondaryDynamics } from "./secondary-dynamics";
-import { copyRootMotion, ensureScratchMotion, ensureScratchPose, releaseScratchMotion, releaseScratchPose, resetRootMotion } from "./scratch";
+import { blendMorphStates, copyMorphState, copyRootMotion, ensureScratchMorphState, ensureScratchMotion, ensureScratchPose, releaseScratchMorphState, releaseScratchMotion, releaseScratchPose, resetMorphState, resetRootMotion } from "./scratch";
 import { applyStrideWarp, applyStrideWarpToRootMotion, resolveStrideWarp } from "./stride-warp";
-import type { EvaluationContext, StateMachineRuntimeState } from "./types";
+import type { EvaluationContext, MorphStateBuffer, StateMachineRuntimeState } from "./types";
 
 function enterSyncGroupScope(context: EvaluationContext, syncGroup: string | undefined): () => void {
   if (!syncGroup) {
@@ -33,6 +33,7 @@ export function evaluateNode(
   previousTime: number,
   deltaTime: number,
   outPose: PoseBuffer,
+  outMorphs: MorphStateBuffer,
   outRootMotion: RootMotionDelta,
   fallbackPose: PoseBuffer | undefined = undefined
 ): void {
@@ -55,6 +56,8 @@ export function evaluateNode(
         } else {
           sampleClipPose(clip, context.rig, syncedTime.time * node.speed, outPose, node.loop);
         }
+        resetMorphState(outMorphs);
+        sampleClipMorphWeights(clip, syncedTime.time * node.speed, context.morphIndexByName, outMorphs.weights, outMorphs.touched, node.loop);
         const rootBoneIndex = getEffectiveRootBoneIndex(clip, context.rig);
         if (node.inPlace) {
           forceRootMotionChainToBindPose(context, rootBoneIndex, outPose);
@@ -82,7 +85,7 @@ export function evaluateNode(
       );
       const exitSyncGroupScope = enterSyncGroupScope(context, node.syncGroup);
       try {
-        evaluateNode(context, subgraph, node.graphIndex, subgraph.rootNodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outRootMotion, fallbackPose);
+        evaluateNode(context, subgraph, node.graphIndex, subgraph.rootNodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outMorphs, outRootMotion, fallbackPose);
       } finally {
         exitSyncGroupScope();
       }
@@ -100,15 +103,18 @@ export function evaluateNode(
       const pair = findBlend1DChildren(node.children, value);
       const exitSyncGroupScope = enterSyncGroupScope(context, node.syncGroup);
       try {
-        evaluateNode(context, compiledGraph, graphIndex, pair.a.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outRootMotion, fallbackPose);
+        evaluateNode(context, compiledGraph, graphIndex, pair.a.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outMorphs, outRootMotion, fallbackPose);
         if (pair.a.nodeIndex !== pair.b.nodeIndex) {
+          const tempMorphs = ensureScratchMorphState(context);
           const tempPose = ensureScratchPose(context);
           const tempMotion = ensureScratchMotion(context);
-          evaluateNode(context, compiledGraph, graphIndex, pair.b.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, tempPose, tempMotion, fallbackPose);
+          evaluateNode(context, compiledGraph, graphIndex, pair.b.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, tempPose, tempMorphs, tempMotion, fallbackPose);
           blendPoses(outPose, tempPose, pair.t, outPose);
+          blendMorphStates(outMorphs, tempMorphs, pair.t, outMorphs);
           blendRootMotion(outRootMotion, tempMotion, pair.t, outRootMotion);
           releaseScratchMotion(context);
           releaseScratchPose(context);
+          releaseScratchMorphState(context);
         }
       } finally {
         exitSyncGroupScope();
@@ -135,6 +141,7 @@ export function evaluateNode(
           } else {
             copyPose(createPoseBufferFromRig(context.rig), outPose);
           }
+          resetMorphState(outMorphs);
           resetRootMotion(outRootMotion);
           break;
         }
@@ -142,31 +149,35 @@ export function evaluateNode(
         if (weights.length === 1) {
           const exact = weights[0]!;
           const childTime = syncedTime;
-          evaluateNode(context, compiledGraph, graphIndex, exact.child.nodeIndex, childTime.time, childTime.previousTime, childTime.deltaTime, outPose, outRootMotion, fallbackPose);
+          evaluateNode(context, compiledGraph, graphIndex, exact.child.nodeIndex, childTime.time, childTime.previousTime, childTime.deltaTime, outPose, outMorphs, outRootMotion, fallbackPose);
           break;
         }
 
         const weightSum = weights.reduce((sum, entry) => sum + entry.weight, 0) || 1;
         resetRootMotion(outRootMotion);
+        resetMorphState(outMorphs);
         let accumulatedWeight = 0;
 
         weights.forEach((entry, index) => {
           const normalizedWeight = entry.weight / weightSum;
           if (index === 0) {
-            evaluateNode(context, compiledGraph, graphIndex, entry.child.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outRootMotion, fallbackPose);
+            evaluateNode(context, compiledGraph, graphIndex, entry.child.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outMorphs, outRootMotion, fallbackPose);
             accumulatedWeight = normalizedWeight;
             return;
           }
 
+          const tempMorphs = ensureScratchMorphState(context);
           const tempPose = ensureScratchPose(context);
           const tempMotion = ensureScratchMotion(context);
-          evaluateNode(context, compiledGraph, graphIndex, entry.child.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, tempPose, tempMotion, fallbackPose);
+          evaluateNode(context, compiledGraph, graphIndex, entry.child.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, tempPose, tempMorphs, tempMotion, fallbackPose);
           const blendWeight = normalizedWeight / (accumulatedWeight + normalizedWeight);
           blendPoses(outPose, tempPose, blendWeight, outPose);
+          blendMorphStates(outMorphs, tempMorphs, blendWeight, outMorphs);
           blendRootMotion(outRootMotion, tempMotion, blendWeight, outRootMotion);
           accumulatedWeight += normalizedWeight;
           releaseScratchMotion(context);
           releaseScratchPose(context);
+          releaseScratchMorphState(context);
         });
       } finally {
         exitSyncGroupScope();
@@ -190,17 +201,19 @@ export function evaluateNode(
           } else {
             copyPose(createPoseBufferFromRig(context.rig), outPose);
           }
+          resetMorphState(outMorphs);
           resetRootMotion(outRootMotion);
           break;
         }
 
-        evaluateNode(context, compiledGraph, graphIndex, child.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outRootMotion, fallbackPose);
+        evaluateNode(context, compiledGraph, graphIndex, child.nodeIndex, syncedTime.time, syncedTime.previousTime, syncedTime.deltaTime, outPose, outMorphs, outRootMotion, fallbackPose);
       } finally {
         exitSyncGroupScope();
       }
       break;
     }
     case "orientationWarp": {
+      const sourceMorphs = ensureScratchMorphState(context);
       const sourcePose = ensureScratchPose(context);
       const sourceMotion = ensureScratchMotion(context);
       evaluateNode(
@@ -212,18 +225,22 @@ export function evaluateNode(
         previousTime,
         deltaTime,
         sourcePose,
+        sourceMorphs,
         sourceMotion,
         fallbackPose
       );
       copyPose(sourcePose, outPose);
+      copyMorphState(sourceMorphs, outMorphs);
       copyRootMotion(sourceMotion, outRootMotion);
       applyOrientationWarp(context, node, sourcePose, outPose);
       applyOrientationWarpToRootMotion(context, node, outRootMotion);
       releaseScratchMotion(context);
       releaseScratchPose(context);
+      releaseScratchMorphState(context);
       break;
     }
     case "strideWarp": {
+      const sourceMorphs = ensureScratchMorphState(context);
       const sourcePose = ensureScratchPose(context);
       const sourceMotion = ensureScratchMotion(context);
       evaluateNode(
@@ -235,19 +252,23 @@ export function evaluateNode(
         previousTime,
         deltaTime,
         sourcePose,
+        sourceMorphs,
         sourceMotion,
         fallbackPose
       );
       copyPose(sourcePose, outPose);
+      copyMorphState(sourceMorphs, outMorphs);
       copyRootMotion(sourceMotion, outRootMotion);
       const resolvedWarp = resolveStrideWarp(context, graphIndex, nodeIndex, node, sourceMotion, deltaTime);
       applyStrideWarp(context, node, sourcePose, outPose, resolvedWarp);
       applyStrideWarpToRootMotion(outRootMotion, resolvedWarp);
       releaseScratchMotion(context);
       releaseScratchPose(context);
+      releaseScratchMorphState(context);
       break;
     }
     case "secondaryDynamics": {
+      const sourceMorphs = ensureScratchMorphState(context);
       const sourcePose = ensureScratchPose(context);
       const sourceMotion = ensureScratchMotion(context);
       evaluateNode(
@@ -259,17 +280,20 @@ export function evaluateNode(
         previousTime,
         deltaTime,
         sourcePose,
+        sourceMorphs,
         sourceMotion,
         fallbackPose
       );
+      copyMorphState(sourceMorphs, outMorphs);
       copyRootMotion(sourceMotion, outRootMotion);
       applySecondaryDynamics(context, node, sourcePose, outPose, deltaTime);
       releaseScratchMotion(context);
       releaseScratchPose(context);
+      releaseScratchMorphState(context);
       break;
     }
     case "stateMachine": {
-      evaluateStateMachine(context, compiledGraph, graphIndex, node, time, previousTime, deltaTime, outPose, outRootMotion, fallbackPose);
+      evaluateStateMachine(context, compiledGraph, graphIndex, node, time, previousTime, deltaTime, outPose, outMorphs, outRootMotion, fallbackPose);
       break;
     }
   }
@@ -420,6 +444,7 @@ function evaluateStateMachine(
   _previousTime: number,
   deltaTime: number,
   outPose: PoseBuffer,
+  outMorphs: MorphStateBuffer,
   outRootMotion: RootMotionDelta,
   fallbackPose: PoseBuffer | undefined
 ): void {
@@ -464,6 +489,7 @@ function evaluateStateMachine(
       } else {
         copyPose(createPoseBufferFromRig(context.rig), outPose);
       }
+      resetMorphState(outMorphs);
       resetRootMotion(outRootMotion);
     } else {
       const syncedTime = resolveSyncGroupTimes(
@@ -484,6 +510,7 @@ function evaluateStateMachine(
           syncedTime.previousTime,
           syncedTime.deltaTime,
           outPose,
+          outMorphs,
           outRootMotion,
           fallbackPose
         );
@@ -524,6 +551,7 @@ function evaluateStateMachine(
         syncedTime.previousTime,
         syncedTime.deltaTime,
         outPose,
+        outMorphs,
         outRootMotion,
         fallbackPose
       );
@@ -533,6 +561,7 @@ function evaluateStateMachine(
   }
 
   const nextPose = ensureScratchPose(context);
+  const nextMorphs = ensureScratchMorphState(context);
   const nextMotion = ensureScratchMotion(context);
   if (nextState.motionNodeIndex < 0) {
     if (fallbackPose) {
@@ -540,6 +569,7 @@ function evaluateStateMachine(
     } else {
       copyPose(createPoseBufferFromRig(context.rig), nextPose);
     }
+    resetMorphState(nextMorphs);
     resetRootMotion(nextMotion);
   } else {
     const syncedTime = resolveSyncGroupTimes(
@@ -551,18 +581,19 @@ function evaluateStateMachine(
     );
     const exitSyncGroupScope = enterSyncGroupScope(context, nextState.syncGroup);
     try {
-      evaluateNode(
-        context,
-        compiledGraph,
-        graphIndex,
-        nextState.motionNodeIndex,
-        syncedTime.time,
-        syncedTime.previousTime,
-        syncedTime.deltaTime,
-        nextPose,
-        nextMotion,
-        fallbackPose
-      );
+        evaluateNode(
+          context,
+          compiledGraph,
+          graphIndex,
+          nextState.motionNodeIndex,
+          syncedTime.time,
+          syncedTime.previousTime,
+          syncedTime.deltaTime,
+          nextPose,
+          nextMorphs,
+          nextMotion,
+          fallbackPose
+        );
     } finally {
       exitSyncGroupScope();
     }
@@ -570,6 +601,7 @@ function evaluateStateMachine(
 
   const progress = applyBlendCurve(transition.blendCurve, transition.elapsed / Math.max(0.0001, transition.duration));
   blendPoses(outPose, nextPose, progress, outPose);
+  blendMorphStates(outMorphs, nextMorphs, progress, outMorphs);
   blendRootMotion(outRootMotion, nextMotion, progress, outRootMotion);
 
   if (progress >= 1) {
@@ -580,4 +612,5 @@ function evaluateStateMachine(
 
   releaseScratchMotion(context);
   releaseScratchPose(context);
+  releaseScratchMorphState(context);
 }

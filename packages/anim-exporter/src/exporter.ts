@@ -17,7 +17,7 @@ import {
 } from "@blud/anim-schema";
 
 const CLIP_DATA_MAGIC = new Uint8Array([0x47, 0x47, 0x45, 0x5a, 0x43, 0x4c, 0x49, 0x50]);
-const CLIP_DATA_VERSION = 1;
+const CLIP_DATA_VERSION = 2;
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
@@ -50,8 +50,22 @@ function getTrackBinarySize(track: AnimationClipAsset["tracks"][number]): number
   return size;
 }
 
+function getMorphTrackBinarySize(track: NonNullable<AnimationClipAsset["morphTracks"]>[number]): number {
+  return getStringSize(track.morphName) + getFloat32ArraySize(track.times) + getFloat32ArraySize(track.values);
+}
+
 function getClipBinarySize(clip: AnimationClipAsset): number {
-  return 4 + getStringSize(clip.id) + getStringSize(clip.name) + 4 + 4 + 4 + clip.tracks.reduce((sum, track) => sum + getTrackBinarySize(track), 0);
+  return (
+    4 +
+    getStringSize(clip.id) +
+    getStringSize(clip.name) +
+    4 +
+    4 +
+    4 +
+    clip.tracks.reduce((sum, track) => sum + getTrackBinarySize(track), 0) +
+    4 +
+    (clip.morphTracks?.reduce((sum, track) => sum + getMorphTrackBinarySize(track), 0) ?? 0)
+  );
 }
 
 function writeString(view: DataView, bytes: Uint8Array, offset: number, value: string): number {
@@ -128,6 +142,11 @@ function serializeClip(clip: AnimationClipAsset): SerializableClip {
       rotationValues: track.rotationValues ? Array.from(track.rotationValues) : undefined,
       scaleTimes: track.scaleTimes ? Array.from(track.scaleTimes) : undefined,
       scaleValues: track.scaleValues ? Array.from(track.scaleValues) : undefined
+    })),
+    morphTracks: clip.morphTracks?.map((track) => ({
+      morphName: track.morphName,
+      times: Array.from(track.times),
+      values: Array.from(track.values)
     }))
   };
 }
@@ -226,6 +245,11 @@ export function loadClipsFromArtifact(artifact: AnimationArtifact): AnimationCli
       rotationValues: track.rotationValues ? Float32Array.from(track.rotationValues) : undefined,
       scaleTimes: track.scaleTimes ? Float32Array.from(track.scaleTimes) : undefined,
       scaleValues: track.scaleValues ? Float32Array.from(track.scaleValues) : undefined
+    })),
+    morphTracks: clip.morphTracks?.map((track) => ({
+      morphName: track.morphName,
+      times: Float32Array.from(track.times),
+      values: Float32Array.from(track.values)
     }))
   }));
 }
@@ -280,32 +304,21 @@ export function serializeClipDataBinary(clips: AnimationClipAsset[]): Uint8Array
         offset = writeFloat32Array(view, offset, track.scaleValues);
       }
     }
+
+    view.setUint32(offset, clip.morphTracks?.length ?? 0, true);
+    offset += 4;
+
+    for (const morphTrack of clip.morphTracks ?? []) {
+      offset = writeString(view, bytes, offset, morphTrack.morphName);
+      offset = writeFloat32Array(view, offset, morphTrack.times);
+      offset = writeFloat32Array(view, offset, morphTrack.values);
+    }
   }
 
   return bytes;
 }
 
-export function parseClipDataBinary(bytes: Uint8Array): AnimationClipAsset[] {
-  if (bytes.length < CLIP_DATA_MAGIC.length + 8) {
-    throw new Error("Clip data binary is truncated.");
-  }
-
-  for (let index = 0; index < CLIP_DATA_MAGIC.length; index += 1) {
-    if (bytes[index] !== CLIP_DATA_MAGIC[index]) {
-      throw new Error("Clip data binary has an invalid header.");
-    }
-  }
-
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let offset = CLIP_DATA_MAGIC.length;
-  const version = view.getUint32(offset, true);
-  offset += 4;
-  if (version !== CLIP_DATA_VERSION) {
-    throw new Error(`Unsupported clip data binary version ${version}.`);
-  }
-
-  const clipCount = view.getUint32(offset, true);
-  offset += 4;
+function parseClipDataBinaryV1(bytes: Uint8Array, view: DataView, offset: number, clipCount: number): AnimationClipAsset[] {
   const clips: AnimationClipAsset[] = [];
 
   for (let clipIndex = 0; clipIndex < clipCount; clipIndex += 1) {
@@ -367,4 +380,112 @@ export function parseClipDataBinary(bytes: Uint8Array): AnimationClipAsset[] {
   }
 
   return clips;
+}
+
+function parseClipDataBinaryV2(bytes: Uint8Array, view: DataView, offset: number, clipCount: number): AnimationClipAsset[] {
+  const clips: AnimationClipAsset[] = [];
+
+  for (let clipIndex = 0; clipIndex < clipCount; clipIndex += 1) {
+    let id: string;
+    [id, offset] = readString(view, bytes, offset);
+    let name: string;
+    [name, offset] = readString(view, bytes, offset);
+    const duration = view.getFloat32(offset, true);
+    offset += 4;
+    const rootBoneIndex = view.getInt32(offset, true);
+    offset += 4;
+    const trackCount = view.getUint32(offset, true);
+    offset += 4;
+    const tracks: AnimationClipAsset["tracks"] = [];
+
+    for (let trackIndex = 0; trackIndex < trackCount; trackIndex += 1) {
+      const boneIndex = view.getUint32(offset, true);
+      offset += 4;
+      const mask = view.getUint8(offset);
+      offset += 1;
+      let translationTimes: Float32Array | undefined;
+      let translationValues: Float32Array | undefined;
+      let rotationTimes: Float32Array | undefined;
+      let rotationValues: Float32Array | undefined;
+      let scaleTimes: Float32Array | undefined;
+      let scaleValues: Float32Array | undefined;
+
+      if (mask & 1) {
+        [translationTimes, offset] = readFloat32Array(view, offset);
+        [translationValues, offset] = readFloat32Array(view, offset);
+      }
+      if (mask & 2) {
+        [rotationTimes, offset] = readFloat32Array(view, offset);
+        [rotationValues, offset] = readFloat32Array(view, offset);
+      }
+      if (mask & 4) {
+        [scaleTimes, offset] = readFloat32Array(view, offset);
+        [scaleValues, offset] = readFloat32Array(view, offset);
+      }
+
+      tracks.push({
+        boneIndex,
+        translationTimes,
+        translationValues,
+        rotationTimes,
+        rotationValues,
+        scaleTimes,
+        scaleValues
+      });
+    }
+
+    const morphTrackCount = view.getUint32(offset, true);
+    offset += 4;
+    const morphTracks = Array.from({ length: morphTrackCount }, () => {
+      let morphName: string;
+      [morphName, offset] = readString(view, bytes, offset);
+      let times: Float32Array | undefined;
+      [times, offset] = readFloat32Array(view, offset);
+      let values: Float32Array | undefined;
+      [values, offset] = readFloat32Array(view, offset);
+
+      return {
+        morphName,
+        times: times ?? new Float32Array(0),
+        values: values ?? new Float32Array(0)
+      };
+    });
+
+    clips.push({
+      id,
+      name,
+      duration,
+      rootBoneIndex: rootBoneIndex >= 0 ? rootBoneIndex : undefined,
+      tracks,
+      morphTracks
+    });
+  }
+
+  return clips;
+}
+
+export function parseClipDataBinary(bytes: Uint8Array): AnimationClipAsset[] {
+  if (bytes.length < CLIP_DATA_MAGIC.length + 8) {
+    throw new Error("Clip data binary is truncated.");
+  }
+
+  for (let index = 0; index < CLIP_DATA_MAGIC.length; index += 1) {
+    if (bytes[index] !== CLIP_DATA_MAGIC[index]) {
+      throw new Error("Clip data binary has an invalid header.");
+    }
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = CLIP_DATA_MAGIC.length;
+  const version = view.getUint32(offset, true);
+  offset += 4;
+  if (version !== 1 && version !== CLIP_DATA_VERSION) {
+    throw new Error(`Unsupported clip data binary version ${version}.`);
+  }
+
+  const clipCount = view.getUint32(offset, true);
+  offset += 4;
+  return version === 1
+    ? parseClipDataBinaryV1(bytes, view, offset, clipCount)
+    : parseClipDataBinaryV2(bytes, view, offset, clipCount);
 }

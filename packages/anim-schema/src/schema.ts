@@ -325,12 +325,19 @@ export const clipTrackSchema = z.object({
   scaleValues: z.array(z.number()).optional()
 });
 
+export const clipMorphTrackSchema = z.object({
+  morphName: z.string().min(1),
+  times: z.array(z.number()),
+  values: z.array(z.number())
+});
+
 export const serializableClipSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   duration: z.number().nonnegative(),
   rootBoneIndex: z.number().int().nonnegative().optional(),
-  tracks: z.array(clipTrackSchema)
+  tracks: z.array(clipTrackSchema),
+  morphTracks: z.array(clipMorphTrackSchema).optional()
 });
 
 export const animationEditorDocumentSchema = z.object({

@@ -2,6 +2,11 @@ import type { AnimationClipAsset, BoneMask, PoseBuffer, RigDefinition, RootMotio
 import type { CompiledAnimatorGraph, CompiledTransition } from "@blud/anim-schema";
 import type { AnimatorParameterStore } from "../parameters";
 
+export interface MorphStateBuffer {
+  readonly weights: Float32Array;
+  readonly touched: Uint8Array;
+}
+
 export interface LayerRuntimeState {
   time: number;
 }
@@ -43,6 +48,8 @@ export interface EvaluationContext {
   readonly graph: CompiledAnimatorGraph;
   readonly rig: RigDefinition;
   readonly clips: AnimationClipAsset[];
+  readonly morphNames: string[];
+  readonly morphIndexByName: Map<string, number>;
   readonly masks: BoneMask[];
   readonly parameters: AnimatorParameterStore;
   readonly layerStates: LayerRuntimeState[];
@@ -53,14 +60,18 @@ export interface EvaluationContext {
   readonly activeSyncGroups: Map<string, number>;
   readonly secondaryDynamicsStates: SecondaryDynamicsChainRuntimeState[][];
   updateId: number;
+  morphScratchIndex: number;
   poseScratchIndex: number;
   motionScratchIndex: number;
+  readonly morphScratch: MorphStateBuffer[];
   readonly poseScratch: PoseBuffer[];
   readonly motionScratch: RootMotionDelta[];
 }
 
 export interface AnimatorUpdateResult {
   readonly pose: PoseBuffer;
+  readonly morphNames: string[];
+  readonly morphWeights: Float32Array;
   readonly rootMotion: RootMotionDelta;
 }
 
@@ -68,6 +79,8 @@ export interface AnimatorInstance {
   readonly rig: RigDefinition;
   readonly graph: CompiledAnimatorGraph;
   readonly clips: AnimationClipAsset[];
+  readonly morphNames: string[];
+  readonly outputMorphWeights: Float32Array;
   readonly parameters: AnimatorParameterStore;
   readonly outputPose: PoseBuffer;
   readonly rootMotionDelta: RootMotionDelta;

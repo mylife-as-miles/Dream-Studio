@@ -4,3 +4,4 @@ export * from "./mask";
 export * from "./clip";
 export * from "./blend";
 export * from "./root-motion";
+export * from "./retarget";

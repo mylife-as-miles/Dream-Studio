@@ -1,7 +1,7 @@
-import type { AnimationClipAsset, RigDefinition } from "@blud/anim-core";
+import { retargetClipAssetToRig, type AnimationClipAsset, type RigDefinition } from "@blud/anim-core";
 import { loadClipsFromArtifact, loadRigFromArtifact, parseAnimationArtifactJson, parseClipDataBinary } from "@blud/anim-exporter";
 import { parseAnimationBundle, type AnimationArtifact, type AnimationBundle } from "@blud/anim-schema";
-import { createClipAssetFromThreeClip, createRigFromSkeleton } from "@blud/anim-three";
+import { collectMorphTargetNamesFromSkeleton, createClipAssetFromThreeClip, createRigFromSkeleton } from "@blud/anim-three";
 import type { AnimationClip, Object3D, Skeleton } from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -197,6 +197,16 @@ function createRuntimeAnimationBundle(input: {
   let pendingEmbeddedClipAssets: Promise<Record<string, AnimationClipAsset>> | undefined;
   let pendingCharacterAsset: Promise<LoadedRuntimeAnimationCharacter | undefined> | undefined;
 
+  const retargetClipForSkeleton = (clip: AnimationClipAsset, skeleton: Skeleton) => {
+    if (!rig) {
+      return clip;
+    }
+
+    return retargetClipAssetToRig(clip, rig, createRigFromSkeleton(skeleton), {
+      targetMorphNames: collectMorphTargetNamesFromSkeleton(skeleton)
+    });
+  };
+
   const loadEmbeddedClipAssets = () => {
     if (!input.manifest.clipData) {
       return Promise.resolve({} as Record<string, AnimationClipAsset>);
@@ -297,12 +307,12 @@ function createRuntimeAnimationBundle(input: {
           const artifactClip = artifactClipsById.get(clipEntry.id);
 
           if (artifactClip) {
-            return [clipEntry.id, artifactClip] as const;
+            return [clipEntry.id, retargetClipForSkeleton(artifactClip, skeleton)] as const;
           }
 
           const embeddedClip = embeddedClipsById[clipEntry.id];
           if (embeddedClip) {
-            return [clipEntry.id, embeddedClip] as const;
+            return [clipEntry.id, retargetClipForSkeleton(embeddedClip, skeleton)] as const;
           }
 
           if (!clipEntry.asset) {

@@ -33,12 +33,19 @@ export interface AnimationTrack {
   scaleValues?: Float32Array;
 }
 
+export interface AnimationMorphTrack {
+  morphName: string;
+  times: Float32Array;
+  values: Float32Array;
+}
+
 export interface AnimationClipAsset {
   readonly id: string;
   readonly name: string;
   readonly duration: number;
   readonly rootBoneIndex?: number;
   readonly tracks: AnimationTrack[];
+  readonly morphTracks?: AnimationMorphTrack[];
 }
 
 export interface QuatLike {
