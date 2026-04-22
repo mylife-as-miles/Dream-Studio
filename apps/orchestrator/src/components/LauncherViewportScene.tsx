@@ -93,8 +93,8 @@ export function LauncherViewportScene() {
     scene.add(horizon);
 
     // --- Model loading ---
-    let loadedModel: THREE.Object3D | null = null;
-    let mixer: THREE.AnimationMixer | null = null;
+    const loadedModels: THREE.Object3D[] = [];
+    const mixers: THREE.AnimationMixer[] = [];
     const clock = new THREE.Clock();
     let cancelled = false;
 
@@ -102,33 +102,45 @@ export function LauncherViewportScene() {
       if (cancelled) return;
       void fetchModelPaths().then(async (paths) => {
         if (cancelled || paths.length === 0) return;
-        const modelPath = paths[Math.floor(Math.random() * paths.length)];
-        try {
-          const loader = createLoader();
-          const gltf = await loader.loadAsync(modelPath);
+
+        const loader = createLoader();
+        const spacing = 4;
+        const totalWidth = (paths.length - 1) * spacing;
+        const startX = -totalWidth / 2;
+
+        for (let i = 0; i < paths.length; i++) {
           if (cancelled) return;
+          try {
+            const gltf = await loader.loadAsync(paths[i]);
+            if (cancelled) return;
 
-          const model = gltf.scene;
-          const wrapper = new THREE.Group();
-          wrapper.add(model);
+            const model = gltf.scene;
+            const wrapper = new THREE.Group();
+            wrapper.add(model);
 
-          const box = new THREE.Box3().setFromObject(wrapper);
-          const size = box.getSize(new THREE.Vector3());
-          const center = box.getCenter(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = maxDim > 0 ? 5 / maxDim : 1;
-          wrapper.scale.setScalar(scale);
-          wrapper.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+            const box = new THREE.Box3().setFromObject(wrapper);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = maxDim > 0 ? 4 / maxDim : 1;
+            wrapper.scale.setScalar(scale);
+            wrapper.position.set(
+              startX + i * spacing - center.x * scale,
+              -box.min.y * scale,
+              -center.z * scale
+            );
 
-          scene.add(wrapper);
-          loadedModel = wrapper;
+            scene.add(wrapper);
+            loadedModels.push(wrapper);
 
-          if (gltf.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(model);
-            for (const clip of gltf.animations) mixer.clipAction(clip).play();
+            if (gltf.animations.length > 0) {
+              const mixer = new THREE.AnimationMixer(model);
+              for (const clip of gltf.animations) mixer.clipAction(clip).play();
+              mixers.push(mixer);
+            }
+          } catch (err) {
+            console.warn(`[LauncherViewport] Failed to load ${paths[i]}:`, err);
           }
-        } catch (err) {
-          console.warn("[LauncherViewport] Failed to load model:", err);
         }
       });
     }, 300);
@@ -162,7 +174,7 @@ export function LauncherViewportScene() {
       frame += 1;
       const delta = clock.getDelta();
       if (!pointer.active) orbit.targetTheta += 0.00055;
-      if (mixer) mixer.update(delta);
+      for (const m of mixers) m.update(delta);
       floor.material.opacity = 0.82 + Math.sin(frame * 0.012) * 0.02;
       placeCamera();
       renderer.render(scene, camera);
@@ -190,17 +202,19 @@ export function LauncherViewportScene() {
       canvasElement.removeEventListener("pointermove", onMove);
       canvasElement.removeEventListener("pointerup", onUp);
       canvasElement.removeEventListener("pointercancel", onUp);
-      if (loadedModel) {
-        scene.remove(loadedModel);
-        loadedModel.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.geometry.dispose();
-            const mats = Array.isArray(child.material) ? child.material : [child.material];
-            for (const mat of mats) mat.dispose();
-          }
-        });
+      if (loadedModels.length > 0) {
+        for (const model of loadedModels) {
+          scene.remove(model);
+          model.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.geometry.dispose();
+              const mats = Array.isArray(child.material) ? child.material : [child.material];
+              for (const mat of mats) mat.dispose();
+            }
+          });
+        }
       }
-      if (mixer) mixer.stopAllAction();
+      for (const m of mixers) m.stopAllAction();
       floor.geometry.dispose(); floor.material.dispose();
       grid.geometry.dispose(); for (const m of gridMats) m.dispose();
       nearGrid.geometry.dispose(); for (const m of nearMats) m.dispose();
