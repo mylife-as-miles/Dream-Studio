@@ -55,6 +55,9 @@ const FRAGMENT_SHADER = /* glsl */ `
 const DEFAULT_MINOR = new THREE.Color("#2a3c4a");
 const DEFAULT_MAJOR = new THREE.Color("#4a6880");
 
+/** Lift the grid slightly above the construction plane so it does not Z-fight with floor meshes at the same Y. */
+const GRID_ABOVE_PLANE = 0.02;
+
 function hexToThreeColor(hex: string): THREE.Color {
   return new THREE.Color(hex);
 }
@@ -87,11 +90,15 @@ export function ConstructionGrid({
   return (
     <group position={transform.position} rotation={transform.rotation}>
       {editorFloorVisible ? (
-        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
+        <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]}>
           <planeGeometry args={[extent, extent]} />
           <meshStandardMaterial
             color={baseColor}
+            depthWrite
             metalness={preset?.metalness ?? 0}
+            polygonOffset
+            polygonOffsetFactor={1}
+            polygonOffsetUnits={1}
             roughness={preset?.roughness ?? 0.96}
           />
         </mesh>
@@ -114,6 +121,7 @@ export function ConstructionGrid({
         majorStep={majorStep}
         minorColor={minorColor}
         minorStep={minorStep}
+        verticalOffset={viewportPlane === "xz" ? GRID_ABOVE_PLANE : 0}
       />
     </group>
   );
@@ -228,7 +236,8 @@ function GridShaderPlane({
   majorColor,
   majorStep,
   minorColor,
-  minorStep
+  minorStep,
+  verticalOffset
 }: {
   baseAlpha: number;
   baseColor: THREE.Color;
@@ -238,6 +247,7 @@ function GridShaderPlane({
   majorStep: number;
   minorColor: THREE.Color;
   minorStep: number;
+  verticalOffset: number;
 }) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
 
@@ -270,12 +280,16 @@ function GridShaderPlane({
   }, [baseAlpha, baseColor, minorColor, majorColor, minorStep, majorStep, fadeDist]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={0}>
+    <mesh position={[0, verticalOffset, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
       <planeGeometry args={[extent, extent, 1, 1]} />
       <shaderMaterial
         ref={matRef}
+        depthTest
         depthWrite={false}
         fragmentShader={FRAGMENT_SHADER}
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-1}
         side={THREE.DoubleSide}
         transparent
         uniforms={uniforms}
