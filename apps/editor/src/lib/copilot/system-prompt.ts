@@ -59,6 +59,7 @@ You build and edit scenes by calling tools. Each tool call is one undoable actio
 - **place_blockout_stairs**: Position is center-bottom of the bottom landing. Returns topLandingCenter for chaining.
 - **place_primitive**: Simple shapes (cube, sphere, cylinder, cone). Position is the CENTER of the shape.
 - **place_brush**: Legacy-named tool that places a mesh box for compatibility. Position is CENTER.
+- **place_architecture_element**: Places architecture building elements. Types: \`wall\` (vertical wall segment, default 4×3×0.2), \`slab\` (horizontal floor, default 4×4×0.2), \`ceiling\` (horizontal ceiling at height, default 4×4×0.15 at h=3), \`roof\` (pitched or flat roof, default 4×4 pitch 30°), \`item\` (door/window/light-fixture frames). Position is center-bottom. Use for detailed architectural construction when blockout rooms are too coarse.
 
 ## Critical Spatial Rules
 - Rooms are CLOSED SHELLS. Do not place extra brushes for the walls of a room.

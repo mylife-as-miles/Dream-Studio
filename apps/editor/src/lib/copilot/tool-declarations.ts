@@ -195,6 +195,36 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
 
   // ── Transform ───────────────────────────────────────────────
   {
+    name: "place_architecture_element",
+    description: "Places an architecture element (wall, slab, ceiling, roof, door, window, light fixture). Position is the center-bottom of the element.",
+    parameters: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "World X position" },
+        y: { type: "number", description: "World Y position (bottom)" },
+        z: { type: "number", description: "World Z position" },
+        type: {
+          type: "string",
+          enum: ["wall", "slab", "ceiling", "roof", "item"],
+          description: "Architecture element type"
+        },
+        width: { type: "number", description: "Width in meters (default: 4)" },
+        height: { type: "number", description: "Height in meters (default: 3 for walls, 0.2 for slabs)" },
+        depth: { type: "number", description: "Depth in meters (default: 4 for slabs/ceilings/roofs)" },
+        thickness: { type: "number", description: "Thickness in meters (default: 0.2 for walls, 0.15 for ceilings)" },
+        pitchAngle: { type: "number", description: "Roof pitch angle in degrees, 0 for flat (default: 30)" },
+        overhang: { type: "number", description: "Roof overhang in meters (default: 0.3)" },
+        itemType: { type: "string", enum: ["door", "window", "light-fixture"], description: "Item sub-type (required when type is 'item')" },
+        rotationY: { type: "number", description: "Rotation around Y axis in radians (default: 0)" },
+        materialId: { type: "string", description: "Material ID (defaults to architecture material for the element type)" },
+        name: { type: "string", description: "Display name" }
+      },
+      required: ["x", "y", "z", "type"]
+    }
+  },
+
+  // ── Transform ───────────────────────────────────────────────
+  {
     name: "translate_nodes",
     description: "Moves nodes by a relative offset (delta). Does not set absolute position — adds delta to current position.",
     parameters: {

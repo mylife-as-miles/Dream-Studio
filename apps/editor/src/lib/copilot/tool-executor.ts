@@ -17,6 +17,14 @@ import {
   skateparkMaterials
 } from "@blud/skatepark";
 import {
+  buildWall,
+  buildSlab,
+  buildCeiling,
+  buildRoof,
+  buildItem,
+  architectureMaterials
+} from "@blud/architecture";
+import {
   createAssignMaterialCommand,
   createAssignMaterialToBrushesCommand,
   createDeleteSelectionCommand,
@@ -515,6 +523,84 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
       const { command, nodeId } = createPlaceMeshNodeCommand(scene, transform, {
         data: meshData,
         name: str(args, "name") || `Skate ${type}`
+      });
+      editor.execute(command);
+      return ok({ nodeId });
+    }
+
+    case "place_architecture_element": {
+      const type = str(args, "type") as "wall" | "slab" | "ceiling" | "roof" | "item";
+      const materialId = str(args, "materialId") || `arch-${type === "item" ? "wall" : type}`;
+
+      // Register architecture default material if needed
+      const existingMat = scene.materials.get(materialId);
+      if (!existingMat) {
+        const archMat = architectureMaterials[materialId];
+        if (archMat) {
+          editor.execute(createUpsertMaterialCommand(scene, archMat));
+        }
+      }
+
+      let meshData: EditableMesh | undefined;
+
+      switch (type) {
+        case "wall":
+          meshData = buildWall({
+            width: num(args, "width", 4),
+            height: num(args, "height", 3),
+            thickness: num(args, "thickness", 0.2),
+            materialId
+          });
+          break;
+        case "slab":
+          meshData = buildSlab({
+            width: num(args, "width", 4),
+            depth: num(args, "depth", 4),
+            thickness: num(args, "thickness", 0.2),
+            materialId
+          });
+          break;
+        case "ceiling":
+          meshData = buildCeiling({
+            width: num(args, "width", 4),
+            depth: num(args, "depth", 4),
+            thickness: num(args, "thickness", 0.15),
+            height: num(args, "height", 3),
+            materialId
+          });
+          break;
+        case "roof":
+          meshData = buildRoof({
+            width: num(args, "width", 4),
+            depth: num(args, "depth", 4),
+            pitchAngle: num(args, "pitchAngle", 30),
+            overhang: num(args, "overhang", 0.3),
+            materialId
+          });
+          break;
+        case "item":
+          meshData = buildItem({
+            itemType: (str(args, "itemType") || "door") as "door" | "window" | "light-fixture",
+            width: num(args, "width", 1),
+            height: num(args, "height", 2.1),
+            materialId
+          });
+          break;
+      }
+
+      if (!meshData) {
+        return fail(`Unsupported architecture element type: ${type}`);
+      }
+
+      const transform = makeTransform(vec3(num(args, "x"), num(args, "y"), num(args, "z")));
+      if (typeof args.rotationY === "number") {
+        transform.rotation.y = args.rotationY as number;
+      }
+
+      const typeLabel = type === "item" ? str(args, "itemType", "item") : type;
+      const { command, nodeId } = createPlaceMeshNodeCommand(scene, transform, {
+        data: meshData,
+        name: str(args, "name") || `Architecture: ${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)}`
       });
       editor.execute(command);
       return ok({ nodeId });

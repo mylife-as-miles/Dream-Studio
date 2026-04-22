@@ -11,7 +11,7 @@ import {
   type InputHTMLAttributes,
   type RefObject,
 } from "react"
-import { FilePlus2, FolderOpen, FileMusic, FileDown } from "lucide-react"
+import { FilePlus2, FolderOpen, FileMusic, FileDown, Upload } from "lucide-react"
 import { Engine, Model, Vec3, parsePmxFolderInput, pmxFileAtRelativePath } from "reze-engine"
 import { Button } from "@/components/ui/button"
 import {
@@ -37,6 +37,8 @@ import {
   readLocalPoseAfterSeek,
   upsertMorphKeyframeAtFrame,
 } from "@/lib/utils"
+import { createStudioRuntimeBundleSyncResult, createStudioRuntimeBundleZip } from "@/lib/runtime-bundle"
+import { useGameConnection } from "@/lib/use-game-connection"
 import packageJson from "../package.json"
 
 const MODEL_PATH = "/models/reze/reze.pmx"
@@ -105,6 +107,10 @@ function sanitizeClipFilenameBase(name: string): string {
   return cleaned.slice(0, 120).replace(/^-|-$/g, "") || "clip"
 }
 
+function formatRuntimeWarnings(warnings: string[]) {
+  return warnings.length > 0 ? ` ${warnings.join(" ")}` : ""
+}
+
 /** Reuse `livePose` object when floats haven’t moved — keeps memo’d Properties from reconciling every RAF. */
 function poseNearEqual(a: { euler: { x: number; y: number; z: number }; translation: Vec3 }, b: typeof a, eps = 1e-5) {
   return (
@@ -143,6 +149,11 @@ type StudioLeftPanelProps = {
   studioReady: boolean
   resetStudioDocument: () => void
   exportClipVmd: () => void
+  exportRuntimeBundle: () => void
+  pushRuntimeBundle: () => void
+  canPushRuntime: boolean
+  activeGameName?: string
+  isPushingRuntime: boolean
   pmxPickFiles: File[] | null
   pmxPickPaths: string[]
   pmxPickSelected: string
@@ -172,6 +183,11 @@ const StudioLeftPanel = memo(function StudioLeftPanel({
   studioReady,
   resetStudioDocument,
   exportClipVmd,
+  exportRuntimeBundle,
+  pushRuntimeBundle,
+  canPushRuntime,
+  activeGameName,
+  isPushingRuntime,
   pmxPickFiles,
   pmxPickPaths,
   pmxPickSelected,
@@ -276,6 +292,31 @@ const StudioLeftPanel = memo(function StudioLeftPanel({
                   >
                     <FileDown className="size-3.5" />
                     Export VMD…
+                  </MenubarItem>
+                  <MenubarItem
+                    className="gap-2 py-1 pl-2 pr-1.5 text-[11px] text-muted-foreground"
+                    disabled={!studioReady || !hasClip}
+                    onSelect={exportRuntimeBundle}
+                  >
+                    <FileDown className="size-3.5" />
+                    Export Runtime Bundle…
+                  </MenubarItem>
+                </MenubarGroup>
+                <MenubarSeparator className="my-0.5" />
+                <MenubarGroup>
+                  <MenubarItem
+                    className="gap-2 py-1 pl-2 pr-1.5 text-[11px] text-muted-foreground"
+                    disabled={!studioReady || !hasClip || !canPushRuntime || isPushingRuntime}
+                    onSelect={() => {
+                      void pushRuntimeBundle()
+                    }}
+                  >
+                    <Upload className="size-3.5" />
+                    {isPushingRuntime
+                      ? "Pushing Runtime Bundle…"
+                      : activeGameName
+                        ? `Push To ${activeGameName}`
+                        : "Push Runtime Bundle"}
                   </MenubarItem>
                 </MenubarGroup>
               </MenubarContent>
@@ -498,6 +539,7 @@ function StudioPage() {
   /** Render FPS from `Engine.getStats()` (updated inside the engine render path, ~1s window). */
   const [statusFps, setStatusFps] = useState<number | null>(null)
   const lastReportedEngineFpsRef = useRef<number | null>(null)
+  const gameConnection = useGameConnection()
 
   const playRef = useRef(false)
   const lastT = useRef<number | null>(null)
@@ -1132,6 +1174,80 @@ function StudioPage() {
     }
   }, [clip, clipDisplayName])
 
+  const exportRuntimeBundle = useCallback(() => {
+    const model = modelRef.current
+    const currentClip = clipRef.current
+    const clipName = sanitizeClipFilenameBase(clipDisplayNameRef.current)
+    if (!model || !currentClip) {
+      setStatusMessage("Load a PMX model and animation clip before exporting a runtime bundle.")
+      return
+    }
+
+    try {
+      setStatusMessage(`Exporting runtime bundle "${clipName}"...`)
+      const bundle = createStudioRuntimeBundleZip({
+        clip: currentClip,
+        clipName,
+        model,
+        sourceName: statusPmxFileName,
+      })
+      const blobBytes = bundle.bytes.buffer.slice(
+        bundle.bytes.byteOffset,
+        bundle.bytes.byteOffset + bundle.bytes.byteLength,
+      )
+      downloadBlob(new Blob([blobBytes], { type: "application/zip" }), bundle.fileName)
+      setStatusMessage(
+        `Exported runtime bundle "${bundle.fileName}" for animations/${bundle.folderName}/.${formatRuntimeWarnings(bundle.warnings)}`,
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setStatusMessage(`Runtime bundle export failed. ${message}`)
+      window.alert(message)
+    }
+  }, [statusPmxFileName])
+
+  const pushRuntimeBundle = useCallback(async () => {
+    const model = modelRef.current
+    const currentClip = clipRef.current
+    const clipName = sanitizeClipFilenameBase(clipDisplayNameRef.current)
+    const activeGame = gameConnection.activeGame
+
+    if (!model || !currentClip) {
+      setStatusMessage("Load a PMX model and animation clip before pushing a runtime bundle.")
+      return
+    }
+
+    if (!activeGame) {
+      setStatusMessage("No live game dev server is connected right now.")
+      return
+    }
+
+    try {
+      setStatusMessage(`Pushing runtime bundle "${clipName}" to ${activeGame.name}...`)
+      const bundle = createStudioRuntimeBundleSyncResult({
+        clip: currentClip,
+        clipName,
+        model,
+        sourceName: statusPmxFileName,
+      })
+      const result = await gameConnection.pushRuntimeBundle({
+        bundle: { files: bundle.files },
+        gameId: activeGame.id,
+        metadata: {
+          projectName: clipName,
+          projectSlug: bundle.folderName,
+        },
+      })
+      setStatusMessage(
+        `Pushed runtime bundle to ${result.animationPath} in ${result.game.name}.${formatRuntimeWarnings(bundle.warnings)}`,
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setStatusMessage(`Runtime bundle push failed. ${message}`)
+      window.alert(message)
+    }
+  }, [gameConnection, statusPmxFileName])
+
   const resetStudioDocument = useCallback(() => {
     const model = modelRef.current
     if (!model) return
@@ -1165,6 +1281,11 @@ function StudioPage() {
           studioReady={studioReady}
           resetStudioDocument={resetStudioDocument}
           exportClipVmd={exportClipVmd}
+          exportRuntimeBundle={exportRuntimeBundle}
+          pushRuntimeBundle={pushRuntimeBundle}
+          canPushRuntime={Boolean(gameConnection.activeGame)}
+          activeGameName={gameConnection.activeGame?.name}
+          isPushingRuntime={gameConnection.isPushing}
           pmxPickFiles={pmxPickFiles}
           pmxPickPaths={pmxPickPaths}
           pmxPickSelected={pmxPickSelected}
