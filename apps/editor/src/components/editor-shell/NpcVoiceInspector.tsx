@@ -99,9 +99,11 @@ export function NpcVoiceInspector({ entity, onUpdateEntityProperties }: NpcVoice
     commitDialogue(next);
   };
 
+  const customIds = new Set(snap.voices.map((v) => v.voiceId));
+  const elVoicesDeduped = elVoices.filter((v) => !customIds.has(v.voice_id));
   const allVoices: { voice_id: string; name: string }[] = [
-    ...elVoices,
     ...snap.voices.map((v) => ({ voice_id: v.voiceId, name: `★ ${v.name}` })),
+    ...elVoicesDeduped.map((v) => ({ voice_id: v.voice_id, name: v.name })),
   ];
 
   return (

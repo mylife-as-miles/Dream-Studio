@@ -27,6 +27,10 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ToolId } from "@blud/tool-system";
+import {
+  writeViewportBlockoutDragData,
+  type ViewportBlockoutDropKind
+} from "@/viewport/utils/viewport-blockout-dnd";
 
 export function CreationToolBar({
   activeBrushShape,
@@ -172,10 +176,34 @@ export function CreationToolBar({
       </CreationGroup>
 
       <CreationGroup label="Blockout">
-        <CreationButton disabled={disabled} icon={BlockoutPlatformIcon} label="Open Platform" onClick={onPlaceBlockoutPlatform} />
-        <CreationButton disabled={disabled} icon={RoomShellIcon} label="Closed Room" onClick={onPlaceBlockoutRoom} />
-        <CreationButton disabled={disabled} icon={OpenRoomIcon} label="Open Room" onClick={onPlaceBlockoutOpenRoom} />
-        <CreationButton disabled={disabled} icon={StairBlockoutIcon} label="Blockout Stairs" onClick={onPlaceBlockoutStairs} />
+        <CreationButton
+          blockoutDropKind="platform"
+          disabled={disabled}
+          icon={BlockoutPlatformIcon}
+          label="Open Platform"
+          onClick={onPlaceBlockoutPlatform}
+        />
+        <CreationButton
+          blockoutDropKind="closed-room"
+          disabled={disabled}
+          icon={RoomShellIcon}
+          label="Closed Room"
+          onClick={onPlaceBlockoutRoom}
+        />
+        <CreationButton
+          blockoutDropKind="open-room"
+          disabled={disabled}
+          icon={OpenRoomIcon}
+          label="Open Room"
+          onClick={onPlaceBlockoutOpenRoom}
+        />
+        <CreationButton
+          blockoutDropKind="stairs"
+          disabled={disabled}
+          icon={StairBlockoutIcon}
+          label="Blockout Stairs"
+          onClick={onPlaceBlockoutStairs}
+        />
       </CreationGroup>
 
     </div>
@@ -199,17 +227,21 @@ function CreationGroup({
 
 function CreationButton({
   active = false,
+  blockoutDropKind,
   disabled = false,
   icon: Icon,
   label,
   onClick
 }: {
   active?: boolean;
+  blockoutDropKind?: ViewportBlockoutDropKind;
   disabled?: boolean;
   icon: ComponentType<{ className?: string }>;
   label: string;
   onClick: () => void;
 }) {
+  const draggable = Boolean(blockoutDropKind) && !disabled;
+
   return (
     <Tooltip>
       <TooltipTrigger
@@ -217,10 +249,19 @@ function CreationButton({
           <Button
             className={cn(
               "editor-toolbar-button size-8 rounded-[10px] text-foreground/58 hover:translate-y-0 active:scale-100 disabled:pointer-events-none disabled:opacity-35",
+              draggable && "cursor-grab active:cursor-grabbing",
               active && "editor-toolbar-button-active text-[#fff0cb]"
             )}
             disabled={disabled}
+            draggable={draggable}
             onClick={onClick}
+            onDragStart={
+              draggable && blockoutDropKind
+                ? (event) => {
+                    writeViewportBlockoutDragData(event.dataTransfer, blockoutDropKind);
+                  }
+                : undefined
+            }
             size="icon-sm"
             variant="ghost"
           />
@@ -230,6 +271,9 @@ function CreationButton({
       </TooltipTrigger>
       <TooltipContent>
         <div className="text-[11px] font-medium text-foreground">{label}</div>
+        {draggable ? (
+          <div className="mt-1 text-[10px] font-normal text-muted-foreground">Drag into a viewport to place</div>
+        ) : null}
       </TooltipContent>
     </Tooltip>
   );

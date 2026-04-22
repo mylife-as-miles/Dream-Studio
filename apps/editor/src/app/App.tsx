@@ -94,6 +94,7 @@ import { useGameConnection } from "@/app/hooks/useGameConnection";
 import { uiStore, type RightPanelId } from "@/state/ui-store";
 import type { Transform } from "@blud/shared";
 import type { MeshEditMode } from "@/viewport/editing";
+import type { ViewportBlockoutDropKind } from "@/viewport/utils/viewport-blockout-dnd";
 import { useAppHotkeys } from "@/app/hooks/useAppHotkeys";
 import { useCopilot } from "@/app/hooks/useCopilot";
 import { GameConnectionControl } from "@/components/editor-shell/GameConnectionControl";
@@ -1180,6 +1181,69 @@ export function App() {
     enqueueWorkerJob("Blockout stairs", { task: "brush-rebuild", worker: "geometryWorker" }, 850);
   };
 
+  const handleDropBlockout = (kind: ViewportBlockoutDropKind, surfacePoint: Vec3) => {
+    const p = surfacePoint;
+
+    if (kind === "platform") {
+      const { command, nodeId } = createPlaceBlockoutPlatformCommand(editor.scene, {
+        name: "Open Platform",
+        position: vec3(p.x, p.y + 0.25, p.z),
+        size: vec3(8, 0.5, 8),
+        tags: ["play-space", "open-area"]
+      });
+
+      editor.execute(command);
+      editor.select([nodeId], "object");
+      enqueueWorkerJob("Blockout platform", { task: "brush-rebuild", worker: "geometryWorker" }, 650);
+      return;
+    }
+
+    if (kind === "closed-room") {
+      const { command, nodeIds } = createPlaceBlockoutRoomCommand(editor.scene, {
+        name: "Closed Room",
+        openSides: [],
+        position: vec3(p.x, p.y, p.z),
+        size: vec3(10, 4, 10),
+        tags: ["closed-room", "play-space"]
+      });
+
+      editor.execute(command);
+      editor.select(nodeIds, "object");
+      enqueueWorkerJob("Blockout room", { task: "brush-rebuild", worker: "geometryWorker" }, 800);
+      return;
+    }
+
+    if (kind === "open-room") {
+      const { command, nodeIds } = createPlaceBlockoutRoomCommand(editor.scene, {
+        name: "Open Room",
+        openSides: ["south"],
+        position: vec3(p.x, p.y, p.z),
+        size: vec3(10, 4, 10),
+        tags: ["open-room", "play-space"]
+      });
+
+      editor.execute(command);
+      editor.select(nodeIds, "object");
+      enqueueWorkerJob("Blockout room", { task: "brush-rebuild", worker: "geometryWorker" }, 800);
+      return;
+    }
+
+    const { command, nodeIds } = createPlaceBlockoutStairCommand(editor.scene, {
+      direction: "north",
+      name: "Blockout Stairs",
+      position: vec3(p.x, p.y + 0.1, p.z),
+      stepCount: 10,
+      stepHeight: 0.2,
+      tags: ["vertical-connector"],
+      treadDepth: 0.6,
+      width: 3
+    });
+
+    editor.execute(command);
+    editor.select(nodeIds, "object");
+    enqueueWorkerJob("Blockout stairs", { task: "brush-rebuild", worker: "geometryWorker" }, 850);
+  };
+
   const handlePlaceFloorPreset = (presetId: FloorPresetId) => {
     const preset = getFloorPreset(presetId);
     if (!preset) return;
@@ -2091,6 +2155,7 @@ export function App() {
         onPlaceBlockoutPlatform={handlePlaceBlockoutPlatform}
         onPlaceBlockoutRoom={() => handlePlaceBlockoutRoom()}
         onPlaceBlockoutStairs={handlePlaceBlockoutStairs}
+        onDropBlockout={handleDropBlockout}
         onPlaceEntity={handlePlaceEntity}
         onPlaceFloorPreset={handlePlaceFloorPreset}
         onPlaceLight={handlePlaceLight}

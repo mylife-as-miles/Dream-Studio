@@ -14,6 +14,7 @@ import type {
 import type { ToolId } from "@blud/tool-system";
 import type { BrushExtrudeHandle, MeshEditMode, MeshExtrudeHandle } from "@/viewport/editing";
 import type { ConstructionPlane, ViewportPaneId, ViewportRenderMode } from "@/viewport/viewports";
+import type { ViewportBlockoutDropKind } from "@/viewport/utils/viewport-blockout-dnd";
 import type { Plane, Vector2 } from "three";
 
 export type MeshEditToolbarAction =
@@ -50,6 +51,7 @@ export type ViewportCanvasProps = {
   sculptBrushStrength: number;
   onActivateViewport: (viewportId: ViewportPaneId) => void;
   onClearSelection: () => void;
+  onDropBlockout?: (kind: ViewportBlockoutDropKind, position: Vec3) => void;
   onCommitMeshTopology: (nodeId: string, mesh: EditableMesh) => void;
   onFocusNode: (nodeId: string) => void;
   onPlaceAsset: (position: { x: number; y: number; z: number }) => void;

@@ -13,7 +13,8 @@ import type {
   SceneSettings,
   TextureRecord,
   Transform,
-  Vec2
+  Vec2,
+  Vec3
 } from "@blud/shared";
 import type { PrimitiveNodeData, PrimitiveShape, SkateparkElementType } from "@blud/shared";
 import type { ToolId } from "@blud/tool-system";
@@ -31,6 +32,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { ViewportCanvas } from "@/viewport/ViewportCanvas";
 import type { MeshEditMode } from "@/viewport/editing";
 import type { MeshEditToolbarActionRequest, PreviewSessionMode } from "@/viewport/types";
+import type { ViewportBlockoutDropKind } from "@/viewport/utils/viewport-blockout-dnd";
 import type { RightPanelId, ViewportQuality } from "@/state/ui-store";
 import {
   getViewModePreset,
@@ -121,6 +123,7 @@ type EditorShellProps = {
   onPlaceBlockoutPlatform: () => void;
   onPlaceBlockoutRoom: () => void;
   onPlaceBlockoutStairs: () => void;
+  onDropBlockout?: (kind: ViewportBlockoutDropKind, position: Vec3) => void;
   onPlaceSkateparkElement?: (type: SkateparkElementType) => void;
   onMirrorSelection: (axis: TransformAxis) => void;
   onGenerateAiModel: () => void;
@@ -263,6 +266,7 @@ export function EditorShell({
   onPlaceBlockoutPlatform,
   onPlaceBlockoutRoom,
   onPlaceBlockoutStairs,
+  onDropBlockout,
   onPlaceSkateparkElement,
   onMirrorSelection,
   onGenerateAiModel,
@@ -417,6 +421,7 @@ export function EditorShell({
           sculptBrushStrength={sculptBrushStrength}
           onActivateViewport={onActivateViewport}
           onClearSelection={onClearSelection}
+          onDropBlockout={onDropBlockout}
           onCommitMeshTopology={onCommitMeshTopology}
           onFocusNode={onFocusNode}
           onPlaceAsset={onPlaceAsset}

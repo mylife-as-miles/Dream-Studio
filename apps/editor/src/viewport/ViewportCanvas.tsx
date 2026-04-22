@@ -92,7 +92,11 @@ import {
 } from "@/viewport/utils/screen-space";
 import { composeTransformRotation, rebaseTransformPivot } from "@/viewport/utils/geometry";
 import { resolveViewportSnapSize } from "@/viewport/utils/snap";
-import { useEffect, useMemo, useRef, useState, type PointerEventHandler } from "react";
+import {
+  isViewportBlockoutDrag,
+  parseViewportBlockoutDrop
+} from "@/viewport/utils/viewport-blockout-dnd";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEventHandler } from "react";
 import {
   ACESFilmicToneMapping,
   BackSide,
@@ -363,6 +367,7 @@ export function ViewportCanvas({
   sculptBrushStrength,
   onActivateViewport,
   onClearSelection,
+  onDropBlockout,
   onCommitMeshTopology,
   onFocusNode,
   onPlaceAsset,
@@ -3166,6 +3171,75 @@ export function ViewportCanvas({
     onClearSelection();
   };
 
+  const handleBlockoutDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!onDropBlockout || !editorInteractionEnabled) {
+        return;
+      }
+
+      if (!isViewportBlockoutDrag(event.dataTransfer)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+    },
+    [editorInteractionEnabled, onDropBlockout]
+  );
+
+  const handleBlockoutDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!onDropBlockout || !editorInteractionEnabled) {
+        return;
+      }
+
+      const kind = parseViewportBlockoutDrop(event.dataTransfer);
+      if (!kind) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (!cameraRef.current || !viewportRootRef.current) {
+        return;
+      }
+
+      const bounds = viewportRootRef.current.getBoundingClientRect();
+      const constructionPlane = resolveViewportConstructionPlane(viewportPlane, viewport);
+      const hit = resolveBrushCreateSurfaceHit(
+        event.clientX,
+        event.clientY,
+        bounds,
+        cameraRef.current,
+        raycasterRef.current,
+        meshObjectsRef.current,
+        constructionPlane.point,
+        constructionPlane.normal
+      );
+
+      if (!hit) {
+        return;
+      }
+
+      const point =
+        hit.kind === "plane" && viewport.grid.enabled
+          ? snapPointToViewportPlane(hit.point, viewportPlane, viewport, snapSize)
+          : hit.point;
+
+      onActivateViewport(viewportId);
+      onDropBlockout(kind, vec3(point.x, point.y, point.z));
+    },
+    [
+      editorInteractionEnabled,
+      onActivateViewport,
+      onDropBlockout,
+      snapSize,
+      viewport,
+      viewportId,
+      viewportPlane
+    ]
+  );
+
   const marqueeRect = marquee ? createScreenRect(marquee.origin, marquee.current) : undefined;
   const cameraControlsEnabled =
     isActiveViewport &&
@@ -3200,6 +3274,8 @@ export function ViewportCanvas({
       onContextMenu={(event) => {
         event.preventDefault();
       }}
+      onDragOver={handleBlockoutDragOver}
+      onDrop={handleBlockoutDrop}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
