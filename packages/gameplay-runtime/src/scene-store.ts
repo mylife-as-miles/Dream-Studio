@@ -1,5 +1,12 @@
 import { addVec3, resolveSceneGraph, type Entity, type GameplayValue, type GeometryNode, type Transform, type Vec3 } from "@blud/shared";
-import { type GameplayActor, type GameplayHookTarget, type GameplayRuntimeHost, type GameplayRuntimeScene, type GameplayRuntimeSceneStore } from "./types";
+import {
+  type GameplayActor,
+  type GameplayHookTarget,
+  type GameplayPhysicsMotorResult,
+  type GameplayRuntimeHost,
+  type GameplayRuntimeScene,
+  type GameplayRuntimeSceneStore
+} from "./types";
 
 export type GameplayWorldOptions = {
   host?: GameplayRuntimeHost;
@@ -159,6 +166,25 @@ export class GameplayWorld implements GameplayRuntimeSceneStore {
     this.mutableEntitiesById.forEach((entity, entityId) => {
       this.host?.applyEntityWorldTransform?.(entityId, this.sceneGraph.entityWorldTransforms.get(entityId) ?? entity.transform, entity);
     });
+  }
+
+  driveOpenablePhysicsMotor(
+    nodeId: string,
+    deltaSeconds: number,
+    params: {
+      damping: number;
+      maxAngularSpeed: number;
+      stiffness: number;
+      targetWorldYaw: number;
+    }
+  ): GameplayPhysicsMotorResult {
+    return (
+      this.host?.driveOpenablePhysicsMotor?.(nodeId, deltaSeconds, params) ?? {
+        angularVelocity: 0,
+        error: 0,
+        settled: true
+      }
+    );
   }
 
   translateTarget(targetId: string, offset: Vec3) {

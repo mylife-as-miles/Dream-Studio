@@ -98,14 +98,7 @@ export function createDynamicRigidBody(world: World, mesh: DerivedRenderMesh) {
 
   return rigidBody.create(world, {
     allowSleeping: physics?.canSleep ?? true,
-    allowedDegreesOfFreedom: dof(
-      !(physics?.lockTranslations ?? false),
-      !(physics?.lockTranslations ?? false),
-      !(physics?.lockTranslations ?? false),
-      !(physics?.lockRotations ?? false),
-      !(physics?.lockRotations ?? false),
-      !(physics?.lockRotations ?? false)
-    ),
+    allowedDegreesOfFreedom: resolveAllowedDegreesOfFreedom(physics),
     angularDamping: physics?.angularDamping ?? 0,
     friction: physics?.friction ?? 0.5,
     gravityFactor: physics?.gravityScale ?? 1,
@@ -250,6 +243,34 @@ function resolveMotionType(bodyType: NonNullable<DerivedRenderMesh["physics"]>["
     default:
       return MotionType.DYNAMIC;
   }
+}
+
+function resolveAllowedDegreesOfFreedom(physics: DerivedRenderMesh["physics"]) {
+  if (!physics) {
+    return dof(true, true, true, true, true, true);
+  }
+
+  const hinge = physics.hingeAxis;
+  if (hinge === "y") {
+    return dof(false, false, false, false, true, false);
+  }
+
+  if (hinge === "x") {
+    return dof(false, false, false, true, false, false);
+  }
+
+  if (hinge === "z") {
+    return dof(false, false, false, false, false, true);
+  }
+
+  return dof(
+    !(physics.lockTranslations ?? false),
+    !(physics.lockTranslations ?? false),
+    !(physics.lockTranslations ?? false),
+    !(physics.lockRotations ?? false),
+    !(physics.lockRotations ?? false),
+    !(physics.lockRotations ?? false)
+  );
 }
 
 function createRenderableGeometry(mesh: DerivedRenderMesh) {

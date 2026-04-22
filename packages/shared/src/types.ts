@@ -131,6 +131,11 @@ export type PropPhysics = {
   enabled: boolean;
   friction: number;
   gravityScale: number;
+  /**
+   * When set, the body only rotates around this local axis (translations locked).
+   * Used with dynamic meshes + Openable "physics motor" for hinge-like doors.
+   */
+  hingeAxis?: "x" | "y" | "z";
   linearDamping: number;
   lockRotations: boolean;
   lockTranslations: boolean;

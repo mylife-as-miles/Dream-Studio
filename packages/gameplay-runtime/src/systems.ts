@@ -414,6 +414,10 @@ export function createMoverSystemDefinition(): GameplayRuntimeSystemDefinition {
         context.getHookTargetsByType("mover")
           .filter((target) => target.targetId === event.targetId && target.hook.enabled !== false)
           .forEach((target) => {
+            if (hookTargetUsesOpenablePhysicsMotor(context, event.targetId!)) {
+              return;
+            }
+
             const state =
               event.event === "open.started"
                 ? "open"
@@ -463,6 +467,104 @@ export function createMoverSystemDefinition(): GameplayRuntimeSystemDefinition {
             if (animation.progress >= 1) {
               activeAnimations.delete(hookId);
               context.emitFromHookTarget(hookTarget, "move.completed", { state: animation.state });
+            }
+          });
+        }
+      };
+    }
+  };
+}
+
+const PHYSICS_DOOR_CLOSED_YAW = "physics_door:closedYaw";
+const PHYSICS_DOOR_OPEN_YAW = "physics_door:openYaw";
+const PHYSICS_DOOR_TARGET_YAW = "physics_door:targetYaw";
+const PHYSICS_DOOR_MOVE_LABEL = "physics_door:moveLabel";
+const PHYSICS_DOOR_MOTOR_ACTIVE = "physics_door:motorActive";
+
+export function createPhysicsHingeDoorSystemDefinition(): GameplayRuntimeSystemDefinition {
+  return {
+    description:
+      "Swings openable targets with a CrashCat dynamic motor (world Y). Requires mesh physics (dynamic) + hingeAxis on the door; disable Mover on the same node.",
+    hookTypes: ["openable"],
+    id: "physics_hinge_door",
+    label: "PhysicsHingeDoorSystem",
+    create(context) {
+      const unsubscribe = context.eventBus.subscribe({ event: ["open.started", "close.started"] }, (event) => {
+        if (!event.targetId) {
+          return;
+        }
+
+        context
+          .getHookTargetsByType("openable")
+          .filter((target) => target.targetId === event.targetId && target.hook.enabled !== false)
+          .forEach((target) => {
+            const motor = readOpenablePhysicsMotor(target.hook.config);
+            if (!motor) {
+              return;
+            }
+
+            const closedYaw = context.getLocalState(target.targetId, PHYSICS_DOOR_CLOSED_YAW) as number | undefined;
+            const openYaw = context.getLocalState(target.targetId, PHYSICS_DOOR_OPEN_YAW) as number | undefined;
+            if (closedYaw === undefined || openYaw === undefined) {
+              return;
+            }
+
+            const opening = event.event === "open.started";
+            context.setLocalState(target.targetId, PHYSICS_DOOR_TARGET_YAW, opening ? openYaw : closedYaw);
+            context.setLocalState(target.targetId, PHYSICS_DOOR_MOVE_LABEL, opening ? "open" : "closed");
+            context.setLocalState(target.targetId, PHYSICS_DOOR_MOTOR_ACTIVE, true);
+          });
+      });
+
+      return {
+        start() {
+          context.getHookTargetsByType("openable").forEach((target) => {
+            const motor = readOpenablePhysicsMotor(target.hook.config);
+            if (!motor) {
+              return;
+            }
+
+            const wt = context.getTargetWorldTransform(target.targetId);
+            if (!wt) {
+              return;
+            }
+
+            const closedYaw = wt.rotation.y;
+            const openYaw = closedYaw + (motor.swingDeg * Math.PI) / 180;
+            context.setLocalState(target.targetId, PHYSICS_DOOR_CLOSED_YAW, closedYaw);
+            context.setLocalState(target.targetId, PHYSICS_DOOR_OPEN_YAW, openYaw);
+          });
+        },
+        stop() {
+          unsubscribe();
+        },
+        update(deltaSeconds) {
+          context.getHookTargetsByType("openable").forEach((target) => {
+            if (!readOpenablePhysicsMotor(target.hook.config)) {
+              return;
+            }
+
+            if (context.getLocalState(target.targetId, PHYSICS_DOOR_MOTOR_ACTIVE) !== true) {
+              return;
+            }
+
+            const targetYaw = context.getLocalState(target.targetId, PHYSICS_DOOR_TARGET_YAW) as number | undefined;
+            const motor = readOpenablePhysicsMotor(target.hook.config);
+            if (targetYaw === undefined || !motor) {
+              return;
+            }
+
+            const result = context.driveOpenablePhysicsMotor?.(target.targetId, deltaSeconds, {
+              damping: motor.damping,
+              maxAngularSpeed: motor.maxSpeed,
+              stiffness: motor.stiffness,
+              targetWorldYaw: targetYaw
+            }) ?? { settled: true, angularVelocity: 0, error: 0 };
+
+            if (result.settled) {
+              const moveLabel = context.getLocalState(target.targetId, PHYSICS_DOOR_MOVE_LABEL) as string | undefined;
+              context.setLocalState(target.targetId, PHYSICS_DOOR_MOTOR_ACTIVE, false);
+              context.emitFromHookTarget(target, "move.completed", { state: moveLabel ?? "open" });
             }
           });
         }

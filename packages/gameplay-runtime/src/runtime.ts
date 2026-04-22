@@ -12,6 +12,7 @@ import {
   type GameplayEventFilter,
   type GameplayEventInput,
   type GameplayHookTarget,
+  type GameplayPhysicsMotorResult,
   type GameplayRuntime as GameplayRuntimeShape,
   type GameplayRuntimeHost,
   type GameplayRuntimeScene,
@@ -176,6 +177,19 @@ export class GameplayGame implements GameplayRuntimeShape {
 
   updateActor(actor: GameplayActor) {
     this.scene.upsertActor(actor);
+  }
+
+  driveOpenablePhysicsMotor(
+    nodeId: string,
+    deltaSeconds: number,
+    params: {
+      damping: number;
+      maxAngularSpeed: number;
+      stiffness: number;
+      targetWorldYaw: number;
+    }
+  ): GameplayPhysicsMotorResult {
+    return this.scene.driveOpenablePhysicsMotor(nodeId, deltaSeconds, params);
   }
 
   dispose() {

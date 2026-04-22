@@ -43,9 +43,29 @@ export type GameplayEventFilter = {
   targetId?: string;
 };
 
+export type GameplayPhysicsMotorResult = {
+  angularVelocity: number;
+  error: number;
+  settled: boolean;
+};
+
 export type GameplayRuntimeHost = {
   applyEntityWorldTransform?: (entityId: string, transform: Transform, entity: Entity) => void;
   applyNodeWorldTransform?: (nodeId: string, transform: Transform, node: GeometryNode) => void;
+  /**
+   * PD-style motor around world +Y for dynamic door bodies (see PhysicsHingeDoorSystem).
+   * Returns whether the hinge is close enough to the target to emit move.completed.
+   */
+  driveOpenablePhysicsMotor?: (
+    nodeId: string,
+    deltaSeconds: number,
+    params: {
+      damping: number;
+      maxAngularSpeed: number;
+      stiffness: number;
+      targetWorldYaw: number;
+    }
+  ) => GameplayPhysicsMotorResult;
   onEvent?: (event: GameplayEvent) => void;
 };
 
@@ -82,6 +102,16 @@ export type GameplayRuntimeSceneStore = GameplayRuntimeStateStore & {
   syncWorldTransforms: () => void;
   translateTarget: (targetId: string, offset: Vec3) => void;
   upsertActor: (actor: GameplayActor) => void;
+  driveOpenablePhysicsMotor: (
+    nodeId: string,
+    deltaSeconds: number,
+    params: {
+      damping: number;
+      maxAngularSpeed: number;
+      stiffness: number;
+      targetWorldYaw: number;
+    }
+  ) => GameplayPhysicsMotorResult;
 };
 
 export type GameplayRuntimeEventBus = {
@@ -124,6 +154,16 @@ export type GameplayRuntimeApi = GameplayRuntimeStateStore & {
   setTargetLocalTransform: (targetId: string, transform: Transform) => void;
   translateTarget: (targetId: string, offset: Vec3) => void;
   updateActor: (actor: GameplayActor) => void;
+  driveOpenablePhysicsMotor?: (
+    nodeId: string,
+    deltaSeconds: number,
+    params: {
+      damping: number;
+      maxAngularSpeed: number;
+      stiffness: number;
+      targetWorldYaw: number;
+    }
+  ) => GameplayPhysicsMotorResult;
 };
 
 export type GameplayRuntimeSystemContext = GameplayRuntimeApi & {
