@@ -12,13 +12,13 @@ This plan adds an "Architecture" creation category to the BLUD world editor. It 
     - _Requirements: 1.1, 1.2_
 
 - [-] 2. Create the `@blud/architecture` package with geometry builders and materials
-  - [-] 2.1 Scaffold the `packages/architecture` package
+  - [x] 2.1 Scaffold the `packages/architecture` package
     - Create `packages/architecture/package.json` following the `@blud/skatepark` pattern with dependencies on `@blud/shared` and `@blud/geometry-kernel`
     - Create `packages/architecture/tsconfig.json` matching the skatepark tsconfig
     - Create `packages/architecture/src/index.ts` re-exporting all builders and materials
     - _Requirements: 3.1, 4.1, 5.1, 6.1, 8.1, 11.1_
 
-  - [~] 2.2 Implement `buildWall` geometry builder
+  - [x] 2.2 Implement `buildWall` geometry builder
     - Create `packages/architecture/src/geometry/wall.ts`
     - Accept `{ width, height, thickness, materialId? }` and return an `EditableMesh` with 6 faces forming a closed rectangular solid
     - Center on local origin along width axis, base at y=0, extending upward along positive y-axis
