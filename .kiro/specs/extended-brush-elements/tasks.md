@@ -26,7 +26,7 @@ This plan adds an "Architecture" creation category to the BLUD world editor. It 
     - Use `createEditableMeshFromPolygons` from `@blud/geometry-kernel`
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-  - [-] 2.3 Implement `buildSlab` geometry builder
+  - [ ] 2.3 Implement `buildSlab` geometry builder
     - Create `packages/architecture/src/geometry/slab.ts`
     - Accept `{ width, depth, thickness, materialId? }` and return an `EditableMesh` with 6 faces forming a horizontal rectangular solid with top face at y=0
     - Clamp zero/negative dimensions to 0.1 minimum
