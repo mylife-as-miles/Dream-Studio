@@ -15,23 +15,20 @@ export function buildSlab(params: {
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
 
-  // Slab: top face at y=0, extends downward to y=-thickness
-  const top = 0;
-  const bottom = -thickness;
-
+  // Top face at y=0, slab extends downward to y=-thickness
   const polygons: EditableMeshPolygon[] = [
     // Top face (y=0)
-    { materialId, positions: [vec3(-halfW, top, -halfD), vec3(halfW, top, -halfD), vec3(halfW, top, halfD), vec3(-halfW, top, halfD)] },
+    { materialId, positions: [vec3(-halfW, 0, halfD), vec3(halfW, 0, halfD), vec3(halfW, 0, -halfD), vec3(-halfW, 0, -halfD)] },
     // Bottom face (y=-thickness)
-    { materialId, positions: [vec3(-halfW, bottom, halfD), vec3(halfW, bottom, halfD), vec3(halfW, bottom, -halfD), vec3(-halfW, bottom, -halfD)] },
+    { materialId, positions: [vec3(halfW, -thickness, halfD), vec3(-halfW, -thickness, halfD), vec3(-halfW, -thickness, -halfD), vec3(halfW, -thickness, -halfD)] },
     // Front face (+Z)
-    { materialId, positions: [vec3(-halfW, bottom, halfD), vec3(-halfW, top, halfD), vec3(halfW, top, halfD), vec3(halfW, bottom, halfD)] },
+    { materialId, positions: [vec3(-halfW, -thickness, halfD), vec3(halfW, -thickness, halfD), vec3(halfW, 0, halfD), vec3(-halfW, 0, halfD)] },
     // Back face (-Z)
-    { materialId, positions: [vec3(halfW, bottom, -halfD), vec3(halfW, top, -halfD), vec3(-halfW, top, -halfD), vec3(-halfW, bottom, -halfD)] },
+    { materialId, positions: [vec3(halfW, -thickness, -halfD), vec3(-halfW, -thickness, -halfD), vec3(-halfW, 0, -halfD), vec3(halfW, 0, -halfD)] },
     // Left face (-X)
-    { materialId, positions: [vec3(-halfW, bottom, -halfD), vec3(-halfW, top, -halfD), vec3(-halfW, top, halfD), vec3(-halfW, bottom, halfD)] },
+    { materialId, positions: [vec3(-halfW, -thickness, -halfD), vec3(-halfW, -thickness, halfD), vec3(-halfW, 0, halfD), vec3(-halfW, 0, -halfD)] },
     // Right face (+X)
-    { materialId, positions: [vec3(halfW, bottom, halfD), vec3(halfW, top, halfD), vec3(halfW, top, -halfD), vec3(halfW, bottom, -halfD)] },
+    { materialId, positions: [vec3(halfW, -thickness, halfD), vec3(halfW, -thickness, -halfD), vec3(halfW, 0, -halfD), vec3(halfW, 0, halfD)] },
   ];
 
   return createEditableMeshFromPolygons(polygons);
