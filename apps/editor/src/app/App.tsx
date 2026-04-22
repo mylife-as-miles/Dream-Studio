@@ -89,6 +89,7 @@ import {
 import { slugifyProjectName, type EditorFileMetadata } from "@blud/dev-sync";
 import { isWebHammerEngineBundle, type WebHammerEngineBundle } from "@blud/runtime-format";
 import { EditorShell } from "@/components/EditorShell";
+import { ConfirmDialog } from "@/components/editor-shell/ConfirmDialog";
 import { HtmlJsImportDialog } from "@/components/editor-shell/HtmlJsImportDialog";
 import { useGameConnection } from "@/app/hooks/useGameConnection";
 import { uiStore, type RightPanelId } from "@/state/ui-store";
@@ -183,6 +184,7 @@ export function App() {
   const [hiddenSceneItemIds, setHiddenSceneItemIds] = useState<string[]>([]);
   const [lockedSceneItemIds, setLockedSceneItemIds] = useState<string[]>([]);
   const [htmlJsImportSession, setHtmlJsImportSession] = useState<HtmlJsImportSession | null>(null);
+  const [newFileConfirmOpen, setNewFileConfirmOpen] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
   const latestDraftRef = useRef<ReturnType<typeof buildSceneDraftPayload> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1742,11 +1744,7 @@ export function App() {
     setProjectSlugDirty(true);
   };
 
-  const handleNewFile = () => {
-    if (!window.confirm("Create a new file? The current local draft will be replaced.")) {
-      return;
-    }
-
+  const performNewFile = () => {
     const nextSnapshot = createSceneDocumentSnapshot(createSeedSceneDocument());
     editor.importSnapshot(nextSnapshot, "scene:new-file");
     editor.commands.clear();
@@ -1764,6 +1762,10 @@ export function App() {
     setPhysicsRevision(0);
     uiStore.selectedAssetId = "";
     uiStore.selectedMaterialId = "material:blockout:concrete";
+  };
+
+  const handleRequestNewFile = () => {
+    setNewFileConfirmOpen(true);
   };
 
   const handleSaveWhmap = async () => {
@@ -2141,7 +2143,7 @@ export function App() {
         onImportGlb={handleImportGlb}
         onImportHtmlJs={handleImportHtmlJs}
         onLoadWhmap={handleLoadWhmap}
-        onNewFile={handleNewFile}
+        onNewFile={handleRequestNewFile}
         onPausePhysics={handlePausePhysics}
         onResumePhysics={handleResumePhysics}
         onMeshEditToolbarAction={handleMeshEditToolbarAction}
@@ -2234,6 +2236,15 @@ export function App() {
         viewMode={ui.viewMode}
         viewportQuality={ui.viewportQuality}
         viewports={ui.viewports}
+      />
+      <ConfirmDialog
+        cancelLabel="Cancel"
+        confirmLabel="OK"
+        message="Create a new file? The current local draft will be replaced."
+        onConfirm={performNewFile}
+        onOpenChange={setNewFileConfirmOpen}
+        open={newFileConfirmOpen}
+        title={typeof window !== "undefined" ? `${window.location.hostname} says` : "Confirm"}
       />
       <HtmlJsImportDialog
         entrypointSelection={htmlJsImportSession?.entrypointSelection ?? ""}
