@@ -78,6 +78,20 @@ const poseThousandClip: AnimationClipAsset = {
   ]
 };
 
+const smileClip: AnimationClipAsset = {
+  id: "smile",
+  name: "Smile",
+  duration: 1,
+  tracks: [],
+  morphTracks: [
+    {
+      morphName: "Smile",
+      times: new Float32Array([0, 1]),
+      values: new Float32Array([0, 1])
+    }
+  ]
+};
+
 const fastRunClip: AnimationClipAsset = {
   id: "run-fast",
   name: "Run Fast",
@@ -352,6 +366,100 @@ function distanceBetween(a: [number, number, number], b: [number, number, number
 }
 
 describe("@blud/anim-runtime", () => {
+  it("evaluates morph weights from clip nodes", () => {
+    const graph: CompiledAnimatorGraph = {
+      version: 1,
+      name: "Morph Clip",
+      parameters: [],
+      clipSlots: [{ id: "smile", name: "Smile", duration: 1 }],
+      masks: [],
+      graphs: [
+        {
+          name: "Main",
+          rootNodeIndex: 0,
+          nodes: [{ type: "clip", clipIndex: 0, speed: 1, loop: true, inPlace: false }]
+        }
+      ],
+      layers: [
+        {
+          name: "Base",
+          graphIndex: 0,
+          weight: 1,
+          blendMode: "override",
+          rootMotionMode: "none",
+          enabled: true
+        }
+      ],
+      entryGraphIndex: 0
+    };
+
+    const animator = createAnimatorInstance({
+      rig,
+      graph,
+      clips: [smileClip]
+    });
+
+    const result = animator.update(0.5);
+
+    expect(result.morphNames).toEqual(["Smile"]);
+    expect(result.morphWeights[0]).toBeCloseTo(0.5);
+  });
+
+  it("preserves lower-layer morphs when an override layer does not author them", () => {
+    const graph: CompiledAnimatorGraph = {
+      version: 1,
+      name: "Sparse Morph Layer",
+      parameters: [],
+      clipSlots: [
+        { id: "smile", name: "Smile", duration: 1 },
+        { id: "idle", name: "Idle", duration: 1 }
+      ],
+      masks: [],
+      graphs: [
+        {
+          name: "Base",
+          rootNodeIndex: 0,
+          nodes: [{ type: "clip", clipIndex: 0, speed: 1, loop: true, inPlace: false }]
+        },
+        {
+          name: "Upper",
+          rootNodeIndex: 0,
+          nodes: [{ type: "clip", clipIndex: 1, speed: 1, loop: true, inPlace: false }]
+        }
+      ],
+      layers: [
+        {
+          name: "Base",
+          graphIndex: 0,
+          weight: 1,
+          blendMode: "override",
+          rootMotionMode: "none",
+          enabled: true
+        },
+        {
+          name: "Upper",
+          graphIndex: 1,
+          weight: 1,
+          blendMode: "override",
+          rootMotionMode: "none",
+          enabled: true
+        }
+      ],
+      entryGraphIndex: 0
+    };
+
+    const animator = createAnimatorInstance({
+      rig,
+      graph,
+      clips: [smileClip, idleClip]
+    });
+
+    const result = animator.update(1);
+
+    expect(result.morphNames).toEqual(["Smile"]);
+    expect(result.morphWeights[0]).toBeCloseTo(1);
+  });
+
   it("evaluates 1d blends and root motion", () => {
     const graph: CompiledAnimatorGraph = {
       version: 1,

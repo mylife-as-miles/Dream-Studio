@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { addPoseAdditive, blendPosesMasked, createBoneMask, createPoseBuffer, createRigDefinition, extractRootMotionDelta, sampleClipPose, setBoneRotation, setBoneScale, setBoneTranslation } from "./index";
+import { addPoseAdditive, blendPosesMasked, createBoneMask, createPoseBuffer, createRigDefinition, extractRootMotionDelta, retargetClipAssetToRig, sampleClipMorphWeights, sampleClipPose, setBoneRotation, setBoneScale, setBoneTranslation } from "./index";
 
 describe("@blud/anim-core", () => {
   const rig = createRigDefinition({
@@ -86,5 +86,87 @@ describe("@blud/anim-core", () => {
     sampleClipPose(clip, rig, 0.5, pose);
 
     expect(pose.translations[0]).toBeCloseTo(1);
+  });
+
+  it("samples named morph tracks onto a runtime buffer", () => {
+    const clip = {
+      id: "face",
+      name: "Face",
+      duration: 1,
+      tracks: [],
+      morphTracks: [
+        {
+          morphName: "Smile",
+          times: new Float32Array([0, 1]),
+          values: new Float32Array([0, 1])
+        }
+      ]
+    };
+
+    const weights = new Float32Array(1);
+    const touched = new Uint8Array(1);
+    sampleClipMorphWeights(clip, 0.5, new Map([["Smile", 0]]), weights, touched);
+
+    expect(weights[0]).toBeCloseTo(0.5);
+    expect(touched[0]).toBe(1);
+  });
+
+  it("retargets clip bones and remaps morph names onto the target asset", () => {
+    const sourceRig = createRigDefinition({
+      boneNames: ["root", "spine_01"],
+      parentIndices: [-1, 0],
+      rootBoneIndex: 0,
+      bindTranslations: [0, 0, 0, 0, 1, 0],
+      bindRotations: [0, 0, 0, 1, 0, 0, 0, 1],
+      bindScales: [1, 1, 1, 1, 1, 1]
+    });
+    const targetRig = createRigDefinition({
+      boneNames: ["root", "spine"],
+      parentIndices: [-1, 0],
+      rootBoneIndex: 0,
+      bindTranslations: [0, 0, 0, 0, 2, 0],
+      bindRotations: [0, 0, 0, 1, 0, 0, 0, 1],
+      bindScales: [1, 1, 1, 1, 1, 1]
+    });
+    const clip = {
+      id: "talk",
+      name: "Talk",
+      duration: 1,
+      rootBoneIndex: 1,
+      tracks: [
+        {
+          boneIndex: 1,
+          translationTimes: new Float32Array([0]),
+          translationValues: new Float32Array([0, 1, 0])
+        }
+      ],
+      morphTracks: [
+        {
+          morphName: "smile",
+          times: new Float32Array([0]),
+          values: new Float32Array([0.8])
+        },
+        {
+          morphName: "blink",
+          times: new Float32Array([0]),
+          values: new Float32Array([1])
+        }
+      ]
+    };
+
+    const retargeted = retargetClipAssetToRig(clip, sourceRig, targetRig, {
+      morphNameMap: { smile: "FaceSmile" },
+      targetMorphNames: ["FaceSmile"]
+    });
+
+    expect(retargeted.rootBoneIndex).toBe(1);
+    expect(retargeted.tracks[0]?.boneIndex).toBe(1);
+    expect(retargeted.morphTracks).toEqual([
+      {
+        morphName: "FaceSmile",
+        times: new Float32Array([0]),
+        values: new Float32Array([0.8])
+      }
+    ]);
   });
 });

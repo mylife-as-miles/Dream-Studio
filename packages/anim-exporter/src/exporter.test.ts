@@ -295,6 +295,13 @@ describe("@blud/anim-exporter", () => {
             rotationTimes: new Float32Array([0]),
             rotationValues: new Float32Array([0, 0, 0, 1])
           }
+        ],
+        morphTracks: [
+          {
+            morphName: "Smile",
+            times: new Float32Array([0, 1]),
+            values: new Float32Array([0, 1])
+          }
         ]
       }
     ];

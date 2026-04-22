@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { createPoseBufferFromRig } from "@blud/anim-core";
 import { AnimationClip, AnimationMixer, Bone, LoopOnce, Matrix4, Object3D, QuaternionKeyframeTrack, Skeleton, Vector3, VectorKeyframeTrack } from "three";
-import { applyPoseBufferToSkeleton, createClipAssetFromThreeClip, createRigFromSkeleton } from "./bridge";
+import type { AnimatorInstance } from "@blud/anim-runtime";
+import { applyAnimatorOutputToSkeleton, applyPoseBufferToSkeleton, createClipAssetFromThreeClip, createRigFromSkeleton } from "./bridge";
 
 describe("@blud/anim-three", () => {
   it("creates a rig definition from a three skeleton", () => {
@@ -253,5 +254,52 @@ describe("@blud/anim-three", () => {
     const after = child.getWorldPosition(new Vector3()).toArray().map((value) => Number(value.toFixed(3)));
 
     expect(after).toEqual(before);
+  });
+
+  it("applies animator morph output to matching morph targets", () => {
+    const root = new Bone();
+    root.name = "root";
+    const face = new Object3D() as Object3D & {
+      morphTargetDictionary: Record<string, number>;
+      morphTargetInfluences: number[];
+    };
+    face.name = "face";
+    face.morphTargetDictionary = { Smile: 0, Blink: 1 };
+    face.morphTargetInfluences = [0, 0];
+    root.add(face);
+
+    const skeleton = new Skeleton([root]);
+    const rig = createRigFromSkeleton(skeleton);
+    const pose = createPoseBufferFromRig(rig);
+    const rootMotionDelta = {
+      translation: new Float32Array([0, 0, 0]),
+      yaw: 0
+    };
+    const animator = {
+      rig,
+      graph: { layers: [] },
+      clips: [],
+      morphNames: ["Smile"],
+      outputMorphWeights: new Float32Array([0.75]),
+      parameters: {},
+      outputPose: pose,
+      rootMotionDelta,
+      setFloat() {},
+      setInt() {},
+      setBool() {},
+      trigger() {},
+      update() {
+        return {
+          morphNames: ["Smile"],
+          morphWeights: this.outputMorphWeights,
+          pose: this.outputPose,
+          rootMotion: this.rootMotionDelta
+        };
+      }
+    } as unknown as AnimatorInstance;
+
+    applyAnimatorOutputToSkeleton(animator, skeleton);
+
+    expect(face.morphTargetInfluences).toEqual([0.75, 0]);
   });
 });
