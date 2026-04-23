@@ -4,6 +4,7 @@ import {
   triangulatePolygon3D
 } from "../polygon/polygon-utils";
 import type {
+  ColorRGBA,
   EditableMesh,
   EditableMeshFace,
   EditableMeshHalfEdge,
@@ -19,11 +20,15 @@ import { almostEqual, vec3 } from "@blud/shared";
 
 export type EditableMeshPolygon = {
   id?: FaceID;
+  blendWeights?: Array<Record<string, number>>;
   materialId?: MaterialID;
   positions: Vec3[];
+  uvOffset?: Vec2;
+  uvIslandId?: string;
   uvScale?: Vec2;
   uvs?: Vec2[];
   vertexIds?: VertexID[];
+  vertexColors?: ColorRGBA[];
 };
 
 export type EditableMeshValidation = {
@@ -131,9 +136,13 @@ export function createEditableMeshFromPolygons(
     faces.push({
       id: faceId,
       halfEdge: faceHalfEdges[0].id,
+      blendWeights: polygon.blendWeights?.slice(0, orderedVertices.length),
       materialId: polygon.materialId,
+      uvOffset: polygon.uvOffset,
+      uvIslandId: polygon.uvIslandId,
       uvScale: polygon.uvScale,
-      uvs: polygon.uvs?.slice(0, orderedVertices.length)
+      uvs: polygon.uvs?.slice(0, orderedVertices.length),
+      vertexColors: polygon.vertexColors?.slice(0, orderedVertices.length)
     });
   });
 

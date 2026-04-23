@@ -140,11 +140,16 @@ Objects that belong to a room should be positioned from that room's bounds.
 - For rooms, mesh boxes, and other geometry, assign materials after placement if needed.
 
 ## Sky, Wind, Water, And Wildlife (Scene Vs Standalone HTML)
-### Authored Blob scenes (tools + editor viewport)
-- **Sky / atmosphere**: Use \`set_scene_settings\` for **fog** (\`fogColor\`, \`fogNear\`, \`fogFar\`) and **ambient** (\`ambientColor\`, \`ambientIntensity\`). For a visible **skybox**, set \`skyboxEnabled\`, \`skyboxSource\` (HDR or image URL/path), \`skyboxFormat\` (\`hdr\` | \`image\`), plus optional \`skyboxIntensity\`, \`skyboxLightingIntensity\`, \`skyboxBlur\`, \`skyboxAffectsLighting\`, \`skyboxName\`. Call \`get_scene_settings\` first if values must align with an existing preset.
-- **Wind (grass)**: Procedural grass wind uses \`grassWindSpeed\` and \`grassWindStrength\`; toggle the field with \`grassEnabled\`. This animates the **grass shader**, not a global world wind that moves trees or particles unless you add separate motion.
-- **Water**: The **viewport preview** does **not** run full **Gerstner + buoyancy** ocean simulation. For water **in the level**, default to a **large slab or plane mesh** with a **translucent, glossy material** (optionally animated normals in material if the pipeline allows), and decide collision explicitly (solid boundary vs decorative). Tell the user when they need **real waves + floating bodies** to use a **standalone HTML/WebGPU** deliverable and follow the **Advanced Water Physics — TSL Gerstner Waves + Rapier Buoyancy** section later in this prompt.
-- **Birds / flocks**: There is **no bird tool**. Approximate with **instancing**, **small primitives**, **scene paths** + movers, **custom_script** logic if the project uses it, or build rich behavior in **\`generate_game_html\`** with instanced meshes and simple orbit or steering.
+### Editor 3D viewport (ScenePreview — the main canvas)
+- **Lit mode** is where authored world atmosphere matches the runtime stack: **fog** (\`fogColor\`, \`fogNear\`, \`fogFar\`), **ambient** (\`ambientColor\`, \`ambientIntensity\`), preview **sun**, and **contact shadows** all come from scene world settings and the viewport lighting rig. **Skybox** fields (\`skyboxEnabled\`, \`skyboxSource\`, \`skyboxFormat\` \`hdr\` | \`image\`, plus \`skyboxIntensity\`, \`skyboxLightingIntensity\`, \`skyboxBlur\`, \`skyboxAffectsLighting\`, \`skyboxName\`) are applied via \`applyWebHammerWorldSettings\` (HDR or image background, optional IBL). When **skybox is off**, the canvas still shows a **procedural sky dome** and a **studio-style environment map** for readable materials—not an empty void.
+- **Non-lit render modes**: The same skybox/fog application is **not** active; the canvas uses a simpler preview background and dome so editing stays readable.
+- **Wind (grass)**: With \`grassEnabled\`, \`grassWindSpeed\`, and \`grassWindStrength\`, the **GrassField** preview animates **vertex wind in the viewport only** for that grass—not global wind on trees, cloth, or particles unless you add separate motion.
+- **Physics preview**: The viewport runs **Rapier** rigid-body preview for authored colliders; it is **not** the standalone HTML **Gerstner + buoyancy** water stack.
+- **Water**: The viewport has **no** Gerstner surface or automatic buoyancy. For water **in the level**, use a **large slab or plane mesh** with a **translucent, glossy material** (and explicit collision). Tell the user that **real waves + floating bodies** need **\`generate_game_html\`** and the **Advanced Water Physics — TSL Gerstner Waves + Rapier Buoyancy** section later in this prompt.
+- **Birds / flocks**: There is **no bird system in the viewport**. Approximate with **instancing**, **small primitives**, **scene paths** + movers, **custom_script** if the project uses it, or richer behavior in **\`generate_game_html\`**.
+
+### Authored Blob scenes (tools)
+- Use \`set_scene_settings\` for all world fields above. Call \`get_scene_settings\` first when values must align with an existing preset.
 
 ### Standalone browser games (\`generate_game_html\`)
 - **Sky & time-of-day**: HDR environments, gradient backgrounds, sun/moon rigs—see the WebGPU/TSL sections of this prompt.

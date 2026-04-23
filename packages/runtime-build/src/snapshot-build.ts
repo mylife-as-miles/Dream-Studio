@@ -29,7 +29,8 @@ import {
   type RuntimeGeometryLod,
   type RuntimeMaterial,
   type RuntimeModelLod,
-  type RuntimeScene
+  type RuntimeScene,
+  type RuntimeSurfaceBlendLayer
 } from "@blud/runtime-format";
 import { MeshBVH } from "three-mesh-bvh";
 import {
@@ -266,26 +267,34 @@ async function buildExportGeometry(
   node: Extract<SceneDocumentSnapshot["nodes"][number], { kind: "brush" | "mesh" | "primitive" }>,
   materialsById: Map<MaterialID, Material>
 ) {
-  const fallbackMaterial = await resolveRuntimeMaterial({
-    color: node.kind === "brush" ? "#f69036" : node.kind === "primitive" && node.data.role === "prop" ? "#7f8ea3" : "#6ed5c0",
-    id: `material:fallback:${node.id}`,
-    metalness: node.kind === "brush" ? 0 : node.kind === "primitive" && node.data.role === "prop" ? 0.12 : 0.05,
-    name: `${node.name} Default`,
-    roughness: node.kind === "brush" ? 0.95 : node.kind === "primitive" && node.data.role === "prop" ? 0.64 : 0.82
-  });
+  const surfaceBlendLayers = isMeshNode(node) ? node.data.surface?.blendLayers : undefined;
+  const fallbackMaterial = await resolveRuntimeMaterial(
+    {
+      color: node.kind === "brush" ? "#f69036" : node.kind === "primitive" && node.data.role === "prop" ? "#7f8ea3" : "#6ed5c0",
+      id: `material:fallback:${node.id}`,
+      metalness: node.kind === "brush" ? 0 : node.kind === "primitive" && node.data.role === "prop" ? 0.12 : 0.05,
+      name: `${node.name} Default`,
+      roughness: node.kind === "brush" ? 0.95 : node.kind === "primitive" && node.data.role === "prop" ? 0.64 : 0.82
+    },
+    surfaceBlendLayers
+  );
   const primitiveByMaterial = new Map<string, RuntimeGeometry["primitives"][number]>();
 
   const appendFace = async (params: {
+    blendWeights?: Array<Record<string, number>>;
     faceMaterialId?: string;
     normal: Vec3;
     triangleIndices: number[];
     uvOffset?: Vec2;
     uvScale?: Vec2;
     uvs?: Vec2[];
+    vertexColors?: Array<{ a?: number; b: number; g: number; r: number }>;
     vertices: Vec3[];
   }) => {
-    const material = params.faceMaterialId ? await resolveRuntimeMaterial(materialsById.get(params.faceMaterialId)) : fallbackMaterial;
+    const material = params.faceMaterialId ? await resolveRuntimeMaterial(materialsById.get(params.faceMaterialId), surfaceBlendLayers) : fallbackMaterial;
     const primitive = primitiveByMaterial.get(material.id) ?? {
+      blendWeights: [],
+      colors: [],
       indices: [],
       material,
       normals: [],
@@ -296,10 +305,18 @@ async function buildExportGeometry(
     const uvs = params.uvs && params.uvs.length === params.vertices.length
       ? params.uvs.flatMap((uv) => [uv.x, uv.y])
       : projectPlanarUvs(params.vertices, params.normal, params.uvScale, params.uvOffset);
+    const layerIds = (material.blendLayers ?? []).slice(0, 4).map((layer) => layer.id);
 
-    params.vertices.forEach((vertex) => {
+    params.vertices.forEach((vertex, index) => {
       primitive.positions.push(vertex.x, vertex.y, vertex.z);
       primitive.normals.push(params.normal.x, params.normal.y, params.normal.z);
+      const color = params.vertexColors?.[index] ?? WHITE_COLOR;
+      primitive.colors?.push(clamp01(color.r), clamp01(color.g), clamp01(color.b), clamp01(color.a ?? 1));
+
+      const weights = params.blendWeights?.[index] ?? {};
+      for (let weightIndex = 0; weightIndex < 4; weightIndex += 1) {
+        primitive.blendWeights?.push(layerIds[weightIndex] ? clamp01(weights[layerIds[weightIndex]] ?? 0) : 0);
+      }
     });
     primitive.uvs.push(...uvs);
     params.triangleIndices.forEach((index) => {
@@ -342,6 +359,8 @@ async function buildExportGeometry(
         uvOffset: face.uvOffset,
         uvScale: face.uvScale,
         uvs: face.uvs,
+        blendWeights: face.blendWeights,
+        vertexColors: face.vertexColors,
         vertices: getFaceVertices(node.data, face.id).map((vertex) => vertex.position)
       });
     }
@@ -363,6 +382,7 @@ async function buildExportGeometry(
   }
 
   return {
+    decals: isMeshNode(node) ? node.data.surface?.decals : undefined,
     primitives: Array.from(primitiveByMaterial.values())
   };
 }
@@ -791,7 +811,7 @@ function simplifyExportGeometry(geometry: RuntimeGeometry, ratio: number): Runti
     .map((primitive) => simplifyExportPrimitive(primitive, ratio))
     .filter((primitive): primitive is RuntimeGeometry["primitives"][number] => primitive !== undefined);
 
-  return primitives.length ? { primitives } : undefined;
+  return primitives.length ? { decals: geometry.decals, primitives } : undefined;
 }
 
 function simplifyExportPrimitive(
@@ -826,6 +846,14 @@ function createBufferGeometryFromPrimitive(primitive: RuntimeGeometry["primitive
 
   if (primitive.uvs.length) {
     geometry.setAttribute("uv", new Float32BufferAttribute(primitive.uvs, 2));
+  }
+
+  if (primitive.colors?.length) {
+    geometry.setAttribute("color", new Float32BufferAttribute(primitive.colors, 4));
+  }
+
+  if (primitive.blendWeights?.length) {
+    geometry.setAttribute("surfaceBlend", new Float32BufferAttribute(primitive.blendWeights, 4));
   }
 
   geometry.setIndex(primitive.indices);
@@ -894,6 +922,8 @@ function clusterPrimitiveVertices(
   for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex += 1) {
     const positionOffset = vertexIndex * 3;
     const uvOffset = vertexIndex * 2;
+    const colorOffset = vertexIndex * 4;
+    const blendOffset = vertexIndex * 4;
     const x = primitive.positions[positionOffset];
     const y = primitive.positions[positionOffset + 1];
     const z = primitive.positions[positionOffset + 2];
@@ -909,6 +939,14 @@ function clusterPrimitiveVertices(
       normalX: 0,
       normalY: 0,
       normalZ: 0,
+      colorA: 0,
+      colorB: 0,
+      colorG: 0,
+      colorR: 0,
+      blendW: 0,
+      blendX: 0,
+      blendY: 0,
+      blendZ: 0,
       positionX: 0,
       positionY: 0,
       positionZ: 0,
@@ -923,6 +961,14 @@ function clusterPrimitiveVertices(
     cluster.normalX += normalX;
     cluster.normalY += normalY;
     cluster.normalZ += normalZ;
+    cluster.colorR += primitive.colors?.[colorOffset] ?? 1;
+    cluster.colorG += primitive.colors?.[colorOffset + 1] ?? 1;
+    cluster.colorB += primitive.colors?.[colorOffset + 2] ?? 1;
+    cluster.colorA += primitive.colors?.[colorOffset + 3] ?? 1;
+    cluster.blendX += primitive.blendWeights?.[blendOffset] ?? 0;
+    cluster.blendY += primitive.blendWeights?.[blendOffset + 1] ?? 0;
+    cluster.blendZ += primitive.blendWeights?.[blendOffset + 2] ?? 0;
+    cluster.blendW += primitive.blendWeights?.[blendOffset + 3] ?? 0;
     cluster.uvX += primitive.uvs[uvOffset] ?? 0;
     cluster.uvY += primitive.uvs[uvOffset + 1] ?? 0;
     clusters.set(clusterKey, cluster);
@@ -933,6 +979,8 @@ function clusterPrimitiveVertices(
   const positions: number[] = [];
   const normals: number[] = [];
   const uvs: number[] = [];
+  const colors: number[] = [];
+  const blendWeights: number[] = [];
   const clusterIndexByKey = new Map<string, number>();
 
   const ensureClusterIndex = (clusterKey: string) => {
@@ -954,6 +1002,8 @@ function clusterPrimitiveVertices(
     positions.push(cluster.positionX / cluster.count, cluster.positionY / cluster.count, cluster.positionZ / cluster.count);
     normals.push(averagedNormal.x, averagedNormal.y, averagedNormal.z);
     uvs.push(cluster.uvX / cluster.count, cluster.uvY / cluster.count);
+    colors.push(cluster.colorR / cluster.count, cluster.colorG / cluster.count, cluster.colorB / cluster.count, cluster.colorA / cluster.count);
+    blendWeights.push(cluster.blendX / cluster.count, cluster.blendY / cluster.count, cluster.blendZ / cluster.count, cluster.blendW / cluster.count);
     clusterIndexByKey.set(clusterKey, index);
     return index;
   };
@@ -983,6 +1033,8 @@ function clusterPrimitiveVertices(
   }
 
   return {
+    blendWeights,
+    colors,
     indices: remappedIndices,
     material: primitive.material,
     normals,
@@ -1049,7 +1101,7 @@ function buildPrimitiveGeometry(shape: "cone" | "cube" | "cylinder" | "sphere", 
   return primitive;
 }
 
-async function resolveRuntimeMaterial(material?: Material): Promise<RuntimeMaterial> {
+async function resolveRuntimeMaterial(material?: Material, surfaceBlendLayers: Material["blendLayers"] = []): Promise<RuntimeMaterial> {
   const resolved = material ?? {
     color: "#ffffff",
     emissiveColor: "#000000",
@@ -1063,6 +1115,9 @@ async function resolveRuntimeMaterial(material?: Material): Promise<RuntimeMater
 
   return {
     baseColorTexture: await resolveEmbeddedTextureUri(resolved.colorTexture ?? resolveGeneratedBlockoutTexture(resolved)),
+    blendLayers: await Promise.all(
+      (resolved.blendLayers?.length ? resolved.blendLayers : surfaceBlendLayers).slice(0, 4).map(resolveRuntimeBlendLayer)
+    ),
     color: resolved.color,
     emissiveColor: resolved.emissiveColor ?? "#000000",
     emissiveIntensity: Math.max(0, resolved.emissiveIntensity ?? 0),
@@ -1080,6 +1135,22 @@ async function resolveRuntimeMaterial(material?: Material): Promise<RuntimeMater
     roughnessFactor: resolved.roughness ?? 0.8,
     side: resolved.side,
     transparent: resolved.transparent ?? false
+  };
+}
+
+async function resolveRuntimeBlendLayer(layer: NonNullable<Material["blendLayers"]>[number]): Promise<RuntimeSurfaceBlendLayer> {
+  return {
+    color: layer.color,
+    colorTexture: await resolveEmbeddedTextureUri(layer.colorTexture),
+    id: layer.id,
+    materialId: layer.materialId,
+    metalness: layer.metalness,
+    metalnessTexture: await resolveEmbeddedTextureUri(layer.metalnessTexture),
+    name: layer.name,
+    normalTexture: await resolveEmbeddedTextureUri(layer.normalTexture),
+    opacity: layer.opacity,
+    roughness: layer.roughness,
+    roughnessTexture: await resolveEmbeddedTextureUri(layer.roughnessTexture)
   };
 }
 
@@ -1201,6 +1272,8 @@ async function loadImagePixels(source?: string) {
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
+
+const WHITE_COLOR = { a: 1, b: 1, g: 1, r: 1 };
 
 function toBase64(bytes: Uint8Array): string {
   let binary = "";

@@ -1,5 +1,20 @@
 import { getFaceVertices, reconstructBrushFaces, triangulateMeshFace } from "@blud/geometry-kernel";
-import type { Asset, AssetID, GeometryNode, Material, MaterialID, MaterialRenderSide, NodeID, PrimitiveRole, PropPhysics, Vec2, Vec3 } from "@blud/shared";
+import type {
+  Asset,
+  AssetID,
+  ColorRGBA,
+  GeometryNode,
+  Material,
+  MaterialID,
+  MaterialRenderSide,
+  MeshProjectedDecal,
+  MeshTextureBlendLayer,
+  NodeID,
+  PrimitiveRole,
+  PropPhysics,
+  Vec2,
+  Vec3
+} from "@blud/shared";
 import {
   crossVec3,
   dotVec3,
@@ -43,6 +58,7 @@ export type RenderPrimitive =
     };
 
 export type RenderMaterial = {
+  blendLayers?: MeshTextureBlendLayer[];
   category?: Material["category"];
   color: string;
   colorTexture?: string;
@@ -69,6 +85,9 @@ export type DerivedSurfaceGroup = {
 };
 
 export type DerivedSurfaceGeometry = {
+  blendWeights?: number[];
+  colors?: number[];
+  decals?: MeshProjectedDecal[];
   groups: DerivedSurfaceGroup[];
   positions: number[];
   indices: number[];
@@ -430,6 +449,8 @@ function createEditableMeshSurface(
       uvOffset: face.uvOffset,
       uvScale: face.uvScale,
       uvs: face.uvs,
+      blendWeights: face.blendWeights,
+      vertexColors: face.vertexColors,
       vertices: getFaceVertices(node, face.id).map((vertex) => vertex.position)
     };
   });
@@ -440,6 +461,8 @@ function createEditableMeshSurface(
     uvOffset?: Vec2;
     uvScale?: Vec2;
     uvs?: Vec2[];
+    blendWeights?: Array<Record<string, number>>;
+    vertexColors?: ColorRGBA[];
     vertices: Vec3[];
   }> = mappedFaces.filter((face) => face !== undefined) as Array<{
     materialId?: MaterialID;
@@ -448,6 +471,8 @@ function createEditableMeshSurface(
     uvOffset?: Vec2;
     uvScale?: Vec2;
     uvs?: Vec2[];
+    blendWeights?: Array<Record<string, number>>;
+    vertexColors?: ColorRGBA[];
     vertices: Vec3[];
   }>;
 
@@ -455,35 +480,40 @@ function createEditableMeshSurface(
     return undefined;
   }
 
-  return buildDerivedSurface(faces, materialsById, "#6ed5c0", 0.05, 0.82);
+  return buildDerivedSurface(faces, materialsById, "#6ed5c0", 0.05, 0.82, node.surface);
 }
 
 function buildDerivedSurface(
   faces: Array<{
+    blendWeights?: Array<Record<string, number>>;
     materialId?: MaterialID;
     normal: Vec3;
     triangleIndices: number[];
     uvOffset?: Vec2;
     uvScale?: Vec2;
     uvs?: Vec2[];
+    vertexColors?: ColorRGBA[];
     vertices: Vec3[];
   }>,
   materialsById: Map<MaterialID, Material>,
   fallbackColor: string,
   fallbackMetalness: number,
-  fallbackRoughness: number
+  fallbackRoughness: number,
+  surface?: { blendLayers?: MeshTextureBlendLayer[]; decals?: MeshProjectedDecal[] }
 ): { materials: RenderMaterial[]; surface: DerivedSurfaceGeometry } {
   const materialIndexByKey = new Map<string, number>();
   const materials: RenderMaterial[] = [];
   const positions: number[] = [];
   const indices: number[] = [];
   const uvs: number[] = [];
+  const colors: number[] = [];
+  const blendWeights: number[] = [];
   const groups: DerivedSurfaceGroup[] = [];
   let vertexOffset = 0;
 
   faces.forEach((face) => {
     const material = face.materialId ? materialsById.get(face.materialId) : undefined;
-    const renderMaterial = resolveRenderMaterial(material, fallbackColor, fallbackMetalness, fallbackRoughness);
+    const renderMaterial = resolveRenderMaterial(material, fallbackColor, fallbackMetalness, fallbackRoughness, surface?.blendLayers);
     const materialKey = face.materialId ?? `fallback:${fallbackColor}`;
     const materialIndex = materialIndexByKey.get(materialKey) ?? materials.length;
 
@@ -492,8 +522,17 @@ function buildDerivedSurface(
       materials.push(renderMaterial);
     }
 
-    face.vertices.forEach((vertex) => {
+    const layerIds = (renderMaterial.blendLayers ?? []).slice(0, 4).map((layer) => layer.id);
+
+    face.vertices.forEach((vertex, index) => {
       positions.push(vertex.x, vertex.y, vertex.z);
+      const color = face.vertexColors?.[index] ?? WHITE_COLOR;
+      colors.push(clamp01(color.r), clamp01(color.g), clamp01(color.b), clamp01(color.a ?? 1));
+
+      const weights = face.blendWeights?.[index] ?? {};
+      for (let weightIndex = 0; weightIndex < 4; weightIndex += 1) {
+        blendWeights.push(layerIds[weightIndex] ? clamp01(weights[layerIds[weightIndex]] ?? 0) : 0);
+      }
     });
 
     const faceUvs = face.uvs && face.uvs.length === face.vertices.length
@@ -517,6 +556,9 @@ function buildDerivedSurface(
   return {
     materials,
     surface: {
+      blendWeights,
+      colors,
+      decals: surface?.decals,
       groups,
       indices,
       positions,
@@ -529,9 +571,11 @@ function resolveRenderMaterial(
   material: Material | undefined,
   fallbackColor: string,
   fallbackMetalness: number,
-  fallbackRoughness: number
+  fallbackRoughness: number,
+  surfaceBlendLayers: MeshTextureBlendLayer[] = []
 ): RenderMaterial {
   return {
+    blendLayers: (material?.blendLayers?.length ? material.blendLayers : surfaceBlendLayers).slice(0, 4),
     category: material?.category,
     color: material?.color ?? fallbackColor,
     colorTexture: material?.colorTexture,
@@ -550,6 +594,12 @@ function resolveRenderMaterial(
     transparent: material?.transparent,
     wireframe: false
   };
+}
+
+const WHITE_COLOR: ColorRGBA = { a: 1, b: 1, g: 1, r: 1 };
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
 }
 
 function projectPlanarUvs(vertices: Vec3[], normal: Vec3, uvScale?: Vec2, uvOffset?: Vec2) {

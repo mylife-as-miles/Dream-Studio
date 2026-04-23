@@ -10,6 +10,7 @@ import {
   type CustomScriptLogLevel
 } from "@blud/runtime-scripting";
 import {
+  AdditiveBlending,
   BackSide,
   Box3,
   BoxGeometry,
@@ -25,6 +26,8 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  MultiplyBlending,
+  NormalBlending,
   Object3D,
   RepeatWrapping,
   SkinnedMesh,
@@ -57,6 +60,8 @@ import type { ViewportRenderMode } from "@/viewport/viewports";
 import type { SceneSettings } from "@blud/shared";
 
 const previewTextureCache = new Map<string, ReturnType<TextureLoader["load"]>>();
+const WHITE_TEXTURE_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p94AAAAASUVORK5CYII=";
 const modelSceneCache = new Map<string, Object3D>();
 const modelTextureLoader = new TextureLoader();
 const tempInstanceObject = new Object3D();
@@ -2421,7 +2426,78 @@ function RenderMeshBody({
           />
         ) : null}
       </mesh>
+      {renderMode === "lit" ? <SurfaceDecalOverlays decals={mesh.surface?.decals ?? []} /> : null}
     </group>
+  );
+}
+
+function SurfaceDecalOverlays({ decals }: { decals: NonNullable<DerivedRenderMesh["surface"]>["decals"] }) {
+  if (!decals?.length) {
+    return null;
+  }
+
+  return (
+    <>
+      {decals.map((decal) => (
+        <SurfaceDecalOverlay decal={decal} key={decal.id} />
+      ))}
+    </>
+  );
+}
+
+function SurfaceDecalOverlay({ decal }: { decal: NonNullable<NonNullable<DerivedRenderMesh["surface"]>["decals"]>[number] }) {
+  const meshRef = useRef<Mesh | null>(null);
+  const material = useMemo(() => {
+    const texture = decal.texture ? loadTexture(decal.texture, true) : undefined;
+    const decalMaterial = new MeshBasicMaterial({
+      blending: decal.blendMode === "add" ? AdditiveBlending : decal.blendMode === "multiply" ? MultiplyBlending : NormalBlending,
+      color: decal.color ?? "#ffffff",
+      depthWrite: false,
+      map: texture,
+      opacity: decal.opacity ?? 1,
+      side: DoubleSide,
+      toneMapped: false,
+      transparent: true
+    });
+
+    return decalMaterial;
+  }, [decal.blendMode, decal.color, decal.opacity, decal.texture]);
+
+  useEffect(() => {
+    const object = meshRef.current;
+
+    if (!object) {
+      return;
+    }
+
+    const position = new Vector3(decal.position.x, decal.position.y, decal.position.z);
+    const normal = new Vector3(decal.normal.x, decal.normal.y, decal.normal.z).normalize();
+    object.position.copy(position);
+    object.up.set(decal.up?.x ?? 0, decal.up?.y ?? 1, decal.up?.z ?? 0).normalize();
+    object.lookAt(position.clone().add(normal));
+  }, [
+    decal.normal.x,
+    decal.normal.y,
+    decal.normal.z,
+    decal.position.x,
+    decal.position.y,
+    decal.position.z,
+    decal.up?.x,
+    decal.up?.y,
+    decal.up?.z
+  ]);
+
+  useEffect(() => {
+    return () => {
+      material.dispose();
+    };
+  }, [material]);
+
+  return (
+    <mesh ref={meshRef} renderOrder={8} scale={[decal.size.x, decal.size.y, 1]}>
+      <planeGeometry args={[1, 1]} />
+      <primitive attach="material" object={material} />
+    </mesh>
   );
 }
 
@@ -3111,7 +3187,14 @@ function useRenderableGeometry(mesh: DerivedRenderMesh, renderMode: ViewportRend
     let bufferGeometry: BufferGeometry | undefined;
 
     if (mesh.surface) {
-      bufferGeometry = createIndexedGeometry(mesh.surface.positions, mesh.surface.indices, mesh.surface.uvs, mesh.surface.groups);
+      bufferGeometry = createIndexedGeometry(
+        mesh.surface.positions,
+        mesh.surface.indices,
+        mesh.surface.uvs,
+        mesh.surface.groups,
+        mesh.surface.colors,
+        mesh.surface.blendWeights
+      );
     } else if (mesh.primitive?.kind === "box") {
       bufferGeometry = new BoxGeometry(...toTuple(mesh.primitive.size));
     } else if (mesh.primitive?.kind === "sphere") {
@@ -3240,18 +3323,23 @@ function resolveInstancedNodeIdFromObject(object: Object3D | null, instanceId: n
 }
 
 function createPreviewMaterial(spec: DerivedRenderMesh["material"], selected: boolean, hovered: boolean) {
+  const blendLayerTextures = (spec.blendLayers ?? [])
+    .slice(0, 4)
+    .map((layer) => layer.colorTexture ? loadTexture(layer.colorTexture, true) : undefined);
   const colorTexture = spec.colorTexture
     ? loadTexture(spec.colorTexture, true)
     : spec.category === "blockout"
       ? loadTexture(createBlockoutTextureDataUri(spec.color, spec.edgeColor ?? "#f5f2ea", spec.edgeThickness ?? 0.018), true)
-      : undefined;
+      : blendLayerTextures.some(Boolean)
+        ? loadTexture(WHITE_TEXTURE_DATA_URI, true)
+        : undefined;
   const normalTexture = spec.normalTexture ? loadTexture(spec.normalTexture, false) : undefined;
   const metalnessTexture = spec.metalnessTexture ? loadTexture(spec.metalnessTexture, false) : undefined;
   const roughnessTexture = spec.roughnessTexture ? loadTexture(spec.roughnessTexture, false) : undefined;
   const transparent = spec.transparent ?? false;
   const opacity = transparent ? spec.opacity ?? 1 : 1;
 
-  return new MeshStandardMaterial({
+  const material = new MeshStandardMaterial({
     color: colorTexture ? "#ffffff" : selected ? "#ffb35a" : hovered ? "#d8f4f0" : spec.color,
     emissive: selected ? "#f69036" : hovered ? "#2a7f74" : spec.emissiveColor ?? "#000000",
     emissiveIntensity: selected ? 0.38 : hovered ? 0.14 : spec.emissiveIntensity ?? 0,
@@ -3262,12 +3350,89 @@ function createPreviewMaterial(spec: DerivedRenderMesh["material"], selected: bo
     roughness: spec.wireframe ? 0.45 : spec.roughness,
     side: resolvePreviewMaterialSide(spec.side),
     transparent,
+    vertexColors: true,
     wireframe: spec.wireframe,
     ...(colorTexture ? { map: colorTexture } : {}),
     ...(metalnessTexture ? { metalnessMap: metalnessTexture } : {}),
     ...(normalTexture ? { normalMap: normalTexture } : {}),
     ...(roughnessTexture ? { roughnessMap: roughnessTexture } : {})
   });
+
+  installSurfaceBlendShader(material, spec, blendLayerTextures);
+  return material;
+}
+
+function installSurfaceBlendShader(
+  material: MeshStandardMaterial,
+  spec: DerivedRenderMesh["material"],
+  blendLayerTextures: Array<ReturnType<typeof loadTexture> | undefined>
+) {
+  const layers = (spec.blendLayers ?? []).slice(0, 4);
+
+  if (layers.length === 0) {
+    return;
+  }
+
+  material.onBeforeCompile = (shader) => {
+    layers.forEach((layer, index) => {
+      shader.uniforms[`surfaceBlendColor${index}`] = { value: new Color(layer.color ?? spec.color) };
+      shader.uniforms[`surfaceBlendMap${index}`] = { value: blendLayerTextures[index] ?? null };
+      shader.uniforms[`surfaceBlendUseMap${index}`] = { value: Boolean(blendLayerTextures[index]) };
+    });
+
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+attribute vec4 surfaceBlend;
+varying vec4 vSurfaceBlend;`
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+vSurfaceBlend = surfaceBlend;`
+      );
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+varying vec4 vSurfaceBlend;
+uniform vec3 surfaceBlendColor0;
+uniform vec3 surfaceBlendColor1;
+uniform vec3 surfaceBlendColor2;
+uniform vec3 surfaceBlendColor3;
+uniform sampler2D surfaceBlendMap0;
+uniform sampler2D surfaceBlendMap1;
+uniform sampler2D surfaceBlendMap2;
+uniform sampler2D surfaceBlendMap3;
+uniform bool surfaceBlendUseMap0;
+uniform bool surfaceBlendUseMap1;
+uniform bool surfaceBlendUseMap2;
+uniform bool surfaceBlendUseMap3;
+
+vec4 readSurfaceBlendLayer(vec3 layerColor, sampler2D layerMap, bool useMap) {
+  vec4 layer = vec4(layerColor, 1.0);
+#ifdef USE_MAP
+  if (useMap) {
+    layer *= texture2D(layerMap, vMapUv);
+  }
+#endif
+  return layer;
+}`
+      )
+      .replace(
+        "#include <map_fragment>",
+        `#include <map_fragment>
+vec4 surfaceMixedColor = diffuseColor;
+surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendColor0, surfaceBlendMap0, surfaceBlendUseMap0), clamp(vSurfaceBlend.x, 0.0, 1.0));
+surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendColor1, surfaceBlendMap1, surfaceBlendUseMap1), clamp(vSurfaceBlend.y, 0.0, 1.0));
+surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendColor2, surfaceBlendMap2, surfaceBlendUseMap2), clamp(vSurfaceBlend.z, 0.0, 1.0));
+surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendColor3, surfaceBlendMap3, surfaceBlendUseMap3), clamp(vSurfaceBlend.w, 0.0, 1.0));
+diffuseColor = surfaceMixedColor;`
+      );
+  };
+  material.customProgramCacheKey = () => `surface-blend:${layers.map((layer) => `${layer.id}:${layer.colorTexture ?? layer.color ?? ""}`).join("|")}`;
 }
 
 function resolvePreviewMaterialSide(side?: MaterialRenderSide): Side {

@@ -5,4 +5,5 @@ export * from "./brush/brush-ops";
 export * from "./mesh/editable-mesh";
 export * from "./mesh/mesh-modeling";
 export * from "./mesh/mesh-ops";
+export * from "./mesh/mesh-surface";
 export * from "./polygon/polygon-utils";

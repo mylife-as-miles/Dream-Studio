@@ -15,12 +15,43 @@ import type {
 } from "@blud/shared";
 
 export const RUNTIME_SCENE_FORMAT = "web-hammer-engine" as const;
-export const CURRENT_RUNTIME_SCENE_VERSION = 6 as const;
+export const CURRENT_RUNTIME_SCENE_VERSION = 7 as const;
 export const MIN_RUNTIME_SCENE_VERSION = 4 as const;
 export const CURRENT_RUNTIME_WORLD_INDEX_VERSION = 1 as const;
 
+export type RuntimeSurfaceBlendLayer = {
+  color?: string;
+  colorTexture?: string;
+  id: string;
+  materialId?: string;
+  metalness?: number;
+  metalnessTexture?: string;
+  name: string;
+  normalTexture?: string;
+  opacity?: number;
+  roughness?: number;
+  roughnessTexture?: string;
+};
+
+export type RuntimeProjectedDecal = {
+  blendMode?: "add" | "multiply" | "normal";
+  color?: string;
+  depth?: number;
+  id: string;
+  materialId?: string;
+  name: string;
+  normal: { x: number; y: number; z: number };
+  opacity?: number;
+  position: { x: number; y: number; z: number };
+  size: { x: number; y: number };
+  targetFaceIds?: string[];
+  texture?: string;
+  up?: { x: number; y: number; z: number };
+};
+
 export type RuntimeMaterial = {
   baseColorTexture?: string;
+  blendLayers?: RuntimeSurfaceBlendLayer[];
   color: string;
   emissiveColor?: string;
   emissiveIntensity?: number;
@@ -36,6 +67,8 @@ export type RuntimeMaterial = {
 };
 
 export type RuntimePrimitive = {
+  blendWeights?: number[];
+  colors?: number[];
   indices: number[];
   material: RuntimeMaterial;
   normals: number[];
@@ -44,6 +77,7 @@ export type RuntimePrimitive = {
 };
 
 export type RuntimeGeometry = {
+  decals?: RuntimeProjectedDecal[];
   primitives: RuntimePrimitive[];
 };
 

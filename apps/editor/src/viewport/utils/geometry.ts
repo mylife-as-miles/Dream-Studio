@@ -2,12 +2,27 @@ import { resolveTransformPivot, vec3, type Transform, type Vec3 } from "@blud/sh
 import { BufferGeometry, Euler, Float32BufferAttribute, Object3D, Quaternion, Vector3 } from "three";
 import type { DerivedSurfaceGroup } from "@blud/render-pipeline";
 
-export function createIndexedGeometry(positions: number[], indices?: number[], uvs?: number[], groups?: DerivedSurfaceGroup[]) {
+export function createIndexedGeometry(
+  positions: number[],
+  indices?: number[],
+  uvs?: number[],
+  groups?: DerivedSurfaceGroup[],
+  colors?: number[],
+  blendWeights?: number[]
+) {
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
 
   if (uvs) {
     geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+  }
+
+  if (colors?.length) {
+    geometry.setAttribute("color", new Float32BufferAttribute(colors, 4));
+  }
+
+  if (blendWeights?.length) {
+    geometry.setAttribute("surfaceBlend", new Float32BufferAttribute(blendWeights, 4));
   }
 
   if (indices) {

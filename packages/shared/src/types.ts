@@ -135,6 +135,13 @@ export type Vec2 = {
   y: number;
 };
 
+export type ColorRGBA = {
+  r: number;
+  g: number;
+  b: number;
+  a?: number;
+};
+
 export type GameplayObject = {
   [key: string]: GameplayValue;
 };
@@ -182,10 +189,13 @@ export type EditableMeshHalfEdge = {
 export type EditableMeshFace = {
   id: FaceID;
   halfEdge: HalfEdgeID;
+  blendWeights?: Array<Record<string, number>>;
   materialId?: MaterialID;
   uvOffset?: Vec2;
+  uvIslandId?: string;
   uvScale?: Vec2;
   uvs?: Vec2[];
+  vertexColors?: ColorRGBA[];
 };
 
 export type EditableMeshTopology = {
@@ -284,6 +294,62 @@ export type MeshBakeOutput = {
   status: "error" | "idle" | "queued" | "ready";
 };
 
+export type MeshUvProjectionMode = "box" | "cylindrical" | "planar" | "smart";
+
+export type MeshUvSeam = {
+  edge: [VertexID, VertexID];
+  id?: string;
+};
+
+export type MeshMaterialSlot = {
+  id: string;
+  materialId: MaterialID;
+  name?: string;
+};
+
+export type MeshTexelDensitySettings = {
+  pixelsPerMeter: number;
+  textureResolution: number;
+};
+
+export type MeshTextureBlendLayer = {
+  color?: string;
+  colorTexture?: string;
+  id: string;
+  materialId?: MaterialID;
+  metalness?: number;
+  metalnessTexture?: string;
+  name: string;
+  normalTexture?: string;
+  opacity?: number;
+  roughness?: number;
+  roughnessTexture?: string;
+};
+
+export type MeshProjectedDecal = {
+  blendMode?: "add" | "multiply" | "normal";
+  color?: string;
+  depth?: number;
+  id: string;
+  materialId?: MaterialID;
+  name: string;
+  normal: Vec3;
+  opacity?: number;
+  position: Vec3;
+  size: Vec2;
+  targetFaceIds?: FaceID[];
+  texture?: string;
+  up?: Vec3;
+};
+
+export type EditableMeshSurfaceData = {
+  blendLayers?: MeshTextureBlendLayer[];
+  decals?: MeshProjectedDecal[];
+  materialSlots?: MeshMaterialSlot[];
+  texelDensity?: MeshTexelDensitySettings;
+  uvSeams?: MeshUvSeam[];
+};
+
 export type EditableMeshModelingData = {
   bakeOutputs?: MeshBakeOutput[];
   baseTopology?: EditableMeshTopology;
@@ -302,6 +368,7 @@ export type EditableMesh = EditableMeshTopology & {
   physics?: PropPhysics;
   modeling?: EditableMeshModelingData;
   role?: PrimitiveRole;
+  surface?: EditableMeshSurfaceData;
 };
 
 export type ModelReference = {
@@ -455,6 +522,7 @@ export type Material = {
   id: MaterialID;
   name: string;
   category?: MaterialCategory;
+  blendLayers?: MeshTextureBlendLayer[];
   color: string;
   emissiveColor?: string;
   emissiveIntensity?: number;

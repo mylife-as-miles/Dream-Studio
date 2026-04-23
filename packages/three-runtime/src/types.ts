@@ -11,8 +11,10 @@ export type {
   RuntimeModelNode,
   RuntimeNode,
   RuntimePrimitive,
+  RuntimeProjectedDecal,
   RuntimeScene,
   RuntimeSceneMetadata,
+  RuntimeSurfaceBlendLayer,
   RuntimeWorldChunk,
   RuntimeWorldIndex,
   WebHammerEngineBundle,
@@ -28,5 +30,7 @@ export type {
   WebHammerExportMaterial,
   WebHammerExportModelLod,
   WebHammerExportPrimitive,
+  RuntimeProjectedDecal as WebHammerProjectedDecal,
+  RuntimeSurfaceBlendLayer as WebHammerSurfaceBlendLayer,
   WebHammerLodLevel
 } from "@blud/runtime-format";

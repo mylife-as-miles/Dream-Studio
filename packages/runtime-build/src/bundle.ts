@@ -11,8 +11,10 @@ import {
 } from "@blud/runtime-format";
 
 const TEXTURE_FIELDS = ["baseColorTexture", "metallicRoughnessTexture", "normalTexture"] as const;
+const BLEND_LAYER_TEXTURE_FIELDS = ["colorTexture", "metalnessTexture", "normalTexture", "roughnessTexture"] as const;
 
 type TextureField = (typeof TEXTURE_FIELDS)[number];
+type BlendLayerTextureField = (typeof BLEND_LAYER_TEXTURE_FIELDS)[number];
 
 export type ExternalizeRuntimeAssetsOptions = {
   assetDir?: string;
@@ -58,6 +60,52 @@ export async function externalizeRuntimeAssets(
 
       if (bundledPath) {
         material[field] = bundledPath;
+      }
+    }
+
+    for (const layer of material.blendLayers ?? []) {
+      for (const field of BLEND_LAYER_TEXTURE_FIELDS) {
+        const source = layer[field];
+
+        if (!source) {
+          continue;
+        }
+
+        const bundledPath = await materializeSource(source, {
+          copyExternalAssets,
+          files,
+          pathBySource,
+          preferredStem: `${assetDir}/surface-layers/${slugify(material.id)}-${slugify(layer.id)}-${blendLayerTextureFieldSuffix(field)}`,
+          usedPaths
+        });
+
+        if (bundledPath) {
+          layer[field] = bundledPath;
+        }
+      }
+    }
+  }
+
+  for (const node of manifest.nodes) {
+    if (!("geometry" in node)) {
+      continue;
+    }
+
+    for (const decal of node.geometry.decals ?? []) {
+      if (!decal.texture) {
+        continue;
+      }
+
+      const bundledPath = await materializeSource(decal.texture, {
+        copyExternalAssets,
+        files,
+        pathBySource,
+        preferredStem: `${assetDir}/decals/${slugify(node.id)}-${slugify(decal.id)}`,
+        usedPaths
+      });
+
+      if (bundledPath) {
+        decal.texture = bundledPath;
       }
     }
   }
@@ -296,6 +344,19 @@ function textureFieldSuffix(field: TextureField) {
       return "color";
     case "metallicRoughnessTexture":
       return "orm";
+    default:
+      return "normal";
+  }
+}
+
+function blendLayerTextureFieldSuffix(field: BlendLayerTextureField) {
+  switch (field) {
+    case "colorTexture":
+      return "color";
+    case "metalnessTexture":
+      return "metal";
+    case "roughnessTexture":
+      return "rough";
     default:
       return "normal";
   }
