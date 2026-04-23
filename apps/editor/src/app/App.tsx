@@ -2292,9 +2292,10 @@ export function App() {
 }
 
 function preserveMeshMetadata(mesh: EditableMesh, existingMesh?: EditableMesh) {
-  return existingMesh?.role === "prop" || existingMesh?.physics
+  return existingMesh?.role === "prop" || existingMesh?.physics || existingMesh?.modeling
     ? {
         ...structuredClone(mesh),
+        modeling: structuredClone(mesh.modeling ?? existingMesh.modeling),
         physics: structuredClone(mesh.physics ?? existingMesh.physics),
         role: mesh.role ?? existingMesh.role
       }

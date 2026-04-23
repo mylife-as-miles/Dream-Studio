@@ -54,27 +54,56 @@ import {
   createUpsertMaterialCommand
 } from "@blud/editor-core";
 import {
+  applyEditableMeshModeling,
   arcEditableMeshEdges,
   bevelEditableMeshEdges,
+  bridgeEditableMeshEdges,
+  captureEditableMeshModelingBase,
   computePolygonNormal,
   convertBrushToEditableMesh,
   createAxisAlignedBrushFromBounds,
+  cutEditableMeshBetweenEdges,
   cutEditableMeshFace,
   deleteEditableMeshFaces,
   extrudeEditableMeshEdge,
   extrudeEditableMeshFaces,
   fillEditableMeshFaceFromVertices,
   getFaceVertices,
+  initializeEditableMeshModeling,
+  insetEditableMeshFaces,
   invertEditableMeshNormals,
   mergeEditableMeshFaces,
   mergeEditableMeshVertices,
+  mirrorEditableMesh,
+  pokeEditableMeshFaces,
+  quadrangulateEditableMeshFaces,
   scaleEditableMeshVertices,
+  solidifyEditableMesh,
   translateEditableMeshVertices,
   subdivideEditableMeshFace,
+  triangulateEditableMeshFaces,
+  updateEditableMeshModeling,
+  weldEditableMeshVerticesByDistance,
+  weldEditableMeshVerticesToTarget,
   createEditableMeshFromPolygons
 } from "@blud/geometry-kernel";
 import { isBrushNode, isMeshNode, makeTransform, resolveSceneGraph, vec3 } from "@blud/shared";
-import type { EditableMesh, GameplayObject, GameplayValue, Material, SceneHook, ScenePathDefinition, SceneSettings, Vec3, SkateparkElementType } from "@blud/shared";
+import type {
+  EditableMesh,
+  GameplayObject,
+  GameplayValue,
+  Material,
+  MeshBakeMapKind,
+  MeshLodProfile,
+  MeshModelingModifier,
+  MeshPolyGroup,
+  MeshSmoothingGroup,
+  SceneHook,
+  ScenePathDefinition,
+  SceneSettings,
+  Vec3,
+  SkateparkElementType
+} from "@blud/shared";
 import {
   createDefaultEntity,
   createDefaultLightData,
@@ -119,6 +148,11 @@ function bool(args: Args, key: string): boolean | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function recordArray(args: Args, key: string): Record<string, unknown>[] {
+  const value = args[key];
+  return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => isRecord(entry)) : [];
 }
 
 function gameplayObject(value: unknown): GameplayObject | undefined {
@@ -1104,19 +1138,79 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
         "Extrude edge"
       );
 
-    case "bevel_mesh_edges": {
-      const edges = (args.edges as string[][] ?? []).map((e) => [e[0], e[1]] as [string, string]);
-      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
-        bevelEditableMeshEdges(mesh, edges, num(args, "width"), num(args, "steps", 1),
-          (str(args, "profile") || "flat") as "flat" | "round"),
-        "Bevel edges"
-      );
-    }
+      case "bevel_mesh_edges": {
+        const edges = (args.edges as string[][] ?? []).map((e) => [e[0], e[1]] as [string, string]);
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          bevelEditableMeshEdges(mesh, edges, num(args, "width"), num(args, "steps", 1),
+            (str(args, "profile") || "flat") as "flat" | "round"),
+          "Bevel edges"
+        );
+      }
 
-    case "subdivide_mesh_face":
-      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
-        subdivideEditableMeshFace(mesh, str(args, "faceId"), num(args, "cuts", 1)),
-        "Subdivide face"
+      case "inset_mesh_faces":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          insetEditableMeshFaces(mesh, strArray(args, "faceIds"), num(args, "amount", 0.1)),
+          "Inset faces"
+        );
+
+      case "bridge_mesh_edges": {
+        const edges = (args.edges as string[][] ?? []).map((edge) => [edge[0], edge[1]] as [string, string]);
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          bridgeEditableMeshEdges(mesh, edges),
+          "Bridge edges"
+        );
+      }
+
+      case "poke_mesh_faces":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          pokeEditableMeshFaces(mesh, strArray(args, "faceIds")),
+          "Poke faces"
+        );
+
+      case "triangulate_mesh_faces":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          triangulateEditableMeshFaces(mesh, strArray(args, "faceIds").length > 0 ? strArray(args, "faceIds") : undefined),
+          "Triangulate faces"
+        );
+
+      case "quadrangulate_mesh_faces":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          quadrangulateEditableMeshFaces(mesh, strArray(args, "faceIds")),
+          "Quadrangulate faces"
+        );
+
+      case "solidify_mesh":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          solidifyEditableMesh(mesh, num(args, "thickness", 0.2)),
+          "Solidify mesh"
+        );
+
+      case "mirror_mesh":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          mirrorEditableMesh(mesh, str(args, "axis", "x") as "x" | "y" | "z"),
+          "Mirror mesh"
+        );
+
+      case "weld_mesh_vertices_by_distance":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          weldEditableMeshVerticesByDistance(
+            mesh,
+            num(args, "distance", 0.01),
+            strArray(args, "vertexIds").length > 0 ? strArray(args, "vertexIds") : undefined
+          ),
+          "Weld vertices by distance"
+        );
+
+      case "weld_mesh_vertices_to_target":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          weldEditableMeshVerticesToTarget(mesh, str(args, "targetVertexId"), strArray(args, "sourceVertexIds")),
+          "Target weld vertices"
+        );
+
+      case "subdivide_mesh_face":
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          subdivideEditableMeshFace(mesh, str(args, "faceId"), num(args, "cuts", 1)),
+          "Subdivide face"
       );
 
     case "cut_mesh_face":
@@ -1260,9 +1354,28 @@ function executeMeshOp(
   }
 
   // Preserve physics and role metadata from the original mesh
-  result.physics = node.data.physics;
-  result.role = node.data.role;
+    result.physics = node.data.physics;
+    result.role = node.data.role;
+    result.modeling = node.data.modeling;
 
   editor.execute(createSetMeshDataCommand(editor.scene, nodeId, result, node.data));
   return ok({});
+}
+
+function executeMeshModelingUpdate(
+  editor: EditorCore,
+  nodeId: string,
+  recipe: (mesh: EditableMesh) => EditableMesh,
+  label: string
+): string {
+  const node = editor.scene.getNode(nodeId);
+
+  if (!node || !isMeshNode(node)) {
+    return fail("Node is not a mesh");
+  }
+
+  const result = recipe(node.data);
+
+  editor.execute(createSetMeshDataCommand(editor.scene, nodeId, result, node.data));
+  return ok({ label });
 }

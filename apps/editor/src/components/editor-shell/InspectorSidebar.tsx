@@ -114,6 +114,403 @@ function inferSkyboxFormat(file: File): SceneSettings["world"]["skybox"]["format
   return file.name.toLowerCase().endsWith(".hdr") ? "hdr" : "image";
 }
 
+const MODELING_GROUP_COLORS = ["#f59e0b", "#10b981", "#38bdf8", "#f472b6", "#a78bfa", "#fb7185"];
+const BAKE_MAP_KINDS: MeshBakeMapKind[] = ["normals", "ao", "curvature", "id-mask", "vertex-colors"];
+
+function MeshModelingInspector({
+  activeToolId,
+  meshEditMode,
+  node,
+  nodes,
+  onMeshEditToolbarAction,
+  onUpdateMeshData,
+  selectedFaceIds
+}: {
+  activeToolId: ToolId;
+  meshEditMode: MeshEditMode;
+  node: Extract<GeometryNode, { kind: "mesh" }>;
+  nodes: GeometryNode[];
+  onMeshEditToolbarAction: (action: MeshEditToolbarActionRequest["kind"]) => void;
+  onUpdateMeshData: (nodeId: string, mesh: EditableMesh, beforeMesh?: EditableMesh) => void;
+  selectedFaceIds: string[];
+}) {
+  const preparedMesh = initializeEditableMeshModeling(node.data);
+  const modeling = preparedMesh.modeling ?? {};
+  const faceSelectionActive = activeToolId === "mesh-edit" && meshEditMode === "face";
+  const activeFaceIds = faceSelectionActive ? selectedFaceIds : [];
+  const otherMeshNodes = nodes.filter(
+    (candidate): candidate is Extract<GeometryNode, { kind: "mesh" }> => candidate.kind === "mesh" && candidate.id !== node.id
+  );
+  const baseFaceCount = modeling.baseTopology?.faces.length ?? node.data.faces.length;
+
+  const commitModeling = (
+    recipe:
+      | Partial<NonNullable<EditableMesh["modeling"]>>
+      | ((current: NonNullable<EditableMesh["modeling"]>) => NonNullable<EditableMesh["modeling"]>)
+  ) => {
+    const baseMesh = initializeEditableMeshModeling(node.data);
+    const currentModeling = structuredClone(baseMesh.modeling ?? {});
+    const nextModeling = typeof recipe === "function" ? recipe(currentModeling) : { ...currentModeling, ...recipe };
+
+    onUpdateMeshData(node.id, updateEditableMeshModeling(baseMesh, nextModeling), node.data);
+  };
+
+  const addModifier = (type: MeshModelingModifier["type"]) => {
+    commitModeling((current) => ({
+      ...current,
+      modifiers: [...(current.modifiers ?? []), createDefaultModelingModifier(type, current.modifiers?.length ?? 0)]
+    }));
+  };
+
+  const updateModifier = (modifierId: string, recipe: (modifier: MeshModelingModifier) => MeshModelingModifier) => {
+    commitModeling((current) => ({
+      ...current,
+      modifiers: (current.modifiers ?? []).map((modifier) => (modifier.id === modifierId ? recipe(modifier) : modifier))
+    }));
+  };
+
+  const removeModifier = (modifierId: string) => {
+    commitModeling((current) => ({
+      ...current,
+      modifiers: (current.modifiers ?? []).filter((modifier) => modifier.id !== modifierId)
+    }));
+  };
+
+  const createPolyGroupFromSelection = () => {
+    if (activeFaceIds.length === 0) {
+      return;
+    }
+
+    commitModeling((current) => ({
+      ...current,
+      polyGroups: [
+        ...(current.polyGroups ?? []),
+        {
+          color: MODELING_GROUP_COLORS[(current.polyGroups?.length ?? 0) % MODELING_GROUP_COLORS.length],
+          faceIds: Array.from(new Set(activeFaceIds)),
+          id: `polygroup:${Date.now()}:${current.polyGroups?.length ?? 0}`,
+          name: `PolyGroup ${(current.polyGroups?.length ?? 0) + 1}`
+        }
+      ]
+    }));
+  };
+
+  const createSmoothingGroupFromSelection = () => {
+    if (activeFaceIds.length === 0) {
+      return;
+    }
+
+    commitModeling((current) => ({
+      ...current,
+      smoothingGroups: [
+        ...(current.smoothingGroups ?? []),
+        {
+          angle: 45,
+          faceIds: Array.from(new Set(activeFaceIds)),
+          id: `smoothing:${Date.now()}:${current.smoothingGroups?.length ?? 0}`,
+          name: `Smooth ${(current.smoothingGroups?.length ?? 0) + 1}`
+        }
+      ]
+    }));
+  };
+
+  const generateLodPresets = () => {
+    commitModeling((current) => ({
+      ...current,
+      lods: createDefaultLodProfiles(baseFaceCount)
+    }));
+  };
+
+  const queueBakeOutput = (kind: MeshBakeMapKind) => {
+    commitModeling((current) => ({
+      ...current,
+      bakeOutputs: [
+        ...(current.bakeOutputs ?? []).filter((output) => output.kind !== kind),
+        {
+          generatedAt: new Date().toISOString(),
+          id: `bake:${kind}:${Date.now()}`,
+          kind,
+          resolution: 2048,
+          status: "queued"
+        }
+      ]
+    }));
+  };
+
+  return (
+    <ToolSection title="Mesh Modeling">
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-1.5">
+          <Button onClick={() => onUpdateMeshData(node.id, captureEditableMeshModelingBase(node.data), node.data)} size="xs" variant="ghost">
+            Capture Base
+          </Button>
+          <Button onClick={() => onUpdateMeshData(node.id, applyEditableMeshModeling(preparedMesh), node.data)} size="xs" variant="ghost">
+            Rebuild Stack
+          </Button>
+          <Button disabled={!faceSelectionActive} onClick={() => onMeshEditToolbarAction("inset")} size="xs" variant="ghost">
+            Inset
+          </Button>
+          <Button disabled={!faceSelectionActive} onClick={() => onMeshEditToolbarAction("triangulate")} size="xs" variant="ghost">
+            Triangulate
+          </Button>
+          <Button disabled={!faceSelectionActive} onClick={() => onMeshEditToolbarAction("solidify")} size="xs" variant="ghost">
+            Shell
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          <SectionTitle>Modifiers</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            <Button onClick={() => addModifier("boolean")} size="xs" variant="ghost">Boolean</Button>
+            <Button onClick={() => addModifier("mirror")} size="xs" variant="ghost">Mirror</Button>
+            <Button onClick={() => addModifier("solidify")} size="xs" variant="ghost">Solidify</Button>
+            <Button onClick={() => addModifier("lattice")} size="xs" variant="ghost">Lattice</Button>
+            <Button onClick={() => addModifier("remesh")} size="xs" variant="ghost">Remesh</Button>
+            <Button onClick={() => addModifier("retopo")} size="xs" variant="ghost">Retopo</Button>
+          </div>
+          {(modeling.modifiers ?? []).length === 0 ? (
+            <div className="editor-dock-note rounded-xl px-3 py-2 text-[11px]">
+              Add live modifiers here. Mirror, solidify, lattice, remesh cleanup, and retopo replay from a captured base mesh.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(modeling.modifiers ?? []).map((modifier) => (
+                <MeshModifierCard
+                  key={modifier.id}
+                  modifier={modifier}
+                  otherMeshNodes={otherMeshNodes}
+                  onChange={(nextModifier) => updateModifier(modifier.id, () => nextModifier)}
+                  onRemove={() => removeModifier(modifier.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <SectionTitle>Symmetry</SectionTitle>
+          <BooleanField
+            checked={Boolean(modeling.symmetry?.enabled)}
+            label="Mirror Symmetry"
+            onCheckedChange={(checked) =>
+              commitModeling((current) => ({
+                ...current,
+                symmetry: {
+                  axis: current.symmetry?.axis ?? "x",
+                  enabled: checked,
+                  weld: current.symmetry?.weld ?? true
+                }
+              }))
+            }
+          />
+          {modeling.symmetry ? (
+            <>
+              <EnumGrid
+                activeValue={modeling.symmetry.axis}
+                entries={[
+                  { label: "X", value: "x" },
+                  { label: "Y", value: "y" },
+                  { label: "Z", value: "z" }
+                ]}
+                onSelect={(value) =>
+                  commitModeling((current) => ({
+                    ...current,
+                    symmetry: current.symmetry
+                      ? { ...current.symmetry, axis: value as "x" | "y" | "z" }
+                      : { axis: value as "x" | "y" | "z", enabled: true, weld: true }
+                  }))
+                }
+              />
+              <BooleanField
+                checked={modeling.symmetry.weld}
+                label="Weld Seam"
+                onCheckedChange={(checked) =>
+                  commitModeling((current) => ({
+                    ...current,
+                    symmetry: current.symmetry
+                      ? { ...current.symmetry, weld: checked }
+                      : { axis: "x", enabled: true, weld: checked }
+                  }))
+                }
+              />
+            </>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <SectionTitle>PolyGroups</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            <Button disabled={activeFaceIds.length === 0} onClick={createPolyGroupFromSelection} size="xs" variant="ghost">
+              Group From Selection
+            </Button>
+          </div>
+          {(modeling.polyGroups ?? []).length === 0 ? (
+            <div className="editor-dock-note rounded-xl px-3 py-2 text-[11px]">
+              Select faces in mesh-edit face mode, then create PolyGroups for ID masks, retopo targeting, and authoring organization.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(modeling.polyGroups ?? []).map((group) => (
+                <MeshFaceGroupCard
+                  key={group.id}
+                  accentColor={group.color}
+                  faceCount={group.faceIds.length}
+                  name={group.name}
+                  onAddSelection={
+                    activeFaceIds.length > 0
+                      ? () =>
+                          commitModeling((current) => ({
+                            ...current,
+                            polyGroups: (current.polyGroups ?? []).map((entry) =>
+                              entry.id === group.id
+                                ? { ...entry, faceIds: Array.from(new Set([...entry.faceIds, ...activeFaceIds])) }
+                                : entry
+                            )
+                          }))
+                      : undefined
+                  }
+                  onNameChange={(name) =>
+                    commitModeling((current) => ({
+                      ...current,
+                      polyGroups: (current.polyGroups ?? []).map((entry) => (entry.id === group.id ? { ...entry, name } : entry))
+                    }))
+                  }
+                  onRemove={() =>
+                    commitModeling((current) => ({
+                      ...current,
+                      polyGroups: (current.polyGroups ?? []).filter((entry) => entry.id !== group.id)
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <SectionTitle>Smoothing Groups</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            <Button disabled={activeFaceIds.length === 0} onClick={createSmoothingGroupFromSelection} size="xs" variant="ghost">
+              Smooth From Selection
+            </Button>
+          </div>
+          {(modeling.smoothingGroups ?? []).map((group) => (
+            <div className="editor-dock-note space-y-2 rounded-xl px-3 py-2" key={group.id}>
+              <TextField
+                label="Name"
+                onChange={(name) =>
+                  commitModeling((current) => ({
+                    ...current,
+                    smoothingGroups: (current.smoothingGroups ?? []).map((entry) => (entry.id === group.id ? { ...entry, name } : entry))
+                  }))
+                }
+                value={group.name}
+              />
+              <NumberField
+                label="Angle"
+                onChange={(angle) =>
+                  commitModeling((current) => ({
+                    ...current,
+                    smoothingGroups: (current.smoothingGroups ?? []).map((entry) =>
+                      entry.id === group.id ? { ...entry, angle } : entry
+                    )
+                  }))
+                }
+                value={group.angle}
+              />
+              <div className="flex items-center justify-between text-[11px] text-foreground/56">
+                <span>{group.faceIds.length} faces</span>
+                <Button
+                  onClick={() =>
+                    commitModeling((current) => ({
+                      ...current,
+                      smoothingGroups: (current.smoothingGroups ?? []).filter((entry) => entry.id !== group.id)
+                    }))
+                  }
+                  size="xs"
+                  variant="ghost"
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          <SectionTitle>LOD Profiles</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            <Button onClick={generateLodPresets} size="xs" variant="ghost">Generate Presets</Button>
+          </div>
+          {(modeling.lods ?? []).map((lod) => (
+            <MeshLodCard
+              key={lod.id}
+              lod={lod}
+              onChange={(nextLod) =>
+                commitModeling((current) => ({
+                  ...current,
+                  lods: (current.lods ?? []).map((entry) => (entry.id === lod.id ? nextLod : entry))
+                }))
+              }
+              onRemove={() =>
+                commitModeling((current) => ({
+                  ...current,
+                  lods: (current.lods ?? []).filter((entry) => entry.id !== lod.id)
+                }))
+              }
+            />
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          <SectionTitle>Bake Outputs</SectionTitle>
+          <div className="flex flex-wrap gap-1.5">
+            {BAKE_MAP_KINDS.map((kind) => (
+              <Button key={kind} onClick={() => queueBakeOutput(kind)} size="xs" variant="ghost">
+                {startCase(kind)}
+              </Button>
+            ))}
+          </div>
+          {(modeling.bakeOutputs ?? []).map((output) => (
+            <div className="editor-dock-note rounded-xl px-3 py-2" key={output.id}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-medium text-foreground/78">{startCase(output.kind)}</div>
+                  <div className="text-[10px] text-foreground/48">{output.status.toUpperCase()}</div>
+                </div>
+                <Button
+                  onClick={() =>
+                    commitModeling((current) => ({
+                      ...current,
+                      bakeOutputs: (current.bakeOutputs ?? []).filter((entry) => entry.id !== output.id)
+                    }))
+                  }
+                  size="xs"
+                  variant="ghost"
+                >
+                  Remove
+                </Button>
+              </div>
+              <NumberField
+                label="Resolution"
+                onChange={(resolution) =>
+                  commitModeling((current) => ({
+                    ...current,
+                    bakeOutputs: (current.bakeOutputs ?? []).map((entry) =>
+                      entry.id === output.id ? { ...entry, resolution } : entry
+                    )
+                  }))
+                }
+                value={output.resolution}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </ToolSection>
+  );
+}
+
 export function InspectorSidebar({
   activeRightPanel,
   activeToolId,
@@ -1526,6 +1923,284 @@ function MeshPhysicsInspector({
       )}
     </ToolSection>
   );
+}
+
+function MeshModifierCard({
+  modifier,
+  onChange,
+  onRemove,
+  otherMeshNodes
+}: {
+  modifier: MeshModelingModifier;
+  onChange: (modifier: MeshModelingModifier) => void;
+  onRemove: () => void;
+  otherMeshNodes: Array<Extract<GeometryNode, { kind: "mesh" }>>;
+}) {
+  return (
+    <div className="editor-dock-note space-y-2 rounded-xl px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-medium text-foreground/78">{modifier.label}</div>
+          <div className="text-[10px] text-foreground/48">{modifier.type.toUpperCase()}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch checked={modifier.enabled} onCheckedChange={(enabled) => onChange({ ...modifier, enabled })} />
+          <Button onClick={onRemove} size="xs" variant="ghost">Remove</Button>
+        </div>
+      </div>
+      {modifier.type === "boolean" ? (
+        <MeshBooleanModifierFields
+          modifier={modifier}
+          onChange={onChange}
+          otherMeshNodes={otherMeshNodes}
+        />
+      ) : null}
+      {modifier.type === "mirror" ? (
+        <>
+          <EnumGrid
+            activeValue={modifier.axis}
+            entries={[
+              { label: "X", value: "x" },
+              { label: "Y", value: "y" },
+              { label: "Z", value: "z" }
+            ]}
+            onSelect={(value) => onChange({ ...modifier, axis: value as "x" | "y" | "z" })}
+          />
+          <BooleanField
+            checked={modifier.weld}
+            label="Weld Mirrored Seam"
+            onCheckedChange={(weld) => onChange({ ...modifier, weld })}
+          />
+        </>
+      ) : null}
+      {modifier.type === "solidify" ? (
+        <NumberField label="Thickness" onChange={(thickness) => onChange({ ...modifier, thickness })} value={modifier.thickness} />
+      ) : null}
+      {modifier.type === "lattice" ? (
+        <MeshLatticeModifierFields modifier={modifier} onChange={onChange} />
+      ) : null}
+      {modifier.type === "remesh" ? (
+        <MeshRemeshModifierFields modifier={modifier} onChange={onChange} />
+      ) : null}
+      {modifier.type === "retopo" ? (
+        <MeshRetopoModifierFields modifier={modifier} onChange={onChange} />
+      ) : null}
+    </div>
+  );
+}
+
+function MeshBooleanModifierFields({
+  modifier,
+  onChange,
+  otherMeshNodes
+}: {
+  modifier: MeshBooleanModifier;
+  onChange: (modifier: MeshBooleanModifier) => void;
+  otherMeshNodes: Array<Extract<GeometryNode, { kind: "mesh" }>>;
+}) {
+  return (
+    <div className="space-y-2">
+      <EnumGrid
+        activeValue={modifier.operation}
+        entries={[
+          { label: "Union", value: "union" },
+          { label: "Diff", value: "difference" },
+          { label: "Intersect", value: "intersect" }
+        ]}
+        onSelect={(value) => onChange({ ...modifier, operation: value as MeshBooleanModifier["operation"] })}
+      />
+      <EnumGrid
+        activeValue={modifier.mode}
+        entries={[
+          { label: "Live", value: "live" },
+          { label: "Apply", value: "apply" }
+        ]}
+        onSelect={(value) => onChange({ ...modifier, mode: value as MeshBooleanModifier["mode"] })}
+      />
+      <TextField
+        label="Target Mesh"
+        onChange={(targetNodeId) => onChange({ ...modifier, targetNodeId })}
+        value={modifier.targetNodeId ?? ""}
+      />
+      {otherMeshNodes.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {otherMeshNodes.slice(0, 4).map((candidate) => (
+            <Button
+              key={candidate.id}
+              onClick={() => onChange({ ...modifier, targetNodeId: candidate.id })}
+              size="xs"
+              variant="ghost"
+            >
+              {candidate.name}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MeshLatticeModifierFields({
+  modifier,
+  onChange
+}: {
+  modifier: MeshLatticeModifier;
+  onChange: (modifier: MeshLatticeModifier) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <EnumGrid
+        activeValue={modifier.mode}
+        entries={[
+          { label: "Bend", value: "bend" },
+          { label: "Twist", value: "twist" },
+          { label: "Taper", value: "taper" }
+        ]}
+        onSelect={(value) => onChange({ ...modifier, mode: value as MeshLatticeModifier["mode"] })}
+      />
+      <EnumGrid
+        activeValue={modifier.axis}
+        entries={[
+          { label: "X", value: "x" },
+          { label: "Y", value: "y" },
+          { label: "Z", value: "z" }
+        ]}
+        onSelect={(value) => onChange({ ...modifier, axis: value as MeshLatticeModifier["axis"] })}
+      />
+      <NumberField label="Intensity" onChange={(intensity) => onChange({ ...modifier, intensity })} value={modifier.intensity} />
+      <NumberField label="Falloff" onChange={(falloff) => onChange({ ...modifier, falloff })} value={modifier.falloff} />
+    </div>
+  );
+}
+
+function MeshRemeshModifierFields({
+  modifier,
+  onChange
+}: {
+  modifier: MeshRemeshModifier;
+  onChange: (modifier: MeshRemeshModifier) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <EnumGrid
+        activeValue={modifier.mode}
+        entries={[
+          { label: "Cleanup", value: "cleanup" },
+          { label: "Quad", value: "quad" },
+          { label: "Voxel", value: "voxel" }
+        ]}
+        onSelect={(value) => onChange({ ...modifier, mode: value as MeshRemeshModifier["mode"] })}
+      />
+      <NumberField label="Resolution" onChange={(resolution) => onChange({ ...modifier, resolution })} value={modifier.resolution} />
+      <NumberField label="Smoothing" onChange={(smoothing) => onChange({ ...modifier, smoothing })} value={modifier.smoothing} />
+      <NumberField label="Weld Dist" onChange={(weldDistance) => onChange({ ...modifier, weldDistance })} value={modifier.weldDistance} />
+    </div>
+  );
+}
+
+function MeshRetopoModifierFields({
+  modifier,
+  onChange
+}: {
+  modifier: MeshRetopoModifier;
+  onChange: (modifier: MeshRetopoModifier) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <NumberField
+        label="Target Faces"
+        onChange={(targetFaceCount) => onChange({ ...modifier, targetFaceCount: Math.max(1, Math.round(targetFaceCount)) })}
+        value={modifier.targetFaceCount}
+      />
+      <BooleanField
+        checked={modifier.preserveBorders}
+        label="Preserve Borders"
+        onCheckedChange={(preserveBorders) => onChange({ ...modifier, preserveBorders })}
+      />
+    </div>
+  );
+}
+
+function MeshFaceGroupCard({
+  accentColor,
+  faceCount,
+  name,
+  onAddSelection,
+  onNameChange,
+  onRemove
+}: {
+  accentColor: string;
+  faceCount: number;
+  name: string;
+  onAddSelection?: () => void;
+  onNameChange: (name: string) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="editor-dock-note rounded-xl px-3 py-2">
+      <div className="flex items-center gap-2">
+        <span className="size-2.5 rounded-full" style={{ backgroundColor: accentColor }} />
+        <div className="min-w-0 flex-1">
+          <TextField label="Name" onChange={onNameChange} value={name} />
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px] text-foreground/56">
+        <span>{faceCount} faces</span>
+        <div className="flex gap-1.5">
+          {onAddSelection ? <Button onClick={onAddSelection} size="xs" variant="ghost">Add Selection</Button> : null}
+          <Button onClick={onRemove} size="xs" variant="ghost">Remove</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MeshLodCard({
+  lod,
+  onChange,
+  onRemove
+}: {
+  lod: MeshLodProfile;
+  onChange: (lod: MeshLodProfile) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="editor-dock-note rounded-xl px-3 py-2">
+      <TextField label="Name" onChange={(name) => onChange({ ...lod, name })} value={lod.name} />
+      <NumberField label="Ratio" onChange={(ratio) => onChange({ ...lod, ratio })} value={lod.ratio} />
+      <div className="mt-2 flex items-center justify-between text-[11px] text-foreground/56">
+        <span>{lod.faceCount ? `${lod.faceCount} faces` : "Face estimate pending"}</span>
+        <Button onClick={onRemove} size="xs" variant="ghost">Remove</Button>
+      </div>
+    </div>
+  );
+}
+
+function createDefaultModelingModifier(type: MeshModelingModifier["type"], index: number): MeshModelingModifier {
+  const id = `modifier:${type}:${Date.now()}:${index}`;
+
+  switch (type) {
+    case "boolean":
+      return { enabled: true, id, label: "Boolean", mode: "live", operation: "union", type };
+    case "mirror":
+      return { axis: "x", enabled: true, id, label: "Mirror", type, weld: true };
+    case "solidify":
+      return { enabled: true, id, label: "Solidify", thickness: 0.2, type };
+    case "lattice":
+      return { axis: "y", enabled: true, falloff: 1, id, intensity: 0.35, label: "Lattice", mode: "bend", type };
+    case "remesh":
+      return { enabled: true, id, label: "Remesh", mode: "cleanup", resolution: 32, smoothing: 0.4, type, weldDistance: 0.01 };
+    case "retopo":
+      return { enabled: true, id, label: "Retopo", preserveBorders: true, targetFaceCount: 128, type };
+  }
+}
+
+function createDefaultLodProfiles(baseFaceCount: number): MeshLodProfile[] {
+  return [
+    { faceCount: Math.max(1, Math.round(baseFaceCount * 0.7)), generatedAt: new Date().toISOString(), id: "lod:mid", name: "LOD Mid", ratio: 0.7 },
+    { faceCount: Math.max(1, Math.round(baseFaceCount * 0.4)), generatedAt: new Date().toISOString(), id: "lod:low", name: "LOD Low", ratio: 0.4 },
+    { faceCount: Math.max(1, Math.round(baseFaceCount * 0.18)), generatedAt: new Date().toISOString(), id: "lod:proxy", name: "LOD Proxy", ratio: 0.18 }
+  ];
 }
 
 function InstancingInspector({
