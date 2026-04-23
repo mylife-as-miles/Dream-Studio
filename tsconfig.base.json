@@ -42,6 +42,7 @@
       "@blud/runtime-streaming": ["packages/runtime-streaming/src/index.ts"],
       "@blud/scene-importer": ["packages/scene-importer/src/index.ts"],
       "@blud/three-runtime": ["packages/three-runtime/src/index.ts"],
+      "@blud/terrain": ["packages/terrain/src/index.ts"],
       "@blud/tool-system": ["packages/tool-system/src/index.ts"],
       "@blud/workers": ["packages/workers/src/index.ts"]
     }
