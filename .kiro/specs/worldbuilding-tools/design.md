@@ -2,9 +2,9 @@
 
 ## Overview
 
-This design adds four worldbuilding tool categories to the BLUD world editor: **Terrain**, **Foliage/Scatter**, **GridMap**, and **Advanced Splines**. Each tool integrates with the existing xstate-based tool system (`@blud/tool-system`), the `CommandStack` undo/redo system (`@blud/editor-core`), the scene graph node types (`@blud/shared`), and the AI copilot tool declaration system.
+This design adds five worldbuilding and modeling tool categories to the BLUD world editor: **Terrain**, **Foliage/Scatter**, **GridMap**, **Advanced Splines**, and **Advanced Mesh/Modeling Tools**. Each tool integrates with the existing xstate-based tool system (`@blud/tool-system`), the `CommandStack` undo/redo system (`@blud/editor-core`), the scene graph node types (`@blud/shared`), the existing `mesh-edit` workflow, and the AI copilot tool declaration system.
 
-The architecture follows the established monorepo patterns: domain logic lives in dedicated packages (`packages/terrain`, `packages/foliage`), new node types extend the `GeometryNode` union in `@blud/shared`, commands are added to `@blud/editor-core`, and tool IDs are registered in `@blud/tool-system`. The editor UI in `apps/editor` consumes these packages and wires them into the toolbar, tool palette, and copilot.
+The architecture follows the established monorepo patterns: domain logic lives in dedicated packages (`packages/terrain`, `packages/foliage`) and the existing geometry stack (`packages/geometry-kernel`), new node types extend the `GeometryNode` union in `@blud/shared`, commands are added to `@blud/editor-core`, and tool IDs are registered in `@blud/tool-system`. The editor UI in `apps/editor` consumes these packages and wires them into the toolbar, tool palette, inspector, viewport, and copilot. Advanced modeling intentionally extends the current `mesh-edit` tool instead of introducing a parallel modeling mode.
 
 ### Key Design Decisions
 
@@ -13,6 +13,10 @@ The architecture follows the established monorepo patterns: domain logic lives i
 3. **GPU instancing for foliage** — Foliage instances are grouped by mesh asset and rendered via a single draw call per group, with per-instance transforms in a GPU buffer.
 4. **Spline mesh extrusion** — Splines generate `EditableMesh` geometry by extruding a 2D cross-section profile along the curve, reusing the existing mesh rendering pipeline.
 5. **Web Worker sculpting** — Terrain heightmap modifications run on a Web Worker thread to keep the main thread responsive during sculpting (Requirement 29.1).
+
+6. **Extend existing mesh-edit instead of replacing it** â€” Advanced modeling builds on `apps/editor/src/components/editor-shell/MeshEditToolBars.tsx`, `apps/editor/src/viewport/ViewportCanvas.tsx`, and `packages/geometry-kernel/src/mesh/mesh-ops/*` so the editor keeps one coherent mesh workflow.
+7. **Non-destructive modifier stack for heavy modeling** â€” Boolean, mirror, solidify, deform, remesh, and simplify features are represented as modifier metadata on mesh data, while the evaluated result remains a cached preview artifact.
+8. **Async jobs for expensive mesh processing** â€” Remesh, retopo, baking, and LOD generation run through worker-backed or cancellable async jobs so the viewport stays responsive on production meshes.
 
 ## Architecture
 
@@ -109,6 +113,13 @@ All four worldbuilding tools follow the same xstate lifecycle as existing tools 
 @blud/tool-system     ← depends on xstate (updated ToolId union)
 apps/editor           ← depends on all of the above
 ```
+
+Advanced modeling extends this dependency graph with the existing geometry and worker stack:
+
+- `@blud/shared` gains mesh-modeling metadata for modifier stacks, PolyGroups, smoothing groups, LOD entries, and bake artifacts.
+- `@blud/geometry-kernel` becomes the primary home for advanced boolean, topology, remesh, retopo, simplify, and bake helper functions.
+- `@blud/editor-core` consumes those kernel ops through undoable mesh commands.
+- `@blud/workers` or editor-owned worker entry points host expensive remesh, bake, and simplification jobs.
 
 ## Components and Interfaces
 
@@ -384,6 +395,179 @@ A new `CreationGroup` labeled "Worldbuilding" is added after the "Architecture" 
 - **Create GridMap** — creates a default `GridMapNode` (1×1×1 cell size, empty tiles) and activates the gridmap tool
 - **Spline type buttons** — one button per spline type (road, fence, pipe, rail, cable, wall, river, curb), each activates `spline-add` with the type pre-configured
 
+### 8. Advanced Mesh/Modeling Integration (`mesh-edit`, `@blud/geometry-kernel`)
+
+Advanced modeling is implemented as an expansion of the existing mesh-edit stack instead of a separate editor mode. The foundation is already present:
+
+- `packages/geometry-kernel/src/mesh/mesh-ops/index.ts` exports the current mesh-op surface area.
+- `packages/editor-core/src/commands/node-commands/mesh-commands.ts` already applies mesh mutations through undoable commands.
+- `apps/editor/src/components/editor-shell/MeshEditToolBars.tsx` and `ToolPalette.tsx` already expose mesh editing affordances.
+- `apps/editor/src/viewport/ViewportCanvas.tsx`, `apps/editor/src/viewport/types.ts`, and `apps/editor/src/viewport/editing.ts` already host mesh-edit selection, preview, and transient interaction states.
+
+The advanced modeling expansion adds two layers on top of that base:
+
+1. **Destructive topology tools** implemented directly in `@blud/geometry-kernel`
+2. **Non-destructive modifier evaluation** stored in mesh metadata and resolved into a cached evaluated mesh for preview and apply/collapse flows
+
+#### Advanced mesh metadata (`@blud/shared`)
+
+```typescript
+export type MeshPolyGroup = {
+  id: string;
+  name: string;
+  color?: string;
+  faceIds: FaceID[];
+};
+
+export type MeshSmoothingGroup = {
+  id: string;
+  name: string;
+  faceIds: FaceID[];
+  hardEdges?: Array<[VertexID, VertexID]>;
+};
+
+export type MeshLodEntry = {
+  id: string;
+  mesh: EditableMesh;
+  screenSize?: number;
+  triangleRatio: number;
+};
+
+export type MeshBakeArtifact = {
+  id: string;
+  kind: "ao" | "curvature" | "id-mask" | "normal" | "vertex-color";
+  assetId?: AssetID;
+  vertexColorLayer?: string;
+};
+
+export type MeshModifier =
+  | { id: string; kind: "boolean"; enabled: boolean; live: boolean; operation: "difference" | "intersect" | "union"; operandNodeIds: NodeID[]; }
+  | { id: string; kind: "mirror"; enabled: boolean; axis: "x" | "y" | "z"; weldThreshold?: number; }
+  | { id: string; kind: "solidify"; enabled: boolean; thickness: number; offset: number; }
+  | { id: string; kind: "lattice"; enabled: boolean; divisions: Vec3; cageNodeId?: NodeID; }
+  | { id: string; kind: "deform"; enabled: boolean; mode: "bend" | "shear" | "taper" | "twist"; axis: "x" | "y" | "z"; amount: number; }
+  | { id: string; kind: "remesh"; enabled: boolean; mode: "cleanup" | "quad" | "voxel"; density: number; }
+  | { id: string; kind: "simplify"; enabled: boolean; ratio: number; preserveBorders?: boolean; };
+
+export type EditableMeshModelingData = {
+  modifiers?: MeshModifier[];
+  polyGroups?: MeshPolyGroup[];
+  smoothingGroups?: MeshSmoothingGroup[];
+  lods?: MeshLodEntry[];
+  bakeArtifacts?: MeshBakeArtifact[];
+};
+```
+
+The serialized mesh data remains the canonical source mesh. Evaluated modifier results are cached in editor state and regenerated on load or invalidation, which avoids recursive mesh storage inside the scene document.
+
+#### Geometry-kernel expansion (`packages/geometry-kernel/src/mesh/mesh-ops`)
+
+The existing mesh-op directory gains additional modules:
+
+```typescript
+// boolean-ops.ts
+export function booleanEditableMeshes(source: EditableMesh, operands: EditableMesh[], operation: "difference" | "intersect" | "union"): EditableMesh | undefined;
+
+// inset-ops.ts
+export function insetEditableMeshFaces(mesh: EditableMesh, faceIds: FaceID[], thickness: number, depth?: number): EditableMesh | undefined;
+
+// bridge-ops.ts
+export function bridgeEditableMeshLoops(mesh: EditableMesh, loopA: VertexID[], loopB: VertexID[], segments?: number, twist?: number): EditableMesh | undefined;
+
+// knife-ops.ts
+export function knifeCutEditableMesh(mesh: EditableMesh, stroke: Vec3[]): EditableMesh | undefined;
+
+// slide-ops.ts
+export function slideEditableMeshVertices(mesh: EditableMesh, vertexIds: VertexID[], amount: number): EditableMesh | undefined;
+export function slideEditableMeshEdges(mesh: EditableMesh, edges: Array<[VertexID, VertexID]>, amount: number): EditableMesh | undefined;
+
+// cleanup-ops.ts
+export function weldEditableMeshVerticesByDistance(mesh: EditableMesh, tolerance: number): EditableMesh | undefined;
+export function weldEditableMeshVerticesToTarget(mesh: EditableMesh, sourceVertexIds: VertexID[], targetVertexId: VertexID): EditableMesh | undefined;
+
+// restructure-ops.ts
+export function pokeEditableMeshFaces(mesh: EditableMesh, faceIds: FaceID[]): EditableMesh | undefined;
+export function triangulateEditableMeshFaces(mesh: EditableMesh, faceIds?: FaceID[]): EditableMesh | undefined;
+export function quadrangulateEditableMeshFaces(mesh: EditableMesh, faceIds?: FaceID[]): EditableMesh | undefined;
+export function solidifyEditableMesh(mesh: EditableMesh, thickness: number, offset?: number): EditableMesh | undefined;
+
+// remesh-ops.ts
+export function voxelRemeshEditableMesh(mesh: EditableMesh, density: number): EditableMesh | undefined;
+export function quadRemeshEditableMesh(mesh: EditableMesh, targetFaceCount: number): EditableMesh | undefined;
+export function cleanupEditableMeshTopology(mesh: EditableMesh): EditableMesh | undefined;
+
+// retopo-ops.ts
+export function retopologizeEditableMesh(source: EditableMesh, target: EditableMesh, options: RetopoOptions): EditableMesh | undefined;
+
+// simplify-ops.ts
+export function simplifyEditableMesh(mesh: EditableMesh, ratio: number): EditableMesh | undefined;
+export function generateEditableMeshLods(mesh: EditableMesh, ratios: number[]): MeshLodEntry[];
+
+// bake-ops.ts
+export function bakeEditableMeshMaps(input: MeshBakeRequest): Promise<MeshBakeResult>;
+```
+
+#### Editor-core commands (`@blud/editor-core`)
+
+The current `mesh-commands.ts` remains for simple inflate/offset commands, while advanced modeling flows are split into dedicated command modules:
+
+```typescript
+// mesh-topology-commands.ts
+export function createApplyMeshTopologyOperationCommand(scene: SceneDocument, nodeId: NodeID, before: EditableMesh, after: EditableMesh, label: string): Command;
+
+// mesh-modifier-commands.ts
+export function createSetMeshModifierStackCommand(scene: SceneDocument, nodeId: NodeID, modifiers: MeshModifier[]): Command;
+export function createApplyMeshModifierCommand(scene: SceneDocument, nodeId: NodeID, modifierId: string): Command;
+
+// mesh-group-commands.ts
+export function createSetMeshPolyGroupsCommand(scene: SceneDocument, nodeId: NodeID, groups: MeshPolyGroup[]): Command;
+export function createSetMeshSmoothingGroupsCommand(scene: SceneDocument, nodeId: NodeID, groups: MeshSmoothingGroup[]): Command;
+
+// mesh-lod-commands.ts
+export function createGenerateMeshLodsCommand(scene: SceneDocument, nodeId: NodeID, lods: MeshLodEntry[]): Command;
+
+// mesh-bake-commands.ts
+export function createAttachMeshBakeArtifactsCommand(scene: SceneDocument, nodeId: NodeID, artifacts: MeshBakeArtifact[]): Command;
+```
+
+#### Editor UI and viewport integration (`apps/editor`)
+
+Advanced modeling extends the current editor files instead of adding new parallel panels:
+
+- `apps/editor/src/components/editor-shell/MeshEditToolBars.tsx`
+  Adds grouped controls for Boolean, Topology, Cleanup, Deform, Remesh/Retopo, Groups/Shading, LOD, and Bake.
+- `apps/editor/src/components/editor-shell/ToolPalette.tsx`
+  Surfaces context-sensitive advanced modeling controls when `activeToolId === "mesh-edit"`.
+- `apps/editor/src/components/editor-shell/ToolsPanel.tsx`
+  Mirrors the toolbar actions in the docked panel UI.
+- `apps/editor/src/components/editor-shell/InspectorSidebar.tsx`
+  Hosts modifier stack lists, PolyGroup and smoothing-group management, LOD previews, and bake outputs.
+- `apps/editor/src/viewport/types.ts`
+  Extends `MeshEditToolbarAction` and transient state types for boolean previews, knife strokes, loop cut previews, lattice cages, retopo overlays, and bake jobs.
+- `apps/editor/src/viewport/editing.ts`
+  Adds helper builders for advanced mesh handles, loop selections, symmetry pairing, and retopo snapping.
+- `apps/editor/src/viewport/ViewportCanvas.tsx`
+  Adds advanced modeling interaction states, overlays, modifier previews, async job progress, and apply/cancel flows.
+
+#### Copilot declarations (`apps/editor/src/lib/copilot`)
+
+The advanced modeling surface is exposed to the copilot as extensions of the existing mesh-edit workflow, not as a separate tool domain. `tool-declarations.ts`, `tool-executor.ts`, and `system-prompt.ts` are expanded with advanced modeling actions such as:
+
+- `boolean_meshes`
+- `inset_mesh_faces`
+- `bridge_mesh_edges`
+- `loop_cut_mesh`
+- `knife_cut_mesh`
+- `weld_mesh_vertices`
+- `slide_mesh_components`
+- `solidify_mesh`
+- `mirror_mesh`
+- `remesh_mesh`
+- `retopologize_mesh`
+- `assign_mesh_groups`
+- `generate_mesh_lods`
+- `bake_mesh_maps`
+
 ## Data Models
 
 ### Heightmap Storage
@@ -417,7 +601,16 @@ Spline curves are evaluated using either cubic Bezier or Catmull-Rom interpolati
 
 The mesh extrusion samples the curve at `segmentCount` evenly-spaced parameter values and sweeps the `CrossSectionProfile` along the curve, orienting each cross-section using a Frenet frame (tangent, normal, binormal).
 
+### Advanced Mesh Modeling Storage
+
+Advanced modeling data is stored on the source mesh as lightweight metadata:
+
+- **Modifier stack metadata** stores modifier configuration only; the evaluated result is rebuilt on demand.
+- **PolyGroups / smoothing groups** store face or edge assignments by ID, so selection and shading data survive topology-preserving edits.
+- **LOD metadata** stores generated simplified meshes and switching hints as optional entries attached to the source mesh.
+- **Bake artifacts** store references to generated scene assets or vertex-color layers instead of embedding large binary blobs directly in mesh topology structures.
+
 ### Serialization
 
-All new node types serialize to the `.whmap` format alongside existing nodes. `Float32Array` fields (heightmap, splatmap) are base64-encoded for JSON compatibility. `Uint8Array` (holeMask) is similarly base64-encoded. On load, these are decoded back to typed arrays.
+All new node types and mesh-modeling metadata serialize to the `.whmap` format alongside existing nodes. `Float32Array` fields (heightmap, splatmap) are base64-encoded for JSON compatibility. `Uint8Array` (holeMask) is similarly base64-encoded. On load, these are decoded back to typed arrays. Modifier stacks, PolyGroup assignments, smoothing groups, LOD metadata, and bake artifact references serialize as structured JSON metadata on the owning mesh node.
 

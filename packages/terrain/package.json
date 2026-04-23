@@ -1,7 +1,7 @@
 {
   "name": "@blud/terrain",
   "version": "0.1.0",
-  "description": "Terrain heightmap sculpting, splatmap painting, hole masking, mesh generation, LOD, and spline deformation.",
+  "description": "Terrain heightmap sculpting, splatmap painting, mesh generation, and spline deformation for BLUD scenes.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -34,7 +34,6 @@
   },
   "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/terrain",
   "dependencies": {
-    "@blud/geometry-kernel": "*",
     "@blud/shared": "*"
   }
 }

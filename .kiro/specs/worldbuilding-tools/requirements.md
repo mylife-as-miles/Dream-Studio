@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This feature adds four major worldbuilding tool categories to the BLUD world editor (`apps/editor`): Terrain, Foliage/Scatter, Tile/Grid (GridMap), and Advanced Splines. These tools address the largest missing category of functionality for open-world and environment authoring, inspired by workflows from Blender, Godot, Unity, and Unreal Engine. Each tool category integrates with the existing xstate-based tool system (`@blud/tool-system`), the CommandStack undo/redo system (`@blud/editor-core`), the scene graph node types (`@blud/shared`), and the AI copilot tool declaration system.
+This feature adds five major worldbuilding and modeling tool categories to the BLUD world editor (`apps/editor`): Terrain, Foliage/Scatter, Tile/Grid (GridMap), Advanced Splines, and Advanced Mesh/Modeling Tools. These tools address the largest missing category of functionality for open-world, environment, and hero-asset authoring, inspired by workflows from Blender, Godot, Unity, and Unreal Engine. The advanced modeling track extends the existing `mesh-edit` workflow already present in the editor, building on `@blud/geometry-kernel`, `@blud/editor-core`, `@blud/shared`, the viewport interaction layer in `apps/editor/src/viewport`, and the AI copilot tool declaration system.
 
 ## Glossary
 
@@ -28,6 +28,16 @@ This feature adds four major worldbuilding tool categories to the BLUD world edi
 - **Scene_Graph**: The tree of `GeometryNode` objects that represents the editable scene in `@blud/shared`.
 - **CreationToolBar**: The toolbar component in the editor shell that groups creation tools by category.
 - **Copilot_Tool_Declaration**: A tool definition in `apps/editor/src/lib/copilot/tool-declarations.ts` that exposes editor functionality to the AI copilot.
+- **Mesh_Edit_Tool**: The existing editor tool with tool ID `"mesh-edit"` that edits mesh topology and sub-object selections (vertex, edge, face) directly in the viewport.
+- **Editable_Mesh**: The half-edge mesh representation in `@blud/shared` and `@blud/geometry-kernel` used for mesh editing, topology generation, and viewport previews.
+- **Mesh_Modifier**: A non-destructive modeling operation stored on a mesh, such as boolean, mirror, solidify, lattice, bend, twist, taper, shear, remesh, or simplification.
+- **Boolean_Operand**: A referenced mesh, primitive, model, or converted brush input used by a boolean union, difference, or intersection operation.
+- **PolyGroup**: A named face selection set, often color-coded in the viewport, used for fast selection, retopology guidance, and baking masks.
+- **Smoothing_Group**: A shading group or hard-edge assignment that controls whether adjacent faces share smoothed normals or split shading.
+- **Retopology**: A workflow for rebuilding cleaner, more animation-friendly or bake-friendly topology on top of an existing source surface, usually with quad-dominant output and surface snapping.
+- **Bake_Map**: A texture or vertex-color artifact generated from high-detail geometry or analysis passes, such as normal maps, ambient occlusion, curvature, ID masks, or vertex colors.
+- **Mesh_LOD**: A lower-detail mesh variant generated from a source mesh for distance-based rendering or preview.
+- **Deformer_Gizmo**: An interactive cage or axis-aligned control used to manipulate non-destructive deformers such as lattice, bend, twist, taper, and shear.
 - **LOD**: Level of Detail — a rendering optimization that reduces geometric complexity for distant terrain chunks.
 - **Nav_Mesh**: Navigation mesh data baked into tiles for AI pathfinding.
 
@@ -380,3 +390,166 @@ This feature adds four major worldbuilding tool categories to the BLUD world edi
 3. THE GridMap_Tool SHALL use spatial indexing (e.g., a hash map keyed by grid coordinates) for tile lookups, ensuring that paint and erase operations complete in constant time per cell regardless of total tile count.
 4. WHEN a terrain heightmap exceeds 512x512 resolution, THE Terrain_Tool SHALL process sculpting operations in chunked regions rather than the full heightmap to maintain interactive frame rates.
 5. THE Renderer SHALL use frustum culling for terrain chunks, foliage instance groups, and gridmap tile clusters so that off-screen geometry does not consume draw calls or GPU resources.
+
+### Requirement 30: Advanced Mesh Modeling Data Model
+
+**User Story:** As a developer, I want mesh nodes to support advanced modeling metadata, so that the editor can represent destructive edits, non-destructive modifier stacks, face groups, smoothing groups, generated LODs, and bake outputs without inventing a separate modeling format.
+
+#### Acceptance Criteria
+
+1. THE Editable_Mesh data model or associated MeshNode metadata SHALL support optional advanced modeling fields for `modifiers`, `polyGroups`, `smoothingGroups`, `lods`, and `bakeArtifacts`.
+2. WHEN a Mesh_Modifier stack is present on a mesh node, THE Editor SHALL preserve the source mesh topology separately from the evaluated preview/result mesh shown in the viewport.
+3. THE Editor SHALL allow the user to apply, collapse, reorder, enable, disable, or delete individual modifiers in the stack.
+4. WHEN a scene containing advanced mesh/modeling metadata is saved to `.whmap`, THE Editor SHALL serialize modifier stacks, group assignments, generated LOD metadata, and bake outputs.
+5. WHEN such a scene is loaded, THE Editor SHALL restore the mesh node's modeling metadata and regenerate any evaluated preview state needed by the viewport.
+
+### Requirement 31: Boolean Modeling Tools
+
+**User Story:** As a modeler, I want boolean union, difference, and intersection tools, so that I can combine and carve meshes the way I would in Blender or Unreal's modeling tools.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support destructive boolean operations: `union`, `difference`, and `intersect` between compatible mesh, primitive, model, or converted brush operands.
+2. THE Mesh_Edit_Tool SHALL support non-destructive live boolean modifiers that reference one or more Boolean_Operand nodes and continuously re-evaluate when the source mesh or operand transforms change.
+3. WHEN a live boolean modifier cannot produce a valid result due to missing operands or invalid topology, THE Editor SHALL retain the source mesh and display a warning state rather than silently corrupting the mesh.
+4. THE viewport SHALL preview boolean results before commit/apply and SHALL allow the user to convert a live boolean stack to a baked mesh result.
+5. WHEN a boolean modeling operation completes, THE Editor SHALL push it to the CommandStack as a single undoable command.
+
+### Requirement 32: Advanced Topology Cutting and Bridging
+
+**User Story:** As a modeler, I want inset, bridge, loop cut, ring cut, and knife-style tools, so that I can author production-quality topology directly in the editor.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support `inset faces` with adjustable thickness and optional depth/extrusion in the same operation.
+2. THE Mesh_Edit_Tool SHALL support `bridge edges/faces` between two open edge loops, compatible face regions, or boundary selections, with adjustable twist, segment count, and profile.
+3. THE Mesh_Edit_Tool SHALL support `loop cut` and `ring cut` previews on eligible quad-dominant regions before insertion.
+4. THE Mesh_Edit_Tool SHALL support `knife` or `freeform cut` gestures that split visible faces along a user-defined line or multi-point stroke path.
+5. WHEN these topology operations split or create faces, THE Editor SHALL preserve material assignments, face winding, and UV orientation where practical.
+
+### Requirement 33: Weld, Slide, and Topology Cleanup Tools
+
+**User Story:** As a modeler, I want weld and slide tools, so that I can clean topology and reposition components without rebuilding surfaces manually.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support `weld by distance` for merging vertices within a configurable threshold.
+2. THE Mesh_Edit_Tool SHALL support `target weld`, allowing a selected vertex or compatible edge endpoint to snap to a specific target vertex and merge.
+3. THE Mesh_Edit_Tool SHALL support `slide edge` and `slide vertex` operations constrained along adjacent topology or the source surface.
+4. WHEN a weld or slide operation would produce invalid topology, THE Editor SHALL block commit and surface a validation warning.
+5. WHEN a weld or slide operation completes, THE Editor SHALL push it to the CommandStack as a single undoable command.
+
+### Requirement 34: Face Restructuring and Shell Tools
+
+**User Story:** As a modeler, I want poke, triangulate, quadrangulate, and solidify tools, so that I can restructure faces and add thickness for game-ready geometry.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support `poke` on selected faces, creating a center vertex and radial triangles.
+2. THE Mesh_Edit_Tool SHALL support `triangulate` on selected faces or entire meshes.
+3. THE Mesh_Edit_Tool SHALL support `quadrangulate` or triangle-to-quad merging on eligible adjacent triangles.
+4. THE Mesh_Edit_Tool SHALL support `solidify` or `shell` operations with adjustable thickness, offset mode, and rim generation on open or closed surfaces.
+5. THE viewport SHALL preview face restructuring and shell thickness before commit.
+
+### Requirement 35: Mirror and Symmetry Editing
+
+**User Story:** As a modeler, I want mirror and symmetry editing, so that I can build symmetrical assets quickly while still preserving the option to break symmetry later.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support a `mirror` modifier across local, world, or custom symmetry planes with configurable weld seam behavior.
+2. THE Mesh_Edit_Tool SHALL support a `symmetry editing` mode where compatible vertex, edge, face, transform, and topology edits are mirrored live across a chosen axis.
+3. THE Editor SHALL allow the user to apply or remove symmetry without destroying the existing non-symmetrical source data unintentionally.
+4. THE viewport SHALL indicate the active symmetry plane and mirrored selections while symmetry editing is enabled.
+
+### Requirement 36: Deformer Stack and Lattice Editing
+
+**User Story:** As a modeler, I want lattice, bend, twist, taper, and shear deformers, so that I can reshape meshes non-destructively inside the editor.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support a `lattice` deformer with configurable cage resolution and direct viewport manipulation of cage points.
+2. THE Mesh_Edit_Tool SHALL support non-destructive `bend`, `twist`, `taper`, and `shear` deformers with configurable axis, falloff, and strength parameters.
+3. THE Editor SHALL expose these deformers in a reorderable modifier stack UI.
+4. THE viewport SHALL render live previews and deformer gizmos while the user adjusts these modifiers.
+5. WHEN a deformer operation is committed, reordered, applied, or removed, THE Editor SHALL record the change through the CommandStack.
+
+### Requirement 37: Remesh and Retopology Tools
+
+**User Story:** As a modeler, I want remeshing and retopology tools, so that I can convert messy sculpted or boolean-heavy meshes into clean, game-ready topology.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support `voxel remesh`, `quad remesh`, and `remesh cleanup` operations with adjustable resolution or target density controls.
+2. THE Editor SHALL provide a `retopology` mode with source-surface snapping, shrinkwrap-style projection, relax/smooth tools, and strip or patch creation workflows for rebuilding clean topology.
+3. WHEN retopology is active, THE viewport SHALL render the source surface and target retopo mesh distinctly, allowing the user to snap new topology onto the source.
+4. THE Editor SHALL preserve or transfer PolyGroup, material, and normal-group metadata where possible during remesh or retopo operations.
+5. Heavy remesh and retopo operations SHALL support progress feedback and cancellation.
+
+### Requirement 38: PolyGroups and Smoothing Groups
+
+**User Story:** As a modeler, I want PolyGroups, face groups, and smoothing groups, so that I can organize selections, control shading, and drive retopo or bake workflows.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL allow the user to create, rename, recolor, assign, and delete PolyGroups or face groups on selected faces.
+2. THE viewport SHALL support selecting faces by PolyGroup and optionally displaying PolyGroups with overlay colors.
+3. THE Mesh_Edit_Tool SHALL allow the user to assign smoothing groups or explicit hard/soft edge boundaries for shading control.
+4. WHEN a mesh is saved, THE Editor SHALL persist PolyGroup and smoothing-group assignments with the mesh.
+
+### Requirement 39: LOD Generation and Mesh Simplification
+
+**User Story:** As a technical artist, I want mesh simplification and LOD generation tools, so that I can prepare assets for game runtime performance directly from the editor.
+
+#### Acceptance Criteria
+
+1. THE Mesh_Edit_Tool SHALL support mesh simplification using target triangle counts, percentage reduction, or error-threshold-based decimation.
+2. THE Editor SHALL support generating multiple Mesh_LOD levels from a source mesh and storing them with configurable screen-size or distance thresholds.
+3. THE viewport SHALL allow previewing each generated LOD level and the active switching thresholds.
+4. Mesh simplification SHALL preserve silhouette, material boundaries, and UV seams on a best-effort basis.
+5. LOD generation and simplification SHALL be undoable and repeatable from the source mesh.
+
+### Requirement 40: Bake Tools for Mesh Maps and Vertex Data
+
+**User Story:** As a technical artist, I want baking tools for normals, AO, curvature, ID masks, and vertex colors, so that I can derive reusable game-art data from my editor meshes.
+
+#### Acceptance Criteria
+
+1. THE Editor SHALL support baking `normal`, `ambient occlusion`, `curvature`, `ID mask`, and `vertex color` outputs from a source mesh, high-detail reference mesh, or analysis pass.
+2. THE bake workflow SHALL allow selecting source mesh, target mesh, output resolution or vertex-color mode, and output destination.
+3. WHEN a bake requires valid UVs or an explicit target mesh, THE Editor SHALL validate those prerequisites and warn the user before starting the bake.
+4. THE Editor SHALL store baked texture outputs as scene assets or baked vertex-color channels on the target mesh.
+5. THE viewport or inspector SHALL preview the baked result after completion.
+
+### Requirement 41: Advanced Mesh Edit UI Integration
+
+**User Story:** As an editor user, I want advanced modeling capabilities integrated into the existing mesh-edit workflow, so that these features feel like one coherent modeling toolset rather than a disconnected addon.
+
+#### Acceptance Criteria
+
+1. THE existing `mesh-edit` tool SHALL expose advanced modeling controls through the mesh toolbar, tool palette, inspector, and viewport overlays instead of requiring a separate standalone modeling tool mode.
+2. THE editor UI SHALL organize advanced modeling actions into clear groups such as Boolean, Topology, Cleanup, Deform, Remesh/Retopo, Groups/Shading, LOD, and Bake.
+3. THE viewport SHALL support live previews, transient edit states, and gizmos for advanced modeling actions in the same interaction layer used by existing extrude, bevel, cut, and subdivide tools.
+4. THE Editor SHALL preserve existing vertex, edge, and face selection workflows while expanding them to support the new modeling operations.
+
+### Requirement 42: Copilot Tool Declarations for Advanced Modeling
+
+**User Story:** As a developer, I want AI copilot tool declarations for advanced modeling operations, so that the copilot can author production-grade mesh edits instead of stopping at basic extrude/bevel/cut behavior.
+
+#### Acceptance Criteria
+
+1. THE Copilot_Tool_Declaration list SHALL include advanced modeling tools such as `boolean_meshes`, `inset_mesh_faces`, `bridge_mesh_edges`, `loop_cut_mesh`, `knife_cut_mesh`, `weld_mesh_vertices`, `slide_mesh_components`, `solidify_mesh`, `mirror_mesh`, `remesh_mesh`, `retopologize_mesh`, `assign_mesh_groups`, `generate_mesh_lods`, and `bake_mesh_maps`.
+2. EACH advanced modeling tool declaration SHALL describe the intended selection type, required node or face or edge inputs, and whether the action is destructive or modifier-based.
+3. WHEN the copilot invokes an advanced modeling tool, THE tool executor SHALL route the request through the same mesh command and viewport preview architecture used by manual editing.
+4. THE copilot system prompt SHALL treat advanced modeling as part of the preferred mesh-edit workflow for high-detail geometry authoring.
+
+### Requirement 43: Advanced Modeling Performance and Background Processing
+
+**User Story:** As an editor user, I want heavy modeling operations to run without freezing the viewport, so that advanced booleans, remeshes, retopo, simplification, and bakes remain usable on real production meshes.
+
+#### Acceptance Criteria
+
+1. THE Editor SHALL evaluate expensive boolean, remesh, simplification, retopology, LOD generation, and bake operations on a background worker or cancellable async job path.
+2. WHEN a long-running modeling operation is executing, THE Editor SHALL show progress, status, and cancel affordances without blocking camera movement or UI interaction.
+3. THE viewport SHALL cache evaluated modifier results and invalidate them selectively when only the relevant source mesh, operand, or modifier setting changes.
+4. THE Editor SHALL keep existing interactive modeling operations such as extrude, bevel, cut, slide, and inset responsive enough for live viewport previews on medium-complexity meshes.

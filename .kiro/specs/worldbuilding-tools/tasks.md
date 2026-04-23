@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan implements four worldbuilding tool categories (Terrain, Foliage, GridMap, Advanced Splines) across the BLUD monorepo. Tasks are organized into logical phases: shared types first, then domain packages, editor-core commands, tool system registration, editor UI integration, copilot declarations, and performance optimizations. Each task builds incrementally on previous work so there is no orphaned code.
+This plan implements five worldbuilding and modeling tool categories (Terrain, Foliage, GridMap, Advanced Splines, Advanced Mesh/Modeling) across the BLUD monorepo. Tasks are organized into logical phases: shared types first, then domain packages, editor-core commands, tool system registration, editor UI integration, copilot declarations, performance optimizations, and advanced mesh-edit expansion. Each task builds incrementally on previous work so there is no orphaned code.
 
 ## Tasks
 
@@ -391,6 +391,132 @@ This plan implements four worldbuilding tool categories (Terrain, Foliage, GridM
 
 - [ ] 22. Final checkpoint — Full build and test verification
   - Ensure all tests pass, ask the user if questions arise.
+
+## Advanced Modeling Extension Tasks
+
+- [ ] 23. Advanced mesh shared types and metadata (`@blud/shared`)
+  - [ ] 23.1 Extend `packages/shared/src/types.ts` with advanced modeling types
+    - Add `MeshPolyGroup`, `MeshSmoothingGroup`, `MeshModifier`, `MeshLodEntry`, `MeshBakeArtifact`, and `EditableMeshModelingData`
+    - Add an optional `modeling` field to `EditableMesh` for modifier stacks, groups, generated LODs, and bake references
+    - _Requirements: 30, 38, 39, 40_
+
+  - [ ] 23.2 Export advanced modeling types from `packages/shared/src/index.ts`
+    - Re-export the new mesh-modeling types so `geometry-kernel`, `editor-core`, and `apps/editor` share one contract
+    - _Requirements: 30_
+
+  - [ ]* 23.3 Add unit tests for mesh-modeling metadata
+    - Test default or optional modeling metadata shapes and backwards compatibility for meshes without advanced metadata
+    - _Requirements: 30_
+
+- [ ] 24. Advanced mesh ops in `packages/geometry-kernel`
+  - [ ] 24.1 Add boolean, inset, bridge, loop-cut, ring-cut, and knife modules
+    - Create modules such as `boolean-ops.ts`, `inset-ops.ts`, `bridge-ops.ts`, `loopcut-ops.ts`, and `knife-ops.ts` under `packages/geometry-kernel/src/mesh/mesh-ops/`
+    - Implement destructive topology ops and preview-friendly helpers for live editor interaction
+    - _Requirements: 31, 32_
+
+  - [ ] 24.2 Add weld, slide, poke, triangulate, quadrangulate, and solidify ops
+    - Implement cleanup and restructuring helpers for `weld by distance`, `target weld`, `slide edge`, `slide vertex`, `poke`, `triangulate`, `quadrangulate`, and `solidify/shell`
+    - _Requirements: 33, 34_
+
+  - [ ] 24.3 Add mirror, symmetry, lattice, bend, twist, taper, and shear ops
+    - Implement reusable modifier evaluators and geometry helpers for mirror/symmetry and non-destructive deformers
+    - _Requirements: 35, 36_
+
+  - [ ] 24.4 Add remesh, retopo, simplify, LOD, and bake helpers
+    - Implement voxel/quad remesh helpers, retopo support primitives, simplification and LOD generation helpers, and mesh bake request/result helpers
+    - _Requirements: 37, 39, 40_
+
+  - [ ] 24.5 Export advanced mesh ops from `packages/geometry-kernel/src/mesh/mesh-ops/index.ts` and package barrel files
+    - Keep the advanced modeling surface discoverable to `editor-core`, the viewport, and copilot tool executors
+    - _Requirements: 31, 32, 33, 34, 35, 36, 37, 39, 40_
+
+  - [ ]* 24.6 Write unit tests for advanced mesh ops
+    - Cover boolean validity, inset or bridge output, weld behavior, slide constraints, solidify thickness, remesh or simplify helpers, and bake request plumbing
+    - _Requirements: 31, 32, 33, 34, 37, 39, 40_
+
+- [ ] 25. Advanced mesh commands in `@blud/editor-core`
+  - [ ] 25.1 Add topology operation commands in `packages/editor-core/src/commands/node-commands/`
+    - Create dedicated modules such as `mesh-topology-commands.ts` or equivalent for destructive advanced mesh operations
+    - Push before or after mesh snapshots through the CommandStack
+    - _Requirements: 31, 32, 33, 34_
+
+  - [ ] 25.2 Add modifier-stack, group, LOD, and bake commands
+    - Add command modules for mesh modifier stacks, PolyGroup assignment, smoothing-group assignment, LOD attachment, and bake artifact attachment
+    - _Requirements: 30, 36, 38, 39, 40_
+
+  - [ ] 25.3 Register advanced mesh command modules in `packages/editor-core/src/commands/node-commands/index.ts`
+    - Re-export new command modules alongside the existing `mesh-commands.ts`
+    - _Requirements: 30, 41_
+
+  - [ ]* 25.4 Write undo/redo tests for advanced mesh commands
+    - Verify destructive ops, modifier stack edits, group assignments, LOD generation, and bake artifact attachment all undo and redo correctly
+    - _Requirements: 30, 31, 33, 36, 39, 40_
+
+- [ ] 26. Viewport interaction and transient advanced mesh states
+  - [ ] 26.1 Extend `apps/editor/src/viewport/types.ts`
+    - Add new `MeshEditToolbarAction` values and transient state types for boolean previews, knife strokes, loop/ring cuts, lattice cages, retopo overlays, and bake/remesh job state
+    - _Requirements: 41, 42, 43_
+
+  - [ ] 26.2 Extend `apps/editor/src/viewport/editing.ts`
+    - Add helper builders for loop selections, symmetry pairing, deformer handles, retopo snapping, and PolyGroup-aware selection helpers
+    - _Requirements: 35, 36, 37, 38, 41_
+
+  - [ ] 26.3 Implement advanced interaction flows in `apps/editor/src/viewport/ViewportCanvas.tsx`
+    - Add preview, cancel, and commit flows for boolean operations, knife cuts, loop cuts, lattice deformation, remesh or retopo previews, and async job progress
+    - Preserve compatibility with current extrude, bevel, cut, subdivide, and sculpt interactions
+    - _Requirements: 31, 32, 35, 36, 37, 41, 43_
+
+- [ ] 27. Editor UI for advanced mesh/modeling tools
+  - [ ] 27.1 Expand `apps/editor/src/components/editor-shell/MeshEditToolBars.tsx`
+    - Group advanced actions into Boolean, Topology, Cleanup, Deform, Remesh/Retopo, Groups/Shading, LOD, and Bake sections
+    - _Requirements: 41_
+
+  - [ ] 27.2 Expand `apps/editor/src/components/editor-shell/ToolPalette.tsx` and `ToolsPanel.tsx`
+    - Surface context-sensitive controls and docked-panel access for the new mesh-edit capabilities
+    - _Requirements: 41_
+
+  - [ ] 27.3 Expand `apps/editor/src/components/editor-shell/InspectorSidebar.tsx`
+    - Add modifier stack management, PolyGroup and smoothing-group editors, LOD preview controls, and bake output panels
+    - _Requirements: 30, 38, 39, 40, 41_
+
+- [ ] 28. Copilot support for advanced modeling
+  - [ ] 28.1 Add advanced modeling declarations to `apps/editor/src/lib/copilot/tool-declarations.ts`
+    - Declare tools such as `boolean_meshes`, `inset_mesh_faces`, `bridge_mesh_edges`, `loop_cut_mesh`, `knife_cut_mesh`, `weld_mesh_vertices`, `slide_mesh_components`, `solidify_mesh`, `mirror_mesh`, `remesh_mesh`, `retopologize_mesh`, `assign_mesh_groups`, `generate_mesh_lods`, and `bake_mesh_maps`
+    - _Requirements: 42_
+
+  - [ ] 28.2 Implement advanced modeling executors in `apps/editor/src/lib/copilot/tool-executor.ts`
+    - Route advanced modeling tool calls through geometry-kernel helpers and editor-core commands
+    - _Requirements: 42_
+
+  - [ ] 28.3 Update mesh-edit guidance in `apps/editor/src/lib/copilot/system-prompt.ts`
+    - Treat advanced modeling as part of the preferred high-detail mesh workflow
+    - _Requirements: 42_
+
+- [ ] 29. Serialization and asset persistence for advanced modeling
+  - [ ] 29.1 Extend `.whmap` serialization for mesh-modeling metadata
+    - Persist modifier stacks, PolyGroups, smoothing groups, generated LOD metadata, and bake artifact references for mesh nodes
+    - _Requirements: 30, 38, 39, 40_
+
+  - [ ] 29.2 Persist bake outputs into scene asset and material systems
+    - Ensure baked texture outputs can be referenced as scene assets or material textures and that baked vertex colors survive save or load
+    - _Requirements: 40_
+
+  - [ ]* 29.3 Write round-trip tests for mesh-modeling metadata and bake references
+    - Verify advanced mesh metadata survives serialization without breaking legacy meshes
+    - _Requirements: 30, 38, 39, 40_
+
+- [ ] 30. Async mesh-processing jobs and caching
+  - [ ] 30.1 Implement worker-backed mesh processing jobs
+    - Add a worker entry such as `apps/editor/src/workers/mesh-processing.worker.ts` or an equivalent `packages/workers` job module for remesh, simplification, LOD generation, and bake operations
+    - _Requirements: 37, 39, 40, 43_
+
+  - [ ] 30.2 Add progress, cancel, and status plumbing to the editor
+    - Surface async job status in the viewport or inspector without blocking the rest of the editor
+    - _Requirements: 37, 43_
+
+  - [ ] 30.3 Cache evaluated modifier results with selective invalidation
+    - Recompute cached boolean, mirror, solidify, deformer, remesh, and simplify previews only when relevant inputs change
+    - _Requirements: 30, 31, 36, 43_
 
 ## Notes
 
