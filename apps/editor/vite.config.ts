@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { searchForWorkspaceRoot, defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { createAntigravitySkillsApiPlugin } from "./server/antigravity-skills-api";
 import { createCodexBridgePlugin } from "./server/codex-bridge-plugin";
 import { createEditorGameSyncPlugin } from "./server/editor-game-sync-plugin";
 import { createElevenLabsApiPlugin } from "./server/elevenlabs-api";
@@ -180,6 +181,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      createAntigravitySkillsApiPlugin(),
       createCodexBridgePlugin(),
       createEditorGameSyncPlugin(),
       createElevenLabsApiPlugin(),

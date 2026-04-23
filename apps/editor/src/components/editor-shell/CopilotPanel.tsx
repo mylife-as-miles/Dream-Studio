@@ -81,7 +81,11 @@ export function CopilotPanel({
           return false;
         }
 
-        if (message.role === "assistant" && !message.content.trim()) {
+        if (
+          message.role === "assistant" &&
+          !message.content.trim() &&
+          (!message.toolCalls || message.toolCalls.length === 0)
+        ) {
           return false;
         }
 
@@ -374,8 +378,20 @@ function SectionLabel({
 
 function ProcessTimeline({ session }: { session: CopilotSession }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleItems = expanded ? session.activity : session.activity.slice(-6);
-  const canExpand = session.activity.length > 6;
+
+  useEffect(() => {
+    if (session.status === "thinking" || session.status === "executing") {
+      setExpanded(true);
+      return;
+    }
+
+    if (session.activity.length <= 10) {
+      setExpanded(true);
+    }
+  }, [session.activity.length, session.status]);
+
+  const visibleItems = expanded ? session.activity : session.activity.slice(-10);
+  const canExpand = session.activity.length > 10;
 
   return (
     <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-3">
@@ -385,6 +401,30 @@ function ProcessTimeline({ session }: { session: CopilotSession }) {
           <p className="mt-1 px-1 text-[11px] leading-relaxed text-foreground/50">
             Live tool calls, results, and step-by-step status updates.
           </p>
+          {session.activeSkills && session.activeSkills.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-white/10 bg-black/10 px-3 py-2">
+              <div className="text-[10px] font-medium tracking-[0.16em] text-foreground/40 uppercase">
+                Antigravity skills
+              </div>
+              <p className="mt-1 text-[10px] leading-relaxed text-foreground/42">
+                {session.skillRootPath}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {session.activeSkills.map((skill) => (
+                  <details
+                    className="rounded-full border border-emerald-400/18 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200"
+                    key={skill.path}
+                  >
+                    <summary className="cursor-pointer list-none">{skill.name}</summary>
+                    <div className="mt-2 max-w-[20rem] rounded-xl border border-white/10 bg-[#07120d] px-3 py-2 text-left text-[10px] leading-relaxed text-foreground/70">
+                      <div className="font-medium text-foreground/86">{skill.description}</div>
+                      <div className="mt-1 text-foreground/56">{skill.excerpt}</div>
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {canExpand && (
           <button

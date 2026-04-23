@@ -34,9 +34,11 @@ export function createCodexProvider(): SessionBasedCopilotProvider {
         activity,
         status: "thinking",
         iterationCount: 0,
+        activeSkills: config.skillContext?.matchedSkills,
         providerId: config.providerId,
         modelId: config.providerConfig.model,
-        modeLabel: config.modeLabel
+        modeLabel: config.modeLabel,
+        skillRootPath: config.skillContext?.rootPath
       };
 
       const emitUpdate = () =>
@@ -56,6 +58,14 @@ export function createCodexProvider(): SessionBasedCopilotProvider {
         detail: `${config.modeLabel} mode on ${config.providerId} (${config.providerConfig.model}) with ${config.tools.length} tools.`,
         tone: "info"
       });
+      if (config.skillContext && config.skillContext.matchedSkills.length > 0) {
+        pushActivity({
+          kind: "session",
+          title: "Skill context loaded",
+          detail: `${config.skillContext.matchedSkills.map((skill) => skill.name).join(", ")} from ${config.skillContext.rootPath}`,
+          tone: "info"
+        });
+      }
       emitUpdate();
 
       const wsTools = config.tools.map((tool) => ({

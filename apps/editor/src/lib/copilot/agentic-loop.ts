@@ -5,6 +5,7 @@ import type {
   CopilotProvider,
   CopilotProviderConfig,
   CopilotProviderId,
+  CopilotSkillContext,
   CopilotSession,
   CopilotToolCall,
   CopilotToolDeclaration,
@@ -24,6 +25,7 @@ export type AgenticLoopConfig = {
   providerConfig: CopilotProviderConfig;
   providerId: CopilotProviderId;
   modeLabel: string;
+  skillContext?: CopilotSkillContext;
   existingActivity?: CopilotActivityItem[];
   systemPrompt: string;
   tools: CopilotToolDeclaration[];
@@ -70,9 +72,11 @@ export async function runAgenticLoop(
     activity,
     status: "thinking",
     iterationCount: 0,
+    activeSkills: config.skillContext?.matchedSkills,
     providerId: config.providerId,
     modelId: config.providerConfig.model,
-    modeLabel: config.modeLabel
+    modeLabel: config.modeLabel,
+    skillRootPath: config.skillContext?.rootPath
   };
 
   const emitUpdate = () =>
@@ -92,6 +96,14 @@ export async function runAgenticLoop(
     detail: `${config.modeLabel} mode on ${config.providerId} (${config.providerConfig.model}) with ${config.tools.length} tools.`,
     tone: "info"
   });
+  if (config.skillContext && config.skillContext.matchedSkills.length > 0) {
+    pushActivity({
+      kind: "session",
+      title: "Skill context loaded",
+      detail: `${config.skillContext.matchedSkills.map((skill) => skill.name).join(", ")} from ${config.skillContext.rootPath}`,
+      tone: "info"
+    });
+  }
   emitUpdate();
 
   for (let iteration = 0; iteration < config.maxIterations; iteration++) {
@@ -117,7 +129,7 @@ export async function runAgenticLoop(
     pushActivity({
       kind: "step",
       title: `Step ${stepNumber}`,
-      detail: "Planning the next scene action.",
+      detail: `Sending ${messages.length} messages to ${config.providerConfig.model}.`,
       iteration: stepNumber,
       tone: "info"
     });
@@ -127,6 +139,7 @@ export async function runAgenticLoop(
     console.log(`${TAG} Sending ${messages.length} messages to LLM...`);
 
     let response;
+    let modelElapsedMs = 0;
 
     try {
       const startedAt = performance.now();
@@ -137,8 +150,8 @@ export async function runAgenticLoop(
         config.providerConfig,
         signal
       );
-      const elapsed = Math.round(performance.now() - startedAt);
-      console.log(`${TAG} LLM responded in ${elapsed}ms`);
+      modelElapsedMs = Math.round(performance.now() - startedAt);
+      console.log(`${TAG} LLM responded in ${modelElapsedMs}ms`);
     } catch (error) {
       console.error(`${TAG} LLM error:`, error);
       console.groupEnd();
@@ -175,6 +188,13 @@ export async function runAgenticLoop(
     if (!response.toolCalls || response.toolCalls.length === 0) {
       console.log(`${TAG} Final text response:`, response.text);
       console.groupEnd();
+      pushActivity({
+        kind: "status",
+        title: "Model completed",
+        detail: `Final response received in ${modelElapsedMs}ms.`,
+        iteration: stepNumber,
+        tone: "success"
+      });
 
       messages.push({
         id: uid(),
@@ -203,6 +223,13 @@ export async function runAgenticLoop(
     for (const toolCall of response.toolCalls) {
       console.log(`  ${TAG} -> ${toolCall.name}`, JSON.stringify(toolCall.args, null, 2));
     }
+    pushActivity({
+      kind: "status",
+      title: "Model requested actions",
+      detail: `${response.toolCalls.length} tool call${response.toolCalls.length === 1 ? "" : "s"} received in ${modelElapsedMs}ms.`,
+      iteration: stepNumber,
+      tone: "info"
+    });
 
     messages.push({
       id: uid(),
@@ -286,6 +313,13 @@ export async function runAgenticLoop(
       content: "",
       toolResults,
       timestamp: Date.now()
+    });
+    pushActivity({
+      kind: "status",
+      title: "Tool batch finished",
+      detail: `${toolResults.length} tool result${toolResults.length === 1 ? "" : "s"} returned to the model.`,
+      iteration: stepNumber,
+      tone: "info"
     });
 
     console.groupEnd();

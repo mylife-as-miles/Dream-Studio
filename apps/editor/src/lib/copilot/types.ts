@@ -66,6 +66,19 @@ export type CopilotResponse = {
   rawParts: unknown[];
 };
 
+export type CopilotSkillMatch = {
+  description: string;
+  excerpt: string;
+  name: string;
+  path: string;
+  score: number;
+};
+
+export type CopilotSkillContext = {
+  matchedSkills: CopilotSkillMatch[];
+  rootPath: string;
+};
+
 export type CopilotSessionStatus =
   | "idle"
   | "thinking"
@@ -104,9 +117,11 @@ export type CopilotSession = {
   status: CopilotSessionStatus;
   error?: string;
   iterationCount: number;
+  activeSkills?: CopilotSkillMatch[];
   providerId?: CopilotProviderId;
   modelId?: string;
   modeLabel?: string;
+  skillRootPath?: string;
 };
 
 // ── Provider interfaces ───────────────────────────────────────
@@ -133,6 +148,7 @@ export type SessionBasedCopilotProvider = {
     providerConfig: CopilotProviderConfig;
     providerId: CopilotProviderId;
     modeLabel: string;
+    skillContext?: CopilotSkillContext;
     threadId?: string;
     onThreadId?: (threadId: string | undefined) => void;
     executeTool: (call: CopilotToolCall) => CopilotToolResult;

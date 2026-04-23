@@ -3,6 +3,7 @@ import type { EditorCore } from "@blud/editor-core";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
 import { isCopilotConfigured, loadCopilotSettings } from "@/lib/copilot/settings";
 import type { CopilotToolExecutionContext } from "@/lib/copilot/tool-executor";
+import { appendSkillContextToPrompt, discoverCopilotSkills } from "@/lib/copilot/skills";
 
 export type GeneratedGame = { title: string; html: string };
 
@@ -142,18 +143,21 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const {
-        runAgenticLoop,
-        createCopilotProvider,
-        buildSystemPrompt,
-        COPILOT_TOOL_DECLARATIONS,
-        GAME_TOOL_DECLARATIONS,
-        isGameGenerationPrompt,
-        executeTool
-      } = await loadCopilotRuntime();
+      const [
+        {
+          runAgenticLoop,
+          createCopilotProvider,
+          buildSystemPrompt,
+          COPILOT_TOOL_DECLARATIONS,
+          GAME_TOOL_DECLARATIONS,
+          isGameGenerationPrompt,
+          executeTool
+        },
+        skillContext
+      ] = await Promise.all([loadCopilotRuntime(), discoverCopilotSkills(prompt)]);
 
       const copilotProvider = createCopilotProvider(settings.provider);
-      const systemPrompt = buildSystemPrompt(editor);
+      const systemPrompt = appendSkillContextToPrompt(buildSystemPrompt(editor), skillContext);
       const gameMode = isGameGenerationPrompt(prompt);
       const modeLabel = gameMode ? "game-generation" : "editor";
       const tools = gameMode ? GAME_TOOL_DECLARATIONS : COPILOT_TOOL_DECLARATIONS;
@@ -178,6 +182,7 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
           providerConfig,
           providerId: settings.provider,
           modeLabel,
+          skillContext,
           threadId: codexThreadIdRef.current,
           onThreadId: (threadId) => {
             codexThreadIdRef.current = threadId;
@@ -196,6 +201,7 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
             providerConfig,
             providerId: settings.provider,
             modeLabel,
+            skillContext,
             existingActivity: session.activity,
             systemPrompt,
             tools,
