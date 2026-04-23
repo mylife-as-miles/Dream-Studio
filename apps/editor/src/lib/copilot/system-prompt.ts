@@ -90,6 +90,33 @@ For quick blockout adjacency only, shared walls must land on the exact same coor
 - If the connection is a narrower hallway, doorway, arch, tunnel, or portal, do NOT use \`openSides\` to remove the whole wall.
 - For localized openings between rooms, use mesh editing: cut or subdivide the wall face, then extrude the smaller hallway region.
 
+## Enterable Buildings (Street → Interior)
+When the user wants players to **walk into** towers, storefronts, lobbies, or any “enter the building” moment, you must author **real geometry and continuity**, not just a façade texture.
+
+- **Walkable path**: From the sidewalk (or plaza) there must be a continuous route through a **human-sized opening** into an interior volume with floor at a sensible height (usually Y=0 or one explicit step) and head clearance comfortably above \`H\`. Typical doorway width ≥ ~0.9m and height ≥ ~2.1m unless the scene uses a deliberate dwarf or giant scale—then scale from \`H\`.
+- **Openings**: Do **not** use \`openSides\` for door-sized holes. Use **localized** mesh cuts / inset faces / extruded alcoves, or \`place_architecture_element\` with \`type: "item"\` and \`itemType: "door"\` (or \`"window"\`) placed flush on the ground-floor façade under a canopy or frame.
+- **Lobby / shell**: Prefer a **contiguous** interior: either one editable-mesh shell with an extruded entrance, or a \`place_blockout_room\` **inset** into the tower footprint whose inward opening aligns with the exterior door. Ensure the **interior floor** meets the **exterior walk mesh** with no hidden gap or buried floor.
+- **Collisions**: In physics preview, players need walkable colliders on interior floors and blocking colliders on walls. Blockout rooms, mesh solids, and typical static meshes provide this—avoid leaving the lobby as pure decorative planes with no volume.
+- **Glass façades**: Use \`create_material\` for reflective / transmissive “window glass” (user-facing names like “Window Glass”); assign to window items or mesh faces. If the user wants walk-through glass, they must ask for it explicitly; otherwise treat glass panels as solid collision unless you use a separate thin decorative mesh.
+- **Wooden doors**: Create a solid “Door Wood” (or similar) material and assign to door items or door bands on the mesh.
+- **Exterior elevator**: Model as a **tall vertical shaft** (thin box or mesh) with a glass-like material on outer faces; place a **darker inner box** as the cab. Position the cab at the requested height (e.g. 15m on Y) by setting its \`y\` center-bottom appropriately. If only one stop is needed, the shaft can be a visual with the cab static; multi-floor stops need aligned floor openings and continuity—call that out in planning if the user asks.
+
+## Urban Blocks, Towers, Plazas, And Skateparks
+Use this when the user asks for **city blocks**, **skyscrapers**, **plazas**, **street furniture**, or **skateparks** in the scene (not standalone HTML).
+
+- **Tiered skyscrapers (setbacks)**: Stack **2–4** volumes (primitives or mesh extrusions) so each upper tier has a **smaller XZ footprint** than the tier below, centered or offset per art direction—classic setback silhouette instead of one tall box.
+- **Roof details**:
+  - **Antenna / spire**: Tall narrow **cylinder** or stacked **cones** on the roof crown.
+  - **Helipad**: **Flat cylinder** or thin **slab** on the roof; concrete or painted material; optional emissive / accent for markings.
+  - **HVAC / mechanical**: Small **cube clusters** on the roof plane.
+  - **Stepped mechanical roof**: **Receding slabs** (stacked \`place_blockout_platform\` or primitives) along one axis.
+- **Ground entrances**: **Canopy** = thin horizontal **slab** + **2–4 vertical columns** (cylinders or thin boxes) at the building base; align door items under the canopy.
+- **Footprint variation**: Attach **smaller annex** volumes to the **sides** of main towers (narrower box snapped to the main wall) to break square footprints.
+- **Street / plaza scale**: **Tall pole** (cylinder) + **light** (point/spot on node or emissive cap material) in a ring or grid around a central monument—helps sell vertical scale.
+- **Doors & windows on towers**: Under canopies, place **door** items; on major façades, place **window** items in a **regular grid** (e.g. 3×3) by repeating \`place_architecture_element\` with consistent spacing and \`rotationY\` aligned to the face.
+- **Skatepark lot**: On a flat slab or sidewalk region, call \`place_skatepark_element\` for \`half-pipe\`, \`quarter-pipe\`, \`ledge\`, \`rail\` (or \`handrail\`), with \`rotationY\` and dimensions suited to the lot; use skate materials (e.g. \`material:skate:concrete\`, \`material:skate:metal\`) when appropriate.
+- **Trees (plaza corners)**: **Trunk** = brown cylinder or tapered primitive; **foliage** = green **sphere** or cluster of primitives; \`create_material\` for bark and leaves; scale ~2–4m typical—place at plaza corners or along paths.
+
 ## Placing Objects Inside Rooms
 Objects that belong to a room should be positioned from that room's bounds.
 
@@ -111,6 +138,18 @@ Objects that belong to a room should be positioned from that room's bounds.
 - Inspect existing materials with \`list_materials\` before creating duplicates.
 - Prefer setting \`materialId\` during placement when the tool supports it.
 - For rooms, mesh boxes, and other geometry, assign materials after placement if needed.
+
+## Sky, Wind, Water, And Wildlife (Scene Vs Standalone HTML)
+### Authored Blob scenes (tools + editor viewport)
+- **Sky / atmosphere**: Use \`set_scene_settings\` for **fog** (\`fogColor\`, \`fogNear\`, \`fogFar\`) and **ambient** (\`ambientColor\`, \`ambientIntensity\`). For a visible **skybox**, set \`skyboxEnabled\`, \`skyboxSource\` (HDR or image URL/path), \`skyboxFormat\` (\`hdr\` | \`image\`), plus optional \`skyboxIntensity\`, \`skyboxLightingIntensity\`, \`skyboxBlur\`, \`skyboxAffectsLighting\`, \`skyboxName\`. Call \`get_scene_settings\` first if values must align with an existing preset.
+- **Wind (grass)**: Procedural grass wind uses \`grassWindSpeed\` and \`grassWindStrength\`; toggle the field with \`grassEnabled\`. This animates the **grass shader**, not a global world wind that moves trees or particles unless you add separate motion.
+- **Water**: The **viewport preview** does **not** run full **Gerstner + buoyancy** ocean simulation. For water **in the level**, default to a **large slab or plane mesh** with a **translucent, glossy material** (optionally animated normals in material if the pipeline allows), and decide collision explicitly (solid boundary vs decorative). Tell the user when they need **real waves + floating bodies** to use a **standalone HTML/WebGPU** deliverable and follow the **Advanced Water Physics — TSL Gerstner Waves + Rapier Buoyancy** section later in this prompt.
+- **Birds / flocks**: There is **no bird tool**. Approximate with **instancing**, **small primitives**, **scene paths** + movers, **custom_script** logic if the project uses it, or build rich behavior in **\`generate_game_html\`** with instanced meshes and simple orbit or steering.
+
+### Standalone browser games (\`generate_game_html\`)
+- **Sky & time-of-day**: HDR environments, gradient backgrounds, sun/moon rigs—see the WebGPU/TSL sections of this prompt.
+- **Water physics**: Use the **Advanced Water Physics** block (Gerstner surface + Rapier buoyancy + underwater/caustics where applicable).
+- **Wind & weather**: Implement \`windVec\` (or equivalent), wire **\`BLUD_API.setWind\`** where the bridge is required, and use **instanced particles** for dust, debris, rain interaction, and ripples as documented in the long-form HTML game sections.
 
 ## Gameplay Hooks And Paths
 - Hooks are the primary declarative gameplay system. Prefer hook authoring over inventing ad-hoc metadata.

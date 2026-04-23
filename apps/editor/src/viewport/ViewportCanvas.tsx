@@ -71,6 +71,7 @@ import { MeshCutOverlay } from "@/viewport/components/MeshCutOverlay";
 import { MeshSubdivideOverlay } from "@/viewport/components/MeshSubdivideOverlay";
 import { NodeTransformGroup } from "@/viewport/components/NodeTransformGroup";
 import { ObjectTransformGizmo } from "@/viewport/components/ObjectTransformGizmo";
+import { PreviewNpcDialogueOverlay } from "@/viewport/components/PreviewNpcDialogueOverlay";
 import { ScenePreview } from "@/viewport/components/ScenePreview";
 import {
   createBrushCreateBasis,
@@ -3629,6 +3630,8 @@ export function ViewportCanvas({
         previewSessionMode={previewSessionMode}
         viewport={viewport}
       />
+
+      <PreviewNpcDialogueOverlay />
 
       {editorInteractionEnabled && (arcState || bevelState || extrudeState || sculptState || faceCutState || faceSubdivisionState) ? (
         <div className="pointer-events-none absolute inset-0 z-20 cursor-crosshair" />

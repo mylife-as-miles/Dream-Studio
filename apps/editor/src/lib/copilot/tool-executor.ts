@@ -952,6 +952,26 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
       if (typeof args.fogColor === "string") next.world.fogColor = args.fogColor as string;
       if (typeof args.fogNear === "number") next.world.fogNear = args.fogNear;
       if (typeof args.fogFar === "number") next.world.fogFar = args.fogFar;
+
+      if (typeof args.skyboxEnabled === "boolean") next.world.skybox.enabled = args.skyboxEnabled;
+      if (typeof args.skyboxSource === "string") next.world.skybox.source = args.skyboxSource;
+      if (args.skyboxFormat === "hdr" || args.skyboxFormat === "image") {
+        next.world.skybox.format = args.skyboxFormat;
+      }
+      if (typeof args.skyboxName === "string") next.world.skybox.name = args.skyboxName;
+      if (typeof args.skyboxIntensity === "number") next.world.skybox.intensity = args.skyboxIntensity;
+      if (typeof args.skyboxLightingIntensity === "number") {
+        next.world.skybox.lightingIntensity = args.skyboxLightingIntensity;
+      }
+      if (typeof args.skyboxBlur === "number") next.world.skybox.blur = args.skyboxBlur;
+      if (typeof args.skyboxAffectsLighting === "boolean") {
+        next.world.skybox.affectsLighting = args.skyboxAffectsLighting;
+      }
+
+      if (typeof args.grassEnabled === "boolean") next.world.grass.enabled = args.grassEnabled;
+      if (typeof args.grassWindSpeed === "number") next.world.grass.windSpeed = args.grassWindSpeed;
+      if (typeof args.grassWindStrength === "number") next.world.grass.windStrength = args.grassWindStrength;
+
       if (typeof args.cameraMode === "string") next.player.cameraMode = args.cameraMode as "fps" | "third-person" | "top-down";
       if (typeof args.playerHeight === "number") next.player.height = args.playerHeight;
       if (typeof args.movementSpeed === "number") next.player.movementSpeed = args.movementSpeed;

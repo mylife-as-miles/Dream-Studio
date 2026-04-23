@@ -448,7 +448,8 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   },
   {
     name: "set_scene_settings",
-    description: "Updates scene settings (world physics, fog, ambient light, player config).",
+    description:
+      "Updates scene settings (world physics, fog, ambient, skybox, grass wind, player config). Skybox uses world.skybox; grass wind animates the procedural grass field shader.",
     parameters: {
       type: "object",
       properties: {
@@ -461,6 +462,17 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
         fogColor: { type: "string", description: "Fog hex color" },
         fogNear: { type: "number", description: "Fog near distance" },
         fogFar: { type: "number", description: "Fog far distance" },
+        skyboxEnabled: { type: "boolean", description: "Enable HDR/image skybox" },
+        skyboxSource: { type: "string", description: "Skybox URL or asset path (HDR or image per skyboxFormat)" },
+        skyboxFormat: { type: "string", enum: ["hdr", "image"], description: "Skybox file type" },
+        skyboxName: { type: "string", description: "Display label for the sky preset" },
+        skyboxIntensity: { type: "number", description: "Skybox display intensity" },
+        skyboxLightingIntensity: { type: "number", description: "How strongly the sky contributes to scene lighting (when affectsLighting)" },
+        skyboxBlur: { type: "number", description: "IBL / sky blur amount" },
+        skyboxAffectsLighting: { type: "boolean", description: "Whether skybox drives environmental lighting" },
+        grassEnabled: { type: "boolean", description: "Enable procedural grass field in lit viewport" },
+        grassWindSpeed: { type: "number", description: "Grass shader wind speed" },
+        grassWindStrength: { type: "number", description: "Grass shader wind displacement strength" },
         cameraMode: { type: "string", enum: ["fps", "third-person", "top-down"], description: "Player camera mode" },
         playerHeight: { type: "number", description: "Player height in meters" },
         movementSpeed: { type: "number", description: "Player movement speed" },

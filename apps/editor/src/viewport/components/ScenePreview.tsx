@@ -47,6 +47,8 @@ import {
   type DerivedRenderScene
 } from "@blud/render-pipeline";
 import { createBlockoutTextureDataUri, resolveTransformPivot, toTuple } from "@blud/shared";
+import { NPC_CHARACTER_PROMPT_PROPERTY, NPC_VOICE_ID_PROPERTY } from "@/lib/npc-voice-keys";
+import { previewNpcDialogueStore } from "@/state/preview-npc-dialogue-store";
 import { DefaultHumanoidCharacter } from "@/viewport/components/DefaultHumanoidCharacter";
 import { GrassField } from "@/viewport/components/GrassField";
 import { createIndexedGeometry } from "@/viewport/utils/geometry";
@@ -194,6 +196,14 @@ export function ScenePreview({
     };
   }, [hiddenIds, physicsActive, renderScene]);
 
+  const previewNpcMarkers = useMemo(
+    () =>
+      renderScene.entityMarkers.filter(
+        (marker) => marker.entityType === "npc-spawn" || marker.entityType === "smart-object"
+      ),
+    [renderScene.entityMarkers]
+  );
+
   return (
     <>
       {renderMode === "lit" && sceneSettings.world.grass.enabled ? (
@@ -269,6 +279,8 @@ export function ScenePreview({
           />
           {playerSpawn ? (
             <RuntimePlayer
+              entities={entities}
+              npcMarkers={previewNpcMarkers}
               onCursorCaptureChange={onPreviewCursorCapturedChange}
               physicsPlayback={physicsPlayback}
               possessed={previewPossessed}
@@ -905,13 +917,107 @@ function PhysicsStepController({
   return null;
 }
 
+const PREVIEW_NPC_INTERACT_RANGE_SQ = 3.15 * 3.15;
+const PREVIEW_NPC_INTERACT_DOT_MIN = Math.cos((58 * Math.PI) / 180);
+
+function previewInputIsFocusableTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target.isContentEditable)
+  );
+}
+
+function findNpcInInteractCone(
+  eye: Vector3,
+  forward: Vector3,
+  markers: DerivedEntityMarker[],
+  entityList: Entity[]
+): { entity: Entity; marker: DerivedEntityMarker } | null {
+  const fx = forward.x;
+  const fz = forward.z;
+  const flatLen = Math.hypot(fx, fz);
+
+  if (flatLen < 1e-5) {
+    return null;
+  }
+
+  const fnx = fx / flatLen;
+  const fnz = fz / flatLen;
+  let best: { distSq: number; entity: Entity; marker: DerivedEntityMarker } | null = null;
+
+  for (const marker of markers) {
+    const entity = entityList.find((e) => e.id === marker.entityId);
+
+    if (!entity) {
+      continue;
+    }
+
+    const dx = marker.position.x - eye.x;
+    const dz = marker.position.z - eye.z;
+    const distSq = dx * dx + dz * dz;
+
+    if (distSq > PREVIEW_NPC_INTERACT_RANGE_SQ) {
+      continue;
+    }
+
+    const dLen = Math.hypot(dx, dz);
+
+    if (dLen < 1e-5) {
+      if (!best || distSq < best.distSq) {
+        best = { distSq, entity, marker };
+      }
+
+      continue;
+    }
+
+    const dot = (dx / dLen) * fnx + (dz / dLen) * fnz;
+
+    if (dot < PREVIEW_NPC_INTERACT_DOT_MIN) {
+      continue;
+    }
+
+    if (!best || distSq < best.distSq) {
+      best = { distSq, entity, marker };
+    }
+  }
+
+  return best ? { entity: best.entity, marker: best.marker } : null;
+}
+
+function openPreviewNpcSession(entity: Entity, marker: DerivedEntityMarker) {
+  const voiceId = String(entity.properties[NPC_VOICE_ID_PROPERTY] ?? "").trim();
+  const characterPrompt = String(entity.properties[NPC_CHARACTER_PROMPT_PROPERTY] ?? "").trim();
+  const displayName = entity.name?.trim() || marker.label || "NPC";
+  const prev = previewNpcDialogueStore.session;
+
+  if (prev?.entityId === entity.id) {
+    return;
+  }
+
+  previewNpcDialogueStore.session = {
+    characterPrompt,
+    displayName,
+    entityId: entity.id,
+    history: [],
+    voiceId
+  };
+  previewNpcDialogueStore.error = null;
+}
+
 function RuntimePlayer({
+  entities: entityList,
+  npcMarkers,
   onCursorCaptureChange,
   physicsPlayback,
   possessed,
   sceneSettings,
   spawn
 }: {
+  entities: Entity[];
+  npcMarkers: DerivedEntityMarker[];
   onCursorCaptureChange?: (captured: boolean) => void;
   physicsPlayback: "paused" | "running" | "stopped";
   possessed: boolean;
@@ -1011,6 +1117,52 @@ function RuntimePlayer({
     keyStateRef.current.clear();
     jumpQueuedRef.current = false;
   }, [physicsPlayback, possessed]);
+
+  useEffect(() => {
+    const interactCode = sceneSettings.player.interactKey ?? "KeyE";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!possessed || physicsPlayback !== "running") {
+        return;
+      }
+
+      if (previewInputIsFocusableTarget(event.target)) {
+        return;
+      }
+
+      if (event.code !== interactCode) {
+        return;
+      }
+
+      event.preventDefault();
+      const body = bodyRef.current;
+
+      if (!body) {
+        return;
+      }
+
+      const translation = body.translation();
+      const viewDirection = resolveViewDirection(yawRef.current, pitchRef.current, directionRef.current);
+      const eyeHeight = Math.max(colliderRadius * 1.5, standingHeight * 0.92);
+      const eye = new Vector3(translation.x, translation.y - standingHeight * 0.5 + eyeHeight, translation.z);
+      const hit = findNpcInInteractCone(eye, viewDirection, npcMarkers, entityList);
+
+      if (hit) {
+        openPreviewNpcSession(hit.entity, hit.marker);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    colliderRadius,
+    entityList,
+    npcMarkers,
+    possessed,
+    physicsPlayback,
+    sceneSettings.player.interactKey,
+    standingHeight
+  ]);
 
   useEffect(() => {
     const domElement = gl.domElement;

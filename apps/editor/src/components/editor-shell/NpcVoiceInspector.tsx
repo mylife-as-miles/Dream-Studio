@@ -5,15 +5,18 @@
  * Appears in the INSPECT tab when an npc-spawn or smart-object entity is selected.
  *
  * Data storage in entity.properties:
- *   __el_voice_id  — ElevenLabs voice ID string
- *   __el_dialogue  — JSON-stringified array of dialogue lines
+ *   __el_voice_id — ElevenLabs voice ID string
+ *   __el_dialogue — JSON-stringified array of dialogue lines
+ *   __npc_character_prompt — Gemini character brief for viewport preview chat
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Mic, Play, Plus, Trash2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { NPC_CHARACTER_PROMPT_PROPERTY, NPC_DIALOGUE_PROPERTY, NPC_VOICE_ID_PROPERTY } from "@/lib/npc-voice-keys";
 import type { Entity } from "@blud/shared";
 import {
   fetchVoices,
@@ -24,9 +27,6 @@ import {
 } from "@/lib/elevenlabs-client";
 import { voicesStore } from "@/lib/elevenlabs-voices-store";
 import { useSnapshot } from "valtio";
-
-const VOICE_ID_KEY = "__el_voice_id";
-const DIALOGUE_KEY = "__el_dialogue";
 
 type DialogueLine = { id: string; text: string; audioBuffer?: AudioBuffer | null };
 
@@ -41,11 +41,12 @@ export function NpcVoiceInspector({ entity, onUpdateEntityProperties }: NpcVoice
   const [elVoices, setElVoices] = useState<ElevenLabsVoice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
 
-  const selectedVoiceId = (entity.properties[VOICE_ID_KEY] as string | undefined) ?? "";
+  const selectedVoiceId = (entity.properties[NPC_VOICE_ID_PROPERTY] as string | undefined) ?? "";
+  const characterPrompt = String(entity.properties[NPC_CHARACTER_PROMPT_PROPERTY] ?? "");
 
   const parsedDialogue: DialogueLine[] = (() => {
     try {
-      const raw = entity.properties[DIALOGUE_KEY] as string | undefined;
+      const raw = entity.properties[NPC_DIALOGUE_PROPERTY] as string | undefined;
       const arr = raw ? (JSON.parse(raw) as { id: string; text: string }[]) : [];
       return arr.map((l) => ({ ...l, audioBuffer: undefined }));
     } catch {
@@ -68,7 +69,7 @@ export function NpcVoiceInspector({ entity, onUpdateEntityProperties }: NpcVoice
       const serializable = lines.map(({ id, text }) => ({ id, text }));
       onUpdateEntityProperties(entity.id, {
         ...entity.properties,
-        [DIALOGUE_KEY]: JSON.stringify(serializable),
+        [NPC_DIALOGUE_PROPERTY]: JSON.stringify(serializable),
       });
     },
     [entity, onUpdateEntityProperties],
@@ -77,7 +78,7 @@ export function NpcVoiceInspector({ entity, onUpdateEntityProperties }: NpcVoice
   const setVoiceId = (voiceId: string) => {
     onUpdateEntityProperties(entity.id, {
       ...entity.properties,
-      [VOICE_ID_KEY]: voiceId,
+      [NPC_VOICE_ID_PROPERTY]: voiceId,
     });
   };
 
@@ -101,6 +102,13 @@ export function NpcVoiceInspector({ entity, onUpdateEntityProperties }: NpcVoice
 
   const customIds = new Set(snap.voices.map((v) => v.voiceId));
   const elVoicesDeduped = elVoices.filter((v) => !customIds.has(v.voice_id));
+  const setCharacterPrompt = (text: string) => {
+    onUpdateEntityProperties(entity.id, {
+      ...entity.properties,
+      [NPC_CHARACTER_PROMPT_PROPERTY]: text
+    });
+  };
+
   const allVoices: { voice_id: string; name: string }[] = [
     ...snap.voices.map((v) => ({ voice_id: v.voiceId, name: `★ ${v.name}` })),
     ...elVoicesDeduped.map((v) => ({ voice_id: v.voice_id, name: v.name })),
@@ -136,6 +144,18 @@ export function NpcVoiceInspector({ entity, onUpdateEntityProperties }: NpcVoice
             ))}
           </select>
         )}
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="px-1 text-[10px] font-medium tracking-[0.18em] text-foreground/42 uppercase">
+          Character (viewport preview)
+        </div>
+        <Textarea
+          className="min-h-[72px] resize-y rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-[11px] text-foreground placeholder:text-foreground/32"
+          onChange={(e) => setCharacterPrompt(e.target.value)}
+          placeholder="Who is this NPC? Used with Gemini when you press Interact during physics preview (Copilot Gemini key)."
+          value={characterPrompt}
+        />
       </div>
 
       {/* Dialogue lines */}
