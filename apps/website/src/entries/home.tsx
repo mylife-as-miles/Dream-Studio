@@ -6,10 +6,10 @@ renderPage(
   "BLUD",
   <PageShell
     currentPath={currentPath}
-    intro="BLUD is a Game Framework to vibe code games. It gives you a CLI starter, a browser world editor called Blob, and an animation pipeline called Animation Studio, then gets out of your way so you can keep writing game code."
+    intro="BLUD is a Game Framework to vibe code games. It gives you a CLI starter, a browser world editor called Dream Studio, and an animation pipeline called Animation Studio, then gets out of your way so you can keep writing game code."
     stats={[
       { label: "Starter", value: "CLI scaffold" },
-      { label: "Worlds", value: "Blob" },
+      { label: "Worlds", value: "Dream Studio" },
       { label: "Animation", value: "Animation Studio" }
     ]}
     title="Code a game. Author the world. Keep the runtime yours."
@@ -42,7 +42,7 @@ bun run dev`}
           {
             href: "tools/",
             label: "Tools",
-            body: "Install and run Blob and Animation Studio from this monorepo."
+            body: "Install and run Dream Studio and Animation Studio from this monorepo."
           }
         ]}
       />
@@ -54,7 +54,7 @@ bun run dev`}
     >
       <ul>
         <li>The CLI starter gives you a real project structure, not a throwaway sample.</li>
-        <li>Blob focuses on world authoring and runtime exports for your game.</li>
+        <li>Dream Studio focuses on world authoring and runtime exports for your game.</li>
         <li>Animation Studio exports animation bundles and graphs that your gameplay code can load and drive.</li>
         <li>You still own the camera, controls, render loop, scene lifecycle, and gameplay systems.</li>
       </ul>

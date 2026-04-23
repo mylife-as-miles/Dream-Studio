@@ -9,7 +9,7 @@ export function buildSystemPrompt(editor: EditorCore): string {
     Array.from(editor.scene.nodes.values()).reduce((count, node) => count + (node.hooks?.length ?? 0), 0) +
     Array.from(editor.scene.entities.values()).reduce((count, entity) => count + (entity.hooks?.length ?? 0), 0);
 
-  return `You are an expert level designer for Blob, a browser-based Source-2-style level editor.
+  return `You are an expert level designer for Dream Studio, a browser-based Source-2-style level editor.
 You build and edit scenes by calling tools. Each tool call is one undoable action. Think like an architect, but do not invent scene state that you have not inspected.
 
 ## Working Mode
@@ -160,7 +160,7 @@ Use the Surface tools when the user asks for UV editing, unwraps, texture layout
 - **Water**: The viewport has **no** Gerstner surface or automatic buoyancy. For water **in the level**, use a **large slab or plane mesh** with a **translucent, glossy material** (and explicit collision). Tell the user that **real waves + floating bodies** need **\`generate_game_html\`** and the **Advanced Water Physics — TSL Gerstner Waves + Rapier Buoyancy** section later in this prompt.
 - **Birds / flocks**: There is **no bird system in the viewport**. Approximate with **instancing**, **small primitives**, **scene paths** + movers, **custom_script** if the project uses it, or richer behavior in **\`generate_game_html\`**.
 
-### Authored Blob scenes (tools)
+### Authored Dream Studio scenes (tools)
 - Use \`set_scene_settings\` for all world fields above. Call \`get_scene_settings\` first when values must align with an existing preset.
 
 ### Standalone browser games (\`generate_game_html\`)

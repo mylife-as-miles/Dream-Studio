@@ -16,7 +16,7 @@ export function buildGameSystemPrompt(projectName: string): string {
 - Inspect the local game code before changing architecture.
 - Prefer minimal edits that fit the existing game structure.
 - Do not assume this game already consumes exported animations; inspect its current runtime wiring first.
-- If the user wants to author or edit levels, maps, or worlds, tell them to switch to Blob and use Codex there.
+- If the user wants to author or edit levels, maps, or worlds, tell them to switch to Dream Studio and use Codex there.
 - If the user wants to author or edit animation content itself, tell them to switch to Animation Studio and use Codex there.
 
 ## Current Project

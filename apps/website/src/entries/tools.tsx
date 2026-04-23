@@ -6,7 +6,7 @@ renderPage(
   "BLUD | Tools",
   <PageShell
     currentPath={currentPath}
-    intro="Blob is the world editor. Animation Studio is the animation editor. Both live in this monorepo today, so the install flow is shared and the run commands are separate."
+    intro="Dream Studio is the world editor. Animation Studio is the animation editor. Both live in this monorepo today, so the install flow is shared and the run commands are separate."
     title="Install and run the editors"
   >
     <Section
@@ -24,8 +24,8 @@ bun install`}
     </Section>
 
     <Section
-      intro="Blob is the browser-based world editor for building levels, runtime bundles, and scene data."
-      title="Run Blob"
+      intro="Dream Studio is the browser-based world editor for building levels, runtime bundles, and scene data."
+      title="Run Dream Studio"
     >
       <CommandBlock title="From the repository root">
         {`bun run dev`}
@@ -34,7 +34,7 @@ bun install`}
         {`bun run --cwd apps/editor dev`}
       </CommandBlock>
       <p>
-        The root <code className="rounded bg-white/8 px-2 py-1 text-sm text-white">dev</code> script currently targets Blob, so the short command is fine if you are working from the monorepo root.
+        The root <code className="rounded bg-white/8 px-2 py-1 text-sm text-white">dev</code> script currently targets Dream Studio, so the short command is fine if you are working from the monorepo root.
       </p>
     </Section>
 

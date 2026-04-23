@@ -158,7 +158,7 @@ function registerEditorPresence(server: ViteDevServer | PreviewServer) {
     await upsertDevSyncRegistration({
       id: registrationId,
       kind: "editor",
-      name: "Blob Editor",
+      name: "Dream Studio Editor",
       pid: process.pid,
       projectRoot: server.config.root,
       updatedAt: Date.now(),

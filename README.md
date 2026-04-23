@@ -36,7 +36,7 @@ BLUD combines several layers that usually live in separate repos or are bundled 
 ### Apps
 
 - `apps/orchestrator`: main local entrypoint that launches and coordinates the tools
-- `apps/editor`: the world editor, formerly referred to as Blob
+- `apps/editor`: Dream Studio (the world editor)
 - `apps/animation-editor`: animation authoring tool
 - `apps/website`: docs and onboarding site
 - `apps/three-vanilla-playground`: isolated playground for runtime experimentation

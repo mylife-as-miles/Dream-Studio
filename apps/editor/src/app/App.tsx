@@ -1684,7 +1684,7 @@ export function App() {
         setProjectSlug(slugifyProjectName(draft.projectSlug || draft.projectName || "Untitled Scene"));
         setProjectSlugDirty(draft.projectSlugDirty);
       } catch (error) {
-        console.warn("Failed to restore the Blob draft.", error);
+        console.warn("Failed to restore the Dream Studio draft.", error);
       } finally {
         if (!cancelled) {
           setDraftHydrated(true);
@@ -1706,7 +1706,7 @@ export function App() {
 
     const timeoutId = window.setTimeout(() => {
       void saveSceneEditorDraft(buildSceneDraftPayload()).catch((error) => {
-        console.warn("Failed to save the Blob draft.", error);
+        console.warn("Failed to save the Dream Studio draft.", error);
       });
     }, 500);
 
@@ -1724,7 +1724,7 @@ export function App() {
       }
 
       void saveSceneEditorDraft(draft).catch((error) => {
-        console.warn("Failed to flush the Blob draft on unload.", error);
+        console.warn("Failed to flush the Dream Studio draft on unload.", error);
       });
     };
   }, []);

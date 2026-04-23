@@ -149,7 +149,7 @@ export function PageShell({ eyebrow, title, intro, currentPath, stats, children 
                   BLUD is for developers who want a lightweight runtime shell, a world editor, and an animation pipeline without committing to a giant engine.
                 </div>
                 <div className="rounded-[1.35rem] bg-white/6 px-4 py-4">
-                  The CLI scaffolds a real game project. Blob authors worlds. Animation Studio authors graphs and bundles.
+                  The CLI scaffolds a real game project. Dream Studio authors worlds. Animation Studio authors graphs and bundles.
                 </div>
               </div>
               {stats ? (

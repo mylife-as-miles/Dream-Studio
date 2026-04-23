@@ -244,7 +244,7 @@ async function startCodexSession(
 
   // 1. Handshake
   await sendCodexRequest(session, "initialize", {
-    clientInfo: { name: "blob-editor", title: "Blob Editor", version: "0.1.0" },
+    clientInfo: { name: "dream-studio-editor", title: "Dream Studio Editor", version: "0.1.0" },
     capabilities: { experimentalApi: true }
   });
   sendToCodex(session, { method: "initialized", params: {} });
@@ -264,7 +264,7 @@ async function startCodexSession(
       model: config.model,
       baseInstructions: config.systemPrompt,
       dynamicTools,
-      serviceName: "blob-editor"
+      serviceName: "dream-studio-editor"
     }
   ) as { thread?: { id?: string } };
 
