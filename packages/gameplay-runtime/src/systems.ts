@@ -9,6 +9,13 @@ import {
   type GameplaySystemBlueprint
 } from "./types";
 
+type OpenablePhysicsMotorParams = {
+  damping: number;
+  maxSpeed: number;
+  stiffness: number;
+  swingDeg: number;
+};
+
 export const GAMEPLAY_SYSTEM_BLUEPRINTS: GameplaySystemBlueprint[] = [
   {
     description: "Queues and dispatches events with target filtering, frame ordering, and recursion guards.",
@@ -1055,6 +1062,36 @@ function maxScaleComponent(scale: Vec3) {
 
 function readOpenableState(value: GameplayValue | undefined, fallback: "closed" | "open") {
   return value === "opening" || value === "closing" || value === "open" || value === "closed" ? value : fallback;
+}
+
+function readOpenablePhysicsMotor(config: GameplayObject | undefined): OpenablePhysicsMotorParams | undefined {
+  const root = asObject(config as GameplayValue | undefined);
+  if (!root) {
+    return undefined;
+  }
+  const motor = asObject(root.physicsMotor);
+  if (!motor) {
+    return undefined;
+  }
+  const swingDeg = readNumber(motor.swingDeg, NaN);
+  if (!Number.isFinite(swingDeg)) {
+    return undefined;
+  }
+  return {
+    damping: readNumber(motor.damping, 4),
+    maxSpeed: readNumber(motor.maxSpeed, 6),
+    stiffness: readNumber(motor.stiffness, 24),
+    swingDeg
+  };
+}
+
+function hookTargetUsesOpenablePhysicsMotor(context: GameplayRuntimeSystemContext, targetId: string): boolean {
+  return context
+    .getHookTargetsByType("openable")
+    .some(
+      (target) =>
+        target.targetId === targetId && target.hook.enabled !== false && readOpenablePhysicsMotor(target.hook.config) !== undefined
+    );
 }
 
 function readStateName(payload: unknown) {

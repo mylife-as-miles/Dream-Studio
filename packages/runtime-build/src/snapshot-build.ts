@@ -7,6 +7,7 @@ import {
   isBrushNode,
   isGroupNode,
   isInstancingNode,
+  isLightNode,
   isMeshNode,
   isModelNode,
   isPrimitiveNode,
@@ -218,16 +219,22 @@ export async function buildRuntimeSceneFromSnapshot(snapshot: SceneDocumentSnaps
       continue;
     }
 
-    exportedNodes.push({
-      data: node.data,
-      id: node.id,
-      kind: "light",
-      metadata: node.metadata,
-      name: node.name,
-      parentId: node.parentId,
-      tags: node.tags,
-      transform: node.transform
-    } satisfies Extract<RuntimeScene["nodes"][number], { kind: "light" }>);
+    if (isLightNode(node)) {
+      exportedNodes.push({
+        data: node.data,
+        hooks: node.hooks,
+        id: node.id,
+        kind: "light",
+        metadata: node.metadata,
+        name: node.name,
+        parentId: node.parentId,
+        tags: node.tags,
+        transform: node.transform
+      } satisfies Extract<RuntimeScene["nodes"][number], { kind: "light" }>);
+      continue;
+    }
+
+    // Terrain, spline, grid map, and other editor-only kinds are not part of RuntimeScene yet.
   }
 
   return {
