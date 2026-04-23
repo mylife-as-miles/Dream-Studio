@@ -38,14 +38,14 @@ This plan implements five worldbuilding and modeling tool categories (Terrain, F
 - [x] 2. Checkpoint — Verify shared types compile
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 3. Terrain package (`packages/terrain`)
-  - [-] 3.1 Initialize the `packages/terrain` package
+- [x] 3. Terrain package (`packages/terrain`)
+  - [x] 3.1 Initialize the `packages/terrain` package
     - Create `packages/terrain/package.json` with name `@blud/terrain`, dependencies on `@blud/shared` and `three`
     - Create `packages/terrain/tsconfig.json` extending the monorepo base config
     - Create `packages/terrain/src/index.ts` barrel export file
     - _Requirements: 28.1_
 
-  - [~] 3.2 Implement heightmap sculpting operations in `packages/terrain/src/heightmap-ops.ts`
+  - [x] 3.2 Implement heightmap sculpting operations in `packages/terrain/src/heightmap-ops.ts`
     - Implement `applyRaiseBrush`, `applyLowerBrush`, `applyFlattenBrush`, `applySmoothBrush`, `applyNoiseBrush`, `applyTerraceBrush`, and `applyErosionBrush` functions
     - Each function takes a `Float32Array` heightmap, resolution, brush center (cx, cz), radius, strength, and falloff type, and returns a new `Float32Array`
     - Implement falloff calculation helper for `linear`, `smooth`, and `constant` falloff types
@@ -59,27 +59,27 @@ This plan implements five worldbuilding and modeling tool categories (Terrain, F
     - Test smooth brush averages neighboring values
     - _Requirements: 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10_
 
-  - [~] 3.4 Implement splatmap painting operations in `packages/terrain/src/splatmap-ops.ts`
+  - [x] 3.4 Implement splatmap painting operations in `packages/terrain/src/splatmap-ops.ts`
     - Implement `paintSplatmapLayer` function that increases the weight for a selected layer and proportionally decreases other layers so per-texel weights sum to 1.0
     - _Requirements: 3.1, 3.2_
 
-  - [~] 3.5 Implement hole mask operations in `packages/terrain/src/hole-ops.ts`
+  - [x] 3.5 Implement hole mask operations in `packages/terrain/src/hole-ops.ts`
     - Implement `applyHoleBrush` function that sets per-cell visibility flags within the brush radius
     - Support both hole (value 1) and un-hole (value 0) modes
     - _Requirements: 4.1, 4.2, 4.4_
 
-  - [~] 3.6 Implement terrain mesh generation in `packages/terrain/src/terrain-mesh-gen.ts`
+  - [x] 3.6 Implement terrain mesh generation in `packages/terrain/src/terrain-mesh-gen.ts`
     - Implement `generateTerrainMesh` that converts a heightmap to an `EditableMesh` with vertices, half-edges, and faces
     - Implement `generateTerrainChunkMesh` for chunked mesh generation with LOD level support
     - Exclude cells marked as holes in the `holeMask` from the generated mesh
     - _Requirements: 1.2, 4.3, 6.1_
 
-  - [~] 3.7 Implement LOD mesh generation in `packages/terrain/src/lod.ts`
+  - [x] 3.7 Implement LOD mesh generation in `packages/terrain/src/lod.ts`
     - Implement `generateLodMeshes` that produces an array of `EditableMesh` at progressively reduced vertex counts
     - Use the `lodLevels` count from `TerrainNodeData` to determine the number of tiers
     - _Requirements: 6.1, 6.3_
 
-  - [~] 3.8 Implement terrain-spline deformation in `packages/terrain/src/terrain-spline.ts`
+  - [x] 3.8 Implement terrain-spline deformation in `packages/terrain/src/terrain-spline.ts`
     - Implement `applySplineDeformation` that flattens/carves the heightmap along a spline path within a corridor width
     - Return both the modified heightmap and the original values for undo support
     - Support `embedDepth` for river-style carving
@@ -92,12 +92,12 @@ This plan implements five worldbuilding and modeling tool categories (Terrain, F
     - Test spline deformation flattens heightmap within corridor
     - _Requirements: 3.2, 4.2, 5.2, 6.1_
 
-  - [~] 3.10 Export all terrain functions from `packages/terrain/src/index.ts`
+  - [x] 3.10 Export all terrain functions from `packages/terrain/src/index.ts`
     - Re-export all public functions and types from heightmap-ops, splatmap-ops, hole-ops, terrain-mesh-gen, lod, and terrain-spline modules
     - _Requirements: 28.1_
 
-- [ ] 4. Foliage package (`packages/foliage`)
-  - [~] 4.1 Initialize the `packages/foliage` package
+- [-] 4. Foliage package (`packages/foliage`)
+  - [-] 4.1 Initialize the `packages/foliage` package
     - Create `packages/foliage/package.json` with name `@blud/foliage`, dependencies on `@blud/shared` and `three`
     - Create `packages/foliage/tsconfig.json` extending the monorepo base config
     - Create `packages/foliage/src/index.ts` barrel export file

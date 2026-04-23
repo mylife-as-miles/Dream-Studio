@@ -737,6 +737,117 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "inset_mesh_faces",
+    description: "Inset selected faces to create an inner face loop. Use it for panel lines, door/window frames, and prep before extrusion.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to inset" },
+        amount: { type: "number", description: "Inset amount in meters" }
+      },
+      required: ["nodeId", "faceIds", "amount"]
+    }
+  },
+  {
+    name: "bridge_mesh_edges",
+    description: "Bridge two selected boundary edges with a new face. Use get_mesh_topology first and pass exactly two edge pairs.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        edges: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Two edges as [[vertexId1, vertexId2], [vertexId3, vertexId4]]" }
+      },
+      required: ["nodeId", "edges"]
+    }
+  },
+  {
+    name: "poke_mesh_faces",
+    description: "Poke selected faces into triangles from a new center vertex. Useful for radial detail, peaks, and controlled triangulation.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to poke" }
+      },
+      required: ["nodeId", "faceIds"]
+    }
+  },
+  {
+    name: "triangulate_mesh_faces",
+    description: "Triangulate selected faces, or all faces when faceIds is omitted. Useful before runtime baking or cleanup.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Optional face IDs to triangulate" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "quadrangulate_mesh_faces",
+    description: "Attempt to rebuild selected triangle pairs into quads. Use after triangulation or cleanup when quad authoring is preferred.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to quadrangulate" }
+      },
+      required: ["nodeId", "faceIds"]
+    }
+  },
+  {
+    name: "solidify_mesh",
+    description: "Add shell thickness to a mesh as a one-shot topology edit. Prefer add_mesh_modeling_modifier type=solidify for live/non-destructive work.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        thickness: { type: "number", description: "Shell thickness in meters" }
+      },
+      required: ["nodeId", "thickness"]
+    }
+  },
+  {
+    name: "mirror_mesh",
+    description: "Mirror a mesh across one local axis as a one-shot topology edit. Prefer the modeling stack for reusable symmetry.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        axis: { type: "string", enum: ["x", "y", "z"], description: "Mirror axis" }
+      },
+      required: ["nodeId", "axis"]
+    }
+  },
+  {
+    name: "weld_mesh_vertices_by_distance",
+    description: "Merge vertices within a distance threshold. Use for cleanup after boolean, bridge, mirror, import, or remesh-style edits.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        vertexIds: { type: "array", items: { type: "string" }, description: "Optional vertex IDs to restrict the weld" },
+        distance: { type: "number", description: "Maximum merge distance in meters" }
+      },
+      required: ["nodeId", "distance"]
+    }
+  },
+  {
+    name: "weld_mesh_vertices_to_target",
+    description: "Target-weld source vertices into one target vertex. Use for precise cleanup and snapping holes shut.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        targetVertexId: { type: "string", description: "Vertex ID that receives the weld" },
+        sourceVertexIds: { type: "array", items: { type: "string" }, description: "Vertex IDs to merge into the target" }
+      },
+      required: ["nodeId", "targetVertexId", "sourceVertexIds"]
+    }
+  },
+  {
     name: "subdivide_mesh_face",
     description: "Subdivide a mesh face into smaller faces. Quad faces get a grid pattern, others get radial.",
     parameters: {
@@ -763,6 +874,18 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
         snapSize: { type: "number", description: "Snap resolution (default: 1)" }
       },
       required: ["nodeId", "faceId", "pointX", "pointY", "pointZ"]
+    }
+  },
+  {
+    name: "cut_mesh_between_edges",
+    description: "Knife-cut a polygon by connecting the midpoints of two non-adjacent edges on the same face.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        edges: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Exactly two non-adjacent edges as [[vertexId1, vertexId2], [vertexId3, vertexId4]]" }
+      },
+      required: ["nodeId", "edges"]
     }
   },
   {
@@ -896,6 +1019,191 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "capture_mesh_modeling_base",
+    description: "Capture the current mesh topology as the base for a live/non-destructive modeling stack.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "rebuild_mesh_modeling_stack",
+    description: "Re-evaluate the mesh modeling stack from its captured base topology and current modifiers.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "add_mesh_modeling_modifier",
+    description: "Add a live/non-destructive modeling modifier. Supports boolean, mirror, solidify, lattice, remesh, and retopo modifiers.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        type: { type: "string", enum: ["boolean", "mirror", "solidify", "lattice", "remesh", "retopo"], description: "Modifier type" },
+        label: { type: "string", description: "Display label" },
+        enabled: { type: "boolean", description: "Whether the modifier is enabled" },
+        operation: { type: "string", enum: ["union", "difference", "intersect"], description: "Boolean operation" },
+        targetNodeId: { type: "string", description: "Boolean target mesh node ID" },
+        mode: { type: "string", description: "Boolean mode apply/live, lattice mode bend/twist/taper/shear, or remesh mode cleanup/quad/voxel" },
+        axis: { type: "string", enum: ["x", "y", "z"], description: "Mirror/lattice axis" },
+        weld: { type: "boolean", description: "Mirror weld/symmetry weld toggle" },
+        thickness: { type: "number", description: "Solidify thickness in meters" },
+        intensity: { type: "number", description: "Lattice intensity" },
+        falloff: { type: "number", description: "Lattice falloff" },
+        resolution: { type: "number", description: "Remesh resolution" },
+        smoothing: { type: "number", description: "Remesh smoothing amount" },
+        weldDistance: { type: "number", description: "Cleanup weld distance" },
+        preserveBorders: { type: "boolean", description: "Retopo preserve-border toggle" },
+        targetFaceCount: { type: "number", description: "Retopo target face count" }
+      },
+      required: ["nodeId", "type"]
+    }
+  },
+  {
+    name: "update_mesh_modeling_modifier",
+    description: "Update fields on an existing live modeling modifier by modifierId.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        modifierId: { type: "string", description: "Modifier ID to update" },
+        label: { type: "string", description: "Display label" },
+        enabled: { type: "boolean", description: "Whether the modifier is enabled" },
+        operation: { type: "string", enum: ["union", "difference", "intersect"], description: "Boolean operation" },
+        targetNodeId: { type: "string", description: "Boolean target mesh node ID" },
+        mode: { type: "string", description: "Boolean, lattice, or remesh mode" },
+        axis: { type: "string", enum: ["x", "y", "z"], description: "Mirror/lattice axis" },
+        weld: { type: "boolean", description: "Mirror weld/symmetry weld toggle" },
+        thickness: { type: "number", description: "Solidify thickness in meters" },
+        intensity: { type: "number", description: "Lattice intensity" },
+        falloff: { type: "number", description: "Lattice falloff" },
+        resolution: { type: "number", description: "Remesh resolution" },
+        smoothing: { type: "number", description: "Remesh smoothing amount" },
+        weldDistance: { type: "number", description: "Cleanup weld distance" },
+        preserveBorders: { type: "boolean", description: "Retopo preserve-border toggle" },
+        targetFaceCount: { type: "number", description: "Retopo target face count" }
+      },
+      required: ["nodeId", "modifierId"]
+    }
+  },
+  {
+    name: "remove_mesh_modeling_modifier",
+    description: "Remove a live/non-destructive modeling modifier from a mesh.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        modifierId: { type: "string", description: "Modifier ID to remove" }
+      },
+      required: ["nodeId", "modifierId"]
+    }
+  },
+  {
+    name: "set_mesh_symmetry",
+    description: "Enable or update live symmetry settings for a mesh modeling stack.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        enabled: { type: "boolean", description: "Whether symmetry is enabled" },
+        axis: { type: "string", enum: ["x", "y", "z"], description: "Symmetry mirror axis" },
+        weld: { type: "boolean", description: "Whether symmetry should weld mirrored seams" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "create_mesh_polygroup",
+    description: "Create a PolyGroup/face group from selected face IDs for material IDs, retopo regions, LOD planning, and bake masks.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to include" },
+        name: { type: "string", description: "Group display name" },
+        groupId: { type: "string", description: "Optional stable group ID" },
+        color: { type: "string", description: "Hex color for the group" }
+      },
+      required: ["nodeId", "faceIds"]
+    }
+  },
+  {
+    name: "assign_faces_to_mesh_polygroup",
+    description: "Add more face IDs to an existing PolyGroup.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        groupId: { type: "string", description: "Existing PolyGroup ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to add" }
+      },
+      required: ["nodeId", "groupId", "faceIds"]
+    }
+  },
+  {
+    name: "create_mesh_smoothing_group",
+    description: "Create a smoothing group over selected faces with a target smoothing angle.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to include" },
+        name: { type: "string", description: "Group display name" },
+        groupId: { type: "string", description: "Optional stable group ID" },
+        angle: { type: "number", description: "Smoothing angle in degrees" }
+      },
+      required: ["nodeId", "faceIds"]
+    }
+  },
+  {
+    name: "set_mesh_lod_profiles",
+    description: "Author LOD targets for runtime export. Pass profiles with ratios/faceCounts, or ratios for generated profiles.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        ratios: { type: "array", items: { type: "number" }, description: "LOD reduction ratios such as [0.7, 0.4, 0.18]" },
+        profiles: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              ratio: { type: "number" },
+              faceCount: { type: "number" }
+            }
+          },
+          description: "Explicit LOD profiles"
+        }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "queue_mesh_bake_outputs",
+    description: "Queue bake-map output slots for runtime asset production: normals, AO, curvature, ID masks, and vertex colors.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        kinds: { type: "array", items: { type: "string", enum: ["normals", "ao", "curvature", "id-mask", "vertex-colors"] }, description: "Bake map kinds to queue" },
+        resolution: { type: "number", description: "Bake texture resolution, default 2048" },
+        sourceGroupId: { type: "string", description: "Optional PolyGroup/source group ID" },
+        replaceExisting: { type: "boolean", description: "Replace existing queued outputs for the same kind, default true" }
+      },
+      required: ["nodeId", "kinds"]
+    }
+  },
+  {
     name: "split_brush_at_coordinate",
     description: "Split a brush node at an exact world coordinate along an axis (more precise than split_brush which only splits at the midpoint).",
     parameters: {
@@ -919,7 +1227,7 @@ export const GAME_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
  * Return `true` when the user's prompt is clearly a standalone-game or browser-based
  * interactive request (not a scene-editing request). In that case we expose only
  * `generate_game_html`
- * instead of all 59 editor tools so the model context stays lean.
+ * instead of the full editor tool catalog so the model context stays lean.
  */
 export function isGameGenerationPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();

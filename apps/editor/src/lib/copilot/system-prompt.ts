@@ -139,13 +139,18 @@ Objects that belong to a room should be positioned from that room's bounds.
 - Between phases, wait for results before using returned IDs.
 - Before using \`openSides\` or \`delete_mesh_faces\`, verify that the intended opening really spans the entire targeted face or side. If not, use mesh editing instead.
 
-## Mesh Editing
-You have full mesh editing tools: extrude, bevel, subdivide, cut, merge, fill, arc, inflate, invert normals, vertex translate, and vertex scale.
-- Always call \`get_mesh_topology\` before mesh edits so you know face, edge, and vertex IDs.
-- \`get_mesh_topology\` also returns face centers and normals. Use them to identify outward-facing caps, wall bands, and floor/ceiling faces before editing.
+## Mesh Editing And Modeling
+You have advanced mesh tools: extrude, bevel, inset, bridge, subdivide, knife/cut, merge, fill, arc, inflate, mirror, solidify/shell, weld, poke, triangulate, quadrangulate, vertex translate, vertex scale, and normal inversion.
+- Always call \`get_mesh_topology\` before direct topology edits so you know face, edge, and vertex IDs.
+- \`get_mesh_topology\` also returns face centers and normals. Use them to identify outward-facing caps, wall bands, PolyGroup regions, and floor/ceiling faces before editing.
+- Direct topology ops are destructive, undoable edits. Use them for concrete shape changes like inset panels, bridges, shell thickness, precise knife cuts, and cleanup welds.
+- For live/non-destructive workflows, first call \`capture_mesh_modeling_base\`, then use \`add_mesh_modeling_modifier\` / \`update_mesh_modeling_modifier\` for boolean, mirror, solidify, lattice, remesh, and retopo modifiers.
+- Use \`set_mesh_symmetry\` for reusable mirror/symmetry authoring instead of repeatedly mirroring topology by hand.
+- Use \`create_mesh_polygroup\` and \`create_mesh_smoothing_group\` when the user asks for PolyGroups, face groups, smoothing groups, bake masks, retopo regions, material regions, or game-production authoring metadata.
+- Use \`set_mesh_lod_profiles\` and \`queue_mesh_bake_outputs\` for runtime/export prep: LOD planning, normals, AO, curvature, ID masks, and vertex-color bakes.
 - Mesh ops are the default editing path. Use \`convert_brush_to_mesh\` only when an older scene still contains brush nodes.
-- Common workflow: \`place_primitive\` -> \`get_mesh_topology\` -> mesh edit calls.
-- For localized openings, prefer this order of operations: inspect wall face -> subdivide or cut to isolate opening region -> edit only that region -> preserve surrounding wall, floor, and ceiling faces.
+- Common workflow: \`place_primitive\` -> \`get_mesh_topology\` -> direct mesh edit calls, or \`capture_mesh_modeling_base\` -> live modifiers -> rebuild stack.
+- For localized openings, prefer this order of operations: inspect wall face -> subdivide, inset, or knife-cut to isolate opening region -> edit only that region -> preserve surrounding wall, floor, and ceiling faces.
 
 ## Contiguous Level-Shell Strategy
 - For proper map worlds, default to additive shell growth instead of assembling many separate cubes.

@@ -136,6 +136,16 @@ function str(args: Args, key: string, fallback = ""): string {
   return typeof v === "string" ? v : fallback;
 }
 
+function optionalStr(args: Args, key: string): string | undefined {
+  const v = args[key];
+  return typeof v === "string" ? v : undefined;
+}
+
+function optionalNum(args: Args, key: string): number | undefined {
+  const v = args[key];
+  return typeof v === "number" ? v : undefined;
+}
+
 function strArray(args: Args, key: string): string[] {
   const v = args[key];
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
@@ -153,6 +163,143 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function recordArray(args: Args, key: string): Record<string, unknown>[] {
   const value = args[key];
   return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => isRecord(entry)) : [];
+}
+
+const MODELING_GROUP_COLORS = ["#f59e0b", "#10b981", "#38bdf8", "#f472b6", "#a78bfa", "#fb7185"];
+const BAKE_MAP_KINDS: MeshBakeMapKind[] = ["normals", "ao", "curvature", "id-mask", "vertex-colors"];
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function modifierTypeFromArgs(args: Args): MeshModelingModifier["type"] {
+  const type = str(args, "type", "solidify");
+  return ["boolean", "mirror", "solidify", "lattice", "remesh", "retopo"].includes(type)
+    ? type as MeshModelingModifier["type"]
+    : "solidify";
+}
+
+function createCopilotModelingModifier(args: Args, index: number): MeshModelingModifier {
+  const type = modifierTypeFromArgs(args);
+  const id = str(args, "id") || `modifier:${type}:${Date.now()}:${index}`;
+  const enabled = bool(args, "enabled") ?? true;
+  const label = str(args, "label") || type.charAt(0).toUpperCase() + type.slice(1);
+
+  switch (type) {
+    case "boolean":
+      return {
+        enabled,
+        id,
+        label,
+        mode: (str(args, "mode", "live") === "apply" ? "apply" : "live"),
+        operation: (str(args, "operation", "union") || "union") as "difference" | "intersect" | "union",
+        targetNodeId: str(args, "targetNodeId") || undefined,
+        type
+      };
+    case "mirror":
+      return {
+        axis: (str(args, "axis", "x") || "x") as "x" | "y" | "z",
+        enabled,
+        id,
+        label,
+        type,
+        weld: bool(args, "weld") ?? true
+      };
+    case "solidify":
+      return {
+        enabled,
+        id,
+        label,
+        thickness: num(args, "thickness", 0.2),
+        type
+      };
+    case "lattice":
+      return {
+        axis: (str(args, "axis", "y") || "y") as "x" | "y" | "z",
+        enabled,
+        falloff: num(args, "falloff", 1),
+        id,
+        intensity: num(args, "intensity", 0.35),
+        label,
+        mode: (str(args, "mode", "bend") || "bend") as "bend" | "shear" | "taper" | "twist",
+        type
+      };
+    case "remesh":
+      return {
+        enabled,
+        id,
+        label,
+        mode: (str(args, "mode", "cleanup") || "cleanup") as "cleanup" | "quad" | "voxel",
+        resolution: num(args, "resolution", 32),
+        smoothing: num(args, "smoothing", 0.4),
+        type,
+        weldDistance: num(args, "weldDistance", 0.01)
+      };
+    case "retopo":
+      return {
+        enabled,
+        id,
+        label,
+        preserveBorders: bool(args, "preserveBorders") ?? true,
+        targetFaceCount: Math.max(1, Math.round(num(args, "targetFaceCount", 128))),
+        type
+      };
+  }
+}
+
+function patchCopilotModelingModifier(modifier: MeshModelingModifier, args: Args): MeshModelingModifier {
+  const enabled = bool(args, "enabled");
+  const label = optionalStr(args, "label");
+  const base = {
+    ...modifier,
+    ...(enabled === undefined ? {} : { enabled }),
+    ...(label ? { label } : {})
+  };
+
+  switch (base.type) {
+    case "boolean":
+      return {
+        ...base,
+        ...(optionalStr(args, "mode") ? { mode: str(args, "mode") as "apply" | "live" } : {}),
+        ...(optionalStr(args, "operation") ? { operation: str(args, "operation") as "difference" | "intersect" | "union" } : {}),
+        ...(optionalStr(args, "targetNodeId") ? { targetNodeId: str(args, "targetNodeId") } : {})
+      };
+    case "mirror":
+      return {
+        ...base,
+        ...(optionalStr(args, "axis") ? { axis: str(args, "axis") as "x" | "y" | "z" } : {}),
+        ...(bool(args, "weld") === undefined ? {} : { weld: bool(args, "weld")! })
+      };
+    case "solidify":
+      return {
+        ...base,
+        ...(optionalNum(args, "thickness") === undefined ? {} : { thickness: num(args, "thickness", base.thickness) })
+      };
+    case "lattice":
+      return {
+        ...base,
+        ...(optionalStr(args, "axis") ? { axis: str(args, "axis") as "x" | "y" | "z" } : {}),
+        ...(optionalNum(args, "falloff") === undefined ? {} : { falloff: num(args, "falloff", base.falloff) }),
+        ...(optionalNum(args, "intensity") === undefined ? {} : { intensity: num(args, "intensity", base.intensity) }),
+        ...(optionalStr(args, "mode") ? { mode: str(args, "mode") as "bend" | "shear" | "taper" | "twist" } : {})
+      };
+    case "remesh":
+      return {
+        ...base,
+        ...(optionalStr(args, "mode") ? { mode: str(args, "mode") as "cleanup" | "quad" | "voxel" } : {}),
+        ...(optionalNum(args, "resolution") === undefined ? {} : { resolution: num(args, "resolution", base.resolution) }),
+        ...(optionalNum(args, "smoothing") === undefined ? {} : { smoothing: num(args, "smoothing", base.smoothing) }),
+        ...(optionalNum(args, "weldDistance") === undefined ? {} : { weldDistance: num(args, "weldDistance", base.weldDistance) })
+      };
+    case "retopo":
+      return {
+        ...base,
+        ...(bool(args, "preserveBorders") === undefined ? {} : { preserveBorders: bool(args, "preserveBorders")! }),
+        ...(optionalNum(args, "targetFaceCount") === undefined
+          ? {}
+          : { targetFaceCount: Math.max(1, Math.round(num(args, "targetFaceCount", base.targetFaceCount))) })
+      };
+  }
 }
 
 function gameplayObject(value: unknown): GameplayObject | undefined {
@@ -1221,6 +1368,14 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
         "Cut face"
       );
 
+    case "cut_mesh_between_edges": {
+      const edges = (args.edges as string[][] ?? []).map((edge) => [edge[0], edge[1]] as [string, string]);
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        cutEditableMeshBetweenEdges(mesh, edges),
+        "Cut between edges"
+      );
+    }
+
     case "delete_mesh_faces":
       return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
         deleteEditableMeshFaces(mesh, strArray(args, "faceIds")),
@@ -1313,6 +1468,223 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
       return ok({ nodeId });
     }
 
+    case "capture_mesh_modeling_base":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) =>
+        captureEditableMeshModelingBase(mesh),
+        "Capture mesh modeling base"
+      );
+
+    case "rebuild_mesh_modeling_stack":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) =>
+        applyEditableMeshModeling(initializeEditableMeshModeling(mesh)),
+        "Rebuild mesh modeling stack"
+      );
+
+    case "add_mesh_modeling_modifier":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const modifier = createCopilotModelingModifier(args, modeling.modifiers?.length ?? 0);
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          modifiers: [...(modeling.modifiers ?? []), modifier]
+        });
+      }, "Add mesh modeling modifier");
+
+    case "update_mesh_modeling_modifier":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const modifierId = str(args, "modifierId");
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const modifiers = modeling.modifiers ?? [];
+
+        if (!modifiers.some((modifier) => modifier.id === modifierId)) {
+          throw new Error("Modifier not found");
+        }
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          modifiers: modifiers.map((modifier) =>
+            modifier.id === modifierId ? patchCopilotModelingModifier(modifier, args) : modifier
+          )
+        });
+      }, "Update mesh modeling modifier");
+
+    case "remove_mesh_modeling_modifier":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const modifierId = str(args, "modifierId");
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const modifiers = modeling.modifiers ?? [];
+
+        if (!modifiers.some((modifier) => modifier.id === modifierId)) {
+          throw new Error("Modifier not found");
+        }
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          modifiers: modifiers.filter((modifier) => modifier.id !== modifierId)
+        });
+      }, "Remove mesh modeling modifier");
+
+    case "set_mesh_symmetry":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          symmetry: {
+            axis: (str(args, "axis", modeling.symmetry?.axis ?? "x") || "x") as "x" | "y" | "z",
+            enabled: bool(args, "enabled") ?? modeling.symmetry?.enabled ?? true,
+            weld: bool(args, "weld") ?? modeling.symmetry?.weld ?? true
+          }
+        });
+      }, "Set mesh symmetry");
+
+    case "create_mesh_polygroup": {
+      const faceIds = uniqueStrings(strArray(args, "faceIds"));
+
+      if (faceIds.length === 0) {
+        return fail("faceIds is required");
+      }
+
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const index = modeling.polyGroups?.length ?? 0;
+        const group: MeshPolyGroup = {
+          color: str(args, "color") || MODELING_GROUP_COLORS[index % MODELING_GROUP_COLORS.length],
+          faceIds,
+          id: str(args, "groupId") || `polygroup:${Date.now()}:${index}`,
+          name: str(args, "name") || `PolyGroup ${index + 1}`
+        };
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          polyGroups: [...(modeling.polyGroups ?? []), group]
+        });
+      }, "Create mesh PolyGroup");
+    }
+
+    case "assign_faces_to_mesh_polygroup": {
+      const groupId = str(args, "groupId");
+      const faceIds = uniqueStrings(strArray(args, "faceIds"));
+
+      if (!groupId || faceIds.length === 0) {
+        return fail("groupId and faceIds are required");
+      }
+
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const groups = modeling.polyGroups ?? [];
+
+        if (!groups.some((group) => group.id === groupId)) {
+          throw new Error("PolyGroup not found");
+        }
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          polyGroups: groups.map((group) =>
+            group.id === groupId
+              ? { ...group, faceIds: uniqueStrings([...group.faceIds, ...faceIds]) }
+              : group
+          )
+        });
+      }, "Assign faces to mesh PolyGroup");
+    }
+
+    case "create_mesh_smoothing_group": {
+      const faceIds = uniqueStrings(strArray(args, "faceIds"));
+
+      if (faceIds.length === 0) {
+        return fail("faceIds is required");
+      }
+
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const index = modeling.smoothingGroups?.length ?? 0;
+        const group: MeshSmoothingGroup = {
+          angle: num(args, "angle", 45),
+          faceIds,
+          id: str(args, "groupId") || `smoothing:${Date.now()}:${index}`,
+          name: str(args, "name") || `Smooth ${index + 1}`
+        };
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          smoothingGroups: [...(modeling.smoothingGroups ?? []), group]
+        });
+      }, "Create mesh smoothing group");
+    }
+
+    case "set_mesh_lod_profiles":
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const baseFaceCount = modeling.baseTopology?.faces.length ?? mesh.faces.length;
+        const ratioValues = Array.isArray(args.ratios)
+          ? args.ratios.filter((value): value is number => typeof value === "number")
+          : [];
+        const profileRecords = recordArray(args, "profiles");
+        const profileInputs: Record<string, unknown>[] = profileRecords.length > 0
+          ? profileRecords
+          : (ratioValues.length > 0 ? ratioValues : [0.7, 0.4, 0.18]).map((ratio, index) => ({ ratio, name: `LOD ${index + 1}` }));
+        const lods: MeshLodProfile[] = profileInputs.map((profile, index) => {
+          const ratio = typeof profile.ratio === "number" ? profile.ratio : 0.5;
+          const faceCount = typeof profile.faceCount === "number"
+            ? Math.max(1, Math.round(profile.faceCount))
+            : Math.max(1, Math.round(baseFaceCount * ratio));
+
+          return {
+            faceCount,
+            generatedAt: new Date().toISOString(),
+            id: typeof profile.id === "string" ? profile.id : `lod:${index + 1}`,
+            name: typeof profile.name === "string" ? profile.name : `LOD ${index + 1}`,
+            ratio
+          };
+        });
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          lods
+        });
+      }, "Set mesh LOD profiles");
+
+    case "queue_mesh_bake_outputs": {
+      const kinds = uniqueStrings(strArray(args, "kinds"))
+        .filter((kind): kind is MeshBakeMapKind => BAKE_MAP_KINDS.includes(kind as MeshBakeMapKind));
+
+      if (kinds.length === 0) {
+        return fail("At least one valid bake kind is required");
+      }
+
+      return executeMeshModelingUpdate(editor, str(args, "nodeId"), (mesh) => {
+        const prepared = initializeEditableMeshModeling(mesh);
+        const modeling = structuredClone(prepared.modeling ?? {});
+        const replaceExisting = bool(args, "replaceExisting") ?? true;
+        const existing = replaceExisting
+          ? (modeling.bakeOutputs ?? []).filter((output) => !kinds.includes(output.kind))
+          : (modeling.bakeOutputs ?? []);
+        const queued = kinds.map((kind) => ({
+          generatedAt: new Date().toISOString(),
+          id: `bake:${kind}:${Date.now()}`,
+          kind,
+          resolution: Math.max(128, Math.round(num(args, "resolution", 2048))),
+          sourceGroupId: str(args, "sourceGroupId") || undefined,
+          status: "queued" as const
+        }));
+
+        return updateEditableMeshModeling(prepared, {
+          ...modeling,
+          bakeOutputs: [...existing, ...queued]
+        });
+      }, "Queue mesh bake outputs");
+    }
+
     case "split_brush_at_coordinate": {
       const { command, splitIds } = createSplitBrushNodeAtCoordinateCommand(
         scene,
@@ -1353,10 +1725,10 @@ function executeMeshOp(
     return fail(`${label} failed`);
   }
 
-  // Preserve physics and role metadata from the original mesh
-    result.physics = node.data.physics;
-    result.role = node.data.role;
-    result.modeling = node.data.modeling;
+  // Preserve authored metadata that topology operators do not know about.
+  result.physics = node.data.physics;
+  result.role = node.data.role;
+  result.modeling = node.data.modeling;
 
   editor.execute(createSetMeshDataCommand(editor.scene, nodeId, result, node.data));
   return ok({});
