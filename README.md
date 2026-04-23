@@ -14,14 +14,14 @@ Expect rapid iteration, breaking changes, renamed APIs, moved files, and workflo
 
 BLUD combines several layers that usually live in separate repos or are bundled in one big engine:
 
-- A world editor for building runtime scenes
+- **Dream Studio**, the world editor for building runtime scenes (`apps/editor`)
 - An animation editor for character and graph authoring
 - Runtime packages for loading and playing authored content in Three.js games
 - An orchestrator app that ties the tools and a running game together during development
 - Documentation and starter-oriented package structure for publishing and reuse
 
 ## What You Get
-- Codex everywhere: Inside the world editor to build scenes, inside the animation editor to construct animation graphs or edit clips and inside the orchestrator to modify the game directly!
+- Codex everywhere: inside **Dream Studio** to build scenes, inside the animation editor to construct animation graphs or edit clips, and inside the orchestrator to modify the game directly
 - Brush and blockout tools for fast world iteration
 - Mesh editing and material authoring
 - Light, entity, prop, and model placement
@@ -36,7 +36,7 @@ BLUD combines several layers that usually live in separate repos or are bundled 
 ### Apps
 
 - `apps/orchestrator`: main local entrypoint that launches and coordinates the tools
-- `apps/editor`: Dream Studio (the world editor)
+- `apps/editor`: **Dream Studio** — browser world editor (levels, materials, entities, physics preview, viewport)
 - `apps/animation-editor`: animation authoring tool
 - `apps/website`: docs and onboarding site
 - `apps/three-vanilla-playground`: isolated playground for runtime experimentation
@@ -55,6 +55,10 @@ BLUD combines several layers that usually live in separate repos or are bundled 
 
 - `docs/`: package and runtime documentation, mostly outdated atm, will fix later sry, just run the app you'll see how it works
 
+### Naming
+
+- **Dream Studio** is the product name for the world editor in `apps/editor`. Published packages and imports still use the **`@blud/*`** scope; BLUD remains the framework name.
+
 ## Requirements
 
 - Bun 1.3 or newer
@@ -65,11 +69,10 @@ BLUD combines several layers that usually live in separate repos or are bundled 
 
 ## Clone And Install
 
-1. Clone this Repository
+1. Clone this repository.
 
-2. Run it:
+2. From the repository root:
 ```bash
-cd blud
 bun install
 bun run start
 ```
@@ -84,7 +87,7 @@ bun run start
 
 That starts the orchestrator in `apps/orchestrator`. From there you can:
 
-- Open the world editor
+- Open **Dream Studio** (world editor)
 - Open the animation editor
 - Start and stop sample or local game projects
 - Switch between tools and the running game during iteration
@@ -104,7 +107,7 @@ bun run dev:three-vanilla
 
 Those commands map to:
 
-- `bun run dev`: world editor dev server
+- `bun run dev`: Dream Studio dev server (`apps/editor`)
 - `bun run dev:animation-editor`: animation editor dev server
 - `bun run dev:website`: docs site dev server
 - `bun run dev:three-vanilla`: runtime playground dev server
@@ -126,7 +129,7 @@ bun run typecheck:orchestrator
 ### Building a world
 
 1. Start the orchestrator with `bun run start`.
-2. Open the world editor.
+2. Open **Dream Studio**.
 3. Block out geometry, materials, lights, entities, and models.
 4. Push or export the scene into a running game.
 5. Switch to the game view and iterate.
@@ -149,7 +152,7 @@ bun run typecheck:orchestrator
 
 The repo does not require environment variables for normal local use.
 
-If you want AI generation features in the world editor, create `apps/editor/.env.local`:
+If you want AI generation features in Dream Studio, create `apps/editor/.env.local`:
 
 ```bash
 FAL_KEY=your_fal_api_key_here
