@@ -2,6 +2,7 @@ import { Canvas, useThree, type RootState } from "@react-three/fiber";
 import { ContactShadows } from "@react-three/drei";
 import { useRendererGlConfig } from "@/viewport/hooks/useRendererGlConfig";
 import {
+  bridgeEditableMeshEdges,
   arcEditableMeshEdges,
   bevelEditableMeshEdges,
   buildEditableMeshVertexNormals,
@@ -13,12 +14,20 @@ import {
   extrudeEditableMeshFaces,
   fillEditableMeshFaceFromEdges,
   fillEditableMeshFaceFromVertices,
+  insetEditableMeshFaces,
   invertEditableMeshNormals,
   mergeEditableMeshEdges,
   mergeEditableMeshFaces,
   mergeEditableMeshVertices,
+  mirrorEditableMesh,
+  pokeEditableMeshFaces,
+  quadrangulateEditableMeshFaces,
   sculptEditableMeshSamples,
-  subdivideEditableMeshFace
+  solidifyEditableMesh,
+  subdivideEditableMeshFace,
+  triangulateEditableMeshFaces,
+  weldEditableMeshVerticesByDistance,
+  weldEditableMeshVerticesToTarget
 } from "@blud/geometry-kernel";
 import {
   addVec3,
@@ -1890,6 +1899,9 @@ export function ViewportCanvas({
       setSculptState(null);
     }
 
+    const actionStep = Math.max(snapSize * 0.35, 0.05);
+    const weldDistance = Math.max(snapSize * 0.15, 0.01);
+
     switch (action) {
       case "arc": {
         if (meshEditMode === "edge") {
@@ -1900,6 +1912,16 @@ export function ViewportCanvas({
       case "bevel": {
         if (meshEditMode === "edge") {
           startBevelOperation();
+        }
+        return;
+      }
+      case "bridge": {
+        if (meshEditMode === "edge") {
+          const selectedEdges = resolveSelectedEditableMeshEdgePairs();
+
+          if (selectedEdges.length === 2) {
+            commitMeshTopology(bridgeEditableMeshEdges(editableMeshSource ?? emptyEditableMesh(), selectedEdges));
+          }
         }
         return;
       }
@@ -1924,6 +1946,16 @@ export function ViewportCanvas({
 
           if (selectedFaces.length > 0) {
             commitMeshTopology(deleteEditableMeshFaces(editableMeshSource ?? emptyEditableMesh(), selectedFaces));
+          }
+        }
+        return;
+      }
+      case "inset": {
+        if (meshEditMode === "face") {
+          const selectedFaces = resolveSelectedEditableMeshFaceIds();
+
+          if (selectedFaces.length > 0) {
+            commitMeshTopology(insetEditableMeshFaces(editableMeshSource ?? emptyEditableMesh(), selectedFaces, actionStep));
           }
         }
         return;
@@ -1998,13 +2030,85 @@ export function ViewportCanvas({
         }
         return;
       }
+      case "mirror-x": {
+        commitMeshTopology(mirrorEditableMesh(editableMeshSource ?? emptyEditableMesh(), "x", weldDistance));
+        return;
+      }
+      case "poke": {
+        if (meshEditMode === "face") {
+          const selectedFaces = resolveSelectedEditableMeshFaceIds();
+
+          if (selectedFaces.length > 0) {
+            commitMeshTopology(pokeEditableMeshFaces(editableMeshSource ?? emptyEditableMesh(), selectedFaces));
+          }
+        }
+        return;
+      }
+      case "quadrangulate": {
+        if (meshEditMode === "face") {
+          const selectedFaces = resolveSelectedEditableMeshFaceIds();
+
+          if (selectedFaces.length > 1) {
+            commitMeshTopology(quadrangulateEditableMeshFaces(editableMeshSource ?? emptyEditableMesh(), selectedFaces));
+          }
+        }
+        return;
+      }
       case "deflate": {
         startSculptMode("deflate");
+        return;
+      }
+      case "solidify": {
+        commitMeshTopology(solidifyEditableMesh(editableMeshSource ?? emptyEditableMesh(), actionStep));
         return;
       }
       case "subdivide": {
         if (meshEditMode === "face") {
           startFaceSubdivisionOperation();
+        }
+        return;
+      }
+      case "triangulate": {
+        if (meshEditMode === "face") {
+          const selectedFaces = resolveSelectedEditableMeshFaceIds();
+
+          if (selectedFaces.length > 0) {
+            commitMeshTopology(triangulateEditableMeshFaces(editableMeshSource ?? emptyEditableMesh(), selectedFaces));
+          }
+        }
+        return;
+      }
+      case "weld-distance": {
+        if (meshEditMode === "vertex") {
+          const selectedVertices = resolveSelectedEditableMeshVertexIds();
+
+          if (selectedVertices.length > 1) {
+            commitMeshTopology(
+              weldEditableMeshVerticesByDistance(
+                editableMeshSource ?? emptyEditableMesh(),
+                weldDistance,
+                selectedVertices
+              )
+            );
+          }
+        }
+        return;
+      }
+      case "weld-target": {
+        if (meshEditMode === "vertex") {
+          const selectedVertices = resolveSelectedEditableMeshVertexIds();
+
+          if (selectedVertices.length > 1) {
+            const [targetVertexId, ...sourceVertexIds] = selectedVertices;
+
+            commitMeshTopology(
+              weldEditableMeshVerticesToTarget(
+                editableMeshSource ?? emptyEditableMesh(),
+                targetVertexId,
+                sourceVertexIds
+              )
+            );
+          }
         }
         return;
       }

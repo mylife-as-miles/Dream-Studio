@@ -62,7 +62,7 @@ const tempInstanceMatrix = new Matrix4();
 const tempPivotMatrix = new Matrix4();
 const tempInstanceColor = new Color();
 let cloneModelSceneImpl: (scene: Object3D) => Object3D = (scene) => scene.clone(true);
-let gltfPreviewToolsPromise: Promise<{ GLTFLoader: typeof import("three/examples/jsm/loaders/GLTFLoader.js").GLTFLoader }> | null = null;
+let gltfPreviewToolsPromise: Promise<{ gltfLoader: import("three/examples/jsm/loaders/GLTFLoader.js").GLTFLoader }> | null = null;
 let objPreviewToolsPromise: Promise<{
   MTLLoader: typeof import("three/examples/jsm/loaders/MTLLoader.js").MTLLoader;
   OBJLoader: typeof import("three/examples/jsm/loaders/OBJLoader.js").OBJLoader;
@@ -71,13 +71,13 @@ let objPreviewToolsPromise: Promise<{
 function loadGltfPreviewTools() {
   if (!gltfPreviewToolsPromise) {
     gltfPreviewToolsPromise = Promise.all([
-      import("three/examples/jsm/loaders/GLTFLoader.js"),
+      import("@blud/three-runtime"),
       import("three/examples/jsm/utils/SkeletonUtils.js")
-    ]).then(([gltfModule, skeletonUtilsModule]) => {
+    ]).then(([runtime, skeletonUtilsModule]) => {
       cloneModelSceneImpl = skeletonUtilsModule.clone;
 
       return {
-        GLTFLoader: gltfModule.GLTFLoader
+        gltfLoader: runtime.getSharedGLTFLoader({ publicBaseUrl: import.meta.env.BASE_URL ?? "/" })
       };
     });
   }
@@ -2532,8 +2532,7 @@ async function loadModelScene(
     return object;
   }
 
-  const { GLTFLoader } = await loadGltfPreviewTools();
-  const gltfLoader = new GLTFLoader();
+  const { gltfLoader } = await loadGltfPreviewTools();
   const gltf = await gltfLoader.loadAsync(path);
   return gltf.scene;
 }

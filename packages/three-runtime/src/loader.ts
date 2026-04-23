@@ -32,7 +32,7 @@ import {
   RepeatWrapping,
   Vector3
 } from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { getSharedGLTFLoader } from "./gltf-loader";
 import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
@@ -121,7 +121,7 @@ export type ThreeRuntimeSceneInstanceOptions = WebHammerSceneLoaderOptions;
 export type ThreeRuntimeSceneLodOptions = WebHammerSceneLodOptions;
 
 const textureLoader = new TextureLoader();
-const gltfLoader = new GLTFLoader();
+const gltfLoader = getSharedGLTFLoader();
 const hdrLoader = new HDRLoader();
 const mtlLoader = new MTLLoader();
 

@@ -276,21 +276,30 @@ export function ToolsPanel({
                   meshEditMode={meshEditMode}
                   onArc={() => onMeshEditToolbarAction("arc")}
                   onBevel={() => onMeshEditToolbarAction("bevel")}
+                  onBridge={() => onMeshEditToolbarAction("bridge")}
                   onCut={() => onMeshEditToolbarAction("cut")}
                   onDeflate={() => onMeshEditToolbarAction("deflate")}
                   onDelete={() => onMeshEditToolbarAction("delete")}
                   onExtrude={() => onMeshEditToolbarAction("extrude")}
                   onFillFace={() => onMeshEditToolbarAction("fill-face")}
                   onInflate={() => onMeshEditToolbarAction("inflate")}
+                  onInset={() => onMeshEditToolbarAction("inset")}
                   onInvertNormals={() => onMeshEditToolbarAction("invert-normals")}
                   onLowerTop={onLowerTop}
                   onMerge={() => onMeshEditToolbarAction("merge")}
+                  onMirrorX={() => onMeshEditToolbarAction("mirror-x")}
+                  onPoke={() => onMeshEditToolbarAction("poke")}
+                  onQuadrangulate={() => onMeshEditToolbarAction("quadrangulate")}
                   onRaiseTop={onRaiseTop}
                   onSetMeshEditMode={onSetMeshEditMode}
                   onSetSculptBrushRadius={onSetSculptBrushRadius}
                   onSetSculptBrushStrength={onSetSculptBrushStrength}
                   onSetTransformMode={onSetTransformMode}
+                  onSolidify={() => onMeshEditToolbarAction("solidify")}
                   onSubdivide={() => onMeshEditToolbarAction("subdivide")}
+                  onTriangulate={() => onMeshEditToolbarAction("triangulate")}
+                  onWeldDistance={() => onMeshEditToolbarAction("weld-distance")}
+                  onWeldTarget={() => onMeshEditToolbarAction("weld-target")}
                   sculptBrushRadius={sculptBrushRadius}
                   sculptBrushStrength={sculptBrushStrength}
                   sculptMode={sculptMode}

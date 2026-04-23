@@ -1,7 +1,22 @@
 import { useEffect, useRef, useState, useCallback, type ChangeEvent } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import {
+  applyEditableMeshModeling,
+  captureEditableMeshModelingBase,
+  initializeEditableMeshModeling,
+  updateEditableMeshModeling
+} from "@blud/geometry-kernel";
+import {
   type EditableMesh,
+  type MeshBakeMapKind,
+  type MeshBooleanModifier,
+  type MeshLatticeModifier,
+  type MeshLodProfile,
+  type MeshModelingModifier,
+  type MeshPolyGroup,
+  type MeshRemeshModifier,
+  type MeshRetopoModifier,
+  type MeshSmoothingGroup,
   isInstancingNode,
   isLightNode,
   isPrimitiveNode,
@@ -1261,6 +1276,17 @@ export function InspectorSidebar({
                       <MeshPhysicsInspector
                         node={selectedMeshNode}
                         onUpdateMeshData={onUpdateMeshData}
+                      />
+                    ) : null}
+                    {selectedMeshNode ? (
+                      <MeshModelingInspector
+                        activeToolId={activeToolId}
+                        meshEditMode={meshEditMode}
+                        node={selectedMeshNode}
+                        nodes={nodes}
+                        onMeshEditToolbarAction={onMeshEditToolbarAction}
+                        onUpdateMeshData={onUpdateMeshData}
+                        selectedFaceIds={selectedFaceIds}
                       />
                     ) : null}
                     {selectedInstancingNode ? <InstancingInspector node={selectedInstancingNode} /> : null}

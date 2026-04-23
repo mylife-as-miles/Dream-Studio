@@ -178,6 +178,15 @@ export function MergeFacesIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function BridgeEdgesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M5 7h4M15 17h4M9 7l6 10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path d="M8 10.5h8v3H8z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 export function FillFaceIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 24 24" {...props}>
@@ -196,6 +205,26 @@ export function CutMeshIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function InsetFaceIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M5.5 6.5h13v11h-13z" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9 9h6v5H9z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M7.5 8.5 9 9m7.5-.5L15 9m-7 6 1-1m7 1-1-1" opacity="0.72" stroke="currentColor" strokeLinecap="round" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+export function PokeFaceIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M6.5 8.5 17.5 7l-2.5 9-8.5 1.5 0-9Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+      <path d="M12 12l-5.5-3.5M12 12 17.5 7M12 12l3 5M12 12l-5.5 5.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function SubdivideIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 24 24" {...props}>
@@ -205,11 +234,69 @@ export function SubdivideIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function TriangulateIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M6 17.5 12 6l6 11.5H6Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+      <path d="M9 13h6M12 6v7" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+export function QuadrangulateIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M6.5 8.5 12 6l5.5 2.5v7L12 18l-5.5-2.5v-7Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+      <path d="M12 6v12M6.5 12h11" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 export function DeleteFacesIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" viewBox="0 0 24 24" {...props}>
       <path d="M7 8h10l-1 10H8L7 8Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
       <path d="M9 8V6h6v2M10 11v4M14 11v4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export function SolidifyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M7 7h10v10H7z" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9.5 9.5h10v10h-10z" opacity="0.34" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M17 7v10M7 17h10" stroke="currentColor" strokeLinecap="round" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+export function MirrorXIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M12 4v16" stroke="currentColor" strokeDasharray="2.5 2.5" strokeLinecap="round" strokeWidth="1.4" />
+      <path d="M6 8.5 10.5 6v12L6 15.5v-7ZM18 8.5 13.5 6v12l4.5-2.5v-7Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export function WeldDistanceIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <circle cx="8" cy="12" r="2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="16" cy="12" r="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M10.5 12h3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <path d="M12 7.5v-2M12 18.5v-2" opacity="0.72" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+export function TargetWeldIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <circle cx="8" cy="12" r="1.8" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="16" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.6" />
+      <path d="m10.5 12 2.8 0M12.5 9.8l2.4 2.2-2.4 2.2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
     </svg>
   );
 }

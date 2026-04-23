@@ -188,11 +188,119 @@ export type EditableMeshFace = {
   uvs?: Vec2[];
 };
 
-export type EditableMesh = {
+export type EditableMeshTopology = {
   vertices: EditableMeshVertex[];
   halfEdges: EditableMeshHalfEdge[];
   faces: EditableMeshFace[];
+};
+
+export type MeshBooleanOperation = "difference" | "intersect" | "union";
+export type MeshLatticeDeformKind = "bend" | "shear" | "taper" | "twist";
+export type MeshRemeshMode = "cleanup" | "quad" | "voxel";
+export type MeshBakeMapKind = "ao" | "curvature" | "id-mask" | "normals" | "vertex-colors";
+
+export type MeshModelingModifierBase = {
+  enabled: boolean;
+  id: string;
+  label: string;
+};
+
+export type MeshBooleanModifier = MeshModelingModifierBase & {
+  mode: "apply" | "live";
+  operation: MeshBooleanOperation;
+  targetNodeId?: NodeID;
+  type: "boolean";
+};
+
+export type MeshMirrorModifier = MeshModelingModifierBase & {
+  axis: "x" | "y" | "z";
+  type: "mirror";
+  weld: boolean;
+};
+
+export type MeshSolidifyModifier = MeshModelingModifierBase & {
+  thickness: number;
+  type: "solidify";
+};
+
+export type MeshLatticeModifier = MeshModelingModifierBase & {
+  axis: "x" | "y" | "z";
+  falloff: number;
+  intensity: number;
+  mode: MeshLatticeDeformKind;
+  type: "lattice";
+};
+
+export type MeshRemeshModifier = MeshModelingModifierBase & {
+  mode: MeshRemeshMode;
+  resolution: number;
+  smoothing: number;
+  type: "remesh";
+  weldDistance: number;
+};
+
+export type MeshRetopoModifier = MeshModelingModifierBase & {
+  preserveBorders: boolean;
+  targetFaceCount: number;
+  type: "retopo";
+};
+
+export type MeshModelingModifier =
+  | MeshBooleanModifier
+  | MeshMirrorModifier
+  | MeshSolidifyModifier
+  | MeshLatticeModifier
+  | MeshRemeshModifier
+  | MeshRetopoModifier;
+
+export type MeshPolyGroup = {
+  color: string;
+  faceIds: FaceID[];
+  id: string;
+  name: string;
+};
+
+export type MeshSmoothingGroup = {
+  angle: number;
+  faceIds: FaceID[];
+  id: string;
+  name: string;
+};
+
+export type MeshLodProfile = {
+  faceCount?: number;
+  generatedAt?: string;
+  id: string;
+  name: string;
+  ratio: number;
+};
+
+export type MeshBakeOutput = {
+  generatedAt?: string;
+  id: string;
+  kind: MeshBakeMapKind;
+  resolution: number;
+  sourceGroupId?: string;
+  status: "error" | "idle" | "queued" | "ready";
+};
+
+export type EditableMeshModelingData = {
+  bakeOutputs?: MeshBakeOutput[];
+  baseTopology?: EditableMeshTopology;
+  lods?: MeshLodProfile[];
+  modifiers?: MeshModelingModifier[];
+  polyGroups?: MeshPolyGroup[];
+  smoothingGroups?: MeshSmoothingGroup[];
+  symmetry?: {
+    axis: "x" | "y" | "z";
+    enabled: boolean;
+    weld: boolean;
+  };
+};
+
+export type EditableMesh = EditableMeshTopology & {
   physics?: PropPhysics;
+  modeling?: EditableMeshModelingData;
   role?: PrimitiveRole;
 };
 

@@ -1,22 +1,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
-import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { getSharedGLTFLoader } from "@blud/three-runtime";
 
 const CAMERA_RADIUS = 15;
 const MIN_POLAR = 0.86;
 const MAX_POLAR = 1.32;
 
-const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath("/draco/");
-
-function createLoader(): GLTFLoader {
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  loader.setDRACOLoader(dracoLoader);
-  return loader;
-}
+const gltfLoader = getSharedGLTFLoader({ publicBaseUrl: "/" });
 
 async function fetchModelPaths(): Promise<string[]> {
   try {
@@ -103,7 +93,7 @@ export function LauncherViewportScene() {
       void fetchModelPaths().then(async (paths) => {
         if (cancelled || paths.length === 0) return;
 
-        const loader = createLoader();
+        const loader = gltfLoader;
         const spacing = 4;
         const totalWidth = (paths.length - 1) * spacing;
         const startX = -totalWidth / 2;

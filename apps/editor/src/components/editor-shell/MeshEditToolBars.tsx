@@ -2,6 +2,7 @@ import type { MeshEditMode } from "@/viewport/editing";
 import {
   ArcEdgeIcon,
   BevelIcon,
+  BridgeEdgesIcon,
   CutMeshIcon,
   DeleteFacesIcon,
   DeflateIcon,
@@ -11,14 +12,22 @@ import {
   FillFaceIcon,
   FlipNormalsIcon,
   InflateIcon,
+  InsetFaceIcon,
   LowerTopIcon,
   MergeFacesIcon,
+  MirrorXIcon,
+  PokeFaceIcon,
+  QuadrangulateIcon,
   RaiseTopIcon,
   RotateModeIcon,
   ScaleModeIcon,
+  SolidifyIcon,
   SubdivideIcon,
+  TargetWeldIcon,
   TranslateModeIcon,
-  VertexModeIcon
+  TriangulateIcon,
+  VertexModeIcon,
+  WeldDistanceIcon
 } from "@/components/editor-shell/icons";
 import { Button } from "@/components/ui/button";
 import { DragInput } from "@/components/ui/drag-input";
@@ -28,8 +37,9 @@ import { cn } from "@/lib/utils";
 export function MeshEditToolBars({
   onArc,
   onBevel,
+  onBridge,
   onDelete,
-  meshEditMode,
+  onInset,
   onExtrude,
   onFillFace,
   onDeflate,
@@ -37,13 +47,21 @@ export function MeshEditToolBars({
   onInvertNormals,
   onLowerTop,
   onMerge,
+  onMirrorX,
+  onPoke,
+  onQuadrangulate,
   onRaiseTop,
   onSetMeshEditMode,
   onSetSculptBrushRadius,
   onSetSculptBrushStrength,
+  onSolidify,
   onSubdivide,
   onCut,
   onSetTransformMode,
+  onTriangulate,
+  onWeldDistance,
+  onWeldTarget,
+  meshEditMode,
   sculptMode,
   sculptBrushRadius,
   sculptBrushStrength,
@@ -53,8 +71,9 @@ export function MeshEditToolBars({
 }: {
   onArc: () => void;
   onBevel: () => void;
+  onBridge: () => void;
   onDelete: () => void;
-  meshEditMode: MeshEditMode;
+  onInset: () => void;
   onExtrude: () => void;
   onFillFace: () => void;
   onDeflate: () => void;
@@ -62,13 +81,21 @@ export function MeshEditToolBars({
   onInvertNormals: () => void;
   onLowerTop: () => void;
   onMerge: () => void;
+  onMirrorX: () => void;
+  onPoke: () => void;
+  onQuadrangulate: () => void;
   onRaiseTop: () => void;
   onSetMeshEditMode: (mode: MeshEditMode) => void;
   onSetSculptBrushRadius: (value: number) => void;
   onSetSculptBrushStrength: (value: number) => void;
+  onSolidify: () => void;
   onSubdivide: () => void;
   onCut: () => void;
   onSetTransformMode: (mode: "rotate" | "scale" | "translate") => void;
+  onTriangulate: () => void;
+  onWeldDistance: () => void;
+  onWeldTarget: () => void;
+  meshEditMode: MeshEditMode;
   sculptMode?: "deflate" | "inflate" | null;
   sculptBrushRadius: number;
   sculptBrushStrength: number;
@@ -102,11 +129,22 @@ export function MeshEditToolBars({
         <MeshToolbarSection label="Topology">
           <MeshBarButton disabled={!selectedGeometry || meshEditMode === "vertex"} icon={ExtrudeIcon} onClick={onExtrude} shortcut="X" tooltip="Extrude" />
           <MeshBarButton disabled={!selectedGeometry || meshEditMode === "vertex"} icon={CutMeshIcon} onClick={onCut} shortcut={meshEditMode === "face" ? "Shift+K" : "K"} tooltip={meshEditMode === "face" ? "Face cut" : "Edge cut"} />
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "edge"} icon={BridgeEdgesIcon} onClick={onBridge} tooltip="Bridge boundary edges" />
           <MeshBarButton disabled={!selectedGeometry} icon={MergeFacesIcon} onClick={onMerge} shortcut="M" tooltip={mergeTooltip} />
           <MeshBarButton disabled={!selectedGeometry} icon={FillFaceIcon} onClick={onFillFace} shortcut="Shift+F" tooltip={meshEditMode === "vertex" ? "Fill from vertices" : "Fill from edges"} />
           <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "face"} icon={SubdivideIcon} onClick={onSubdivide} shortcut="D" tooltip="Subdivide face" />
           <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "face"} icon={DeleteFacesIcon} onClick={onDelete} shortcut="Del" tooltip="Delete faces" />
           <MeshBarButton disabled={!selectedGeometry} icon={FlipNormalsIcon} onClick={onInvertNormals} shortcut="N" tooltip="Invert normals" />
+        </MeshToolbarSection>
+        <MeshToolbarSection label="Advanced">
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "face"} icon={InsetFaceIcon} onClick={onInset} tooltip="Inset faces" />
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "face"} icon={PokeFaceIcon} onClick={onPoke} tooltip="Poke faces" />
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "face"} icon={TriangulateIcon} onClick={onTriangulate} tooltip="Triangulate faces" />
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "face"} icon={QuadrangulateIcon} onClick={onQuadrangulate} tooltip="Quadrangulate triangles" />
+          <MeshBarButton disabled={!selectedGeometry && !selectedMesh} icon={SolidifyIcon} onClick={onSolidify} tooltip="Solidify / shell" />
+          <MeshBarButton disabled={!selectedGeometry && !selectedMesh} icon={MirrorXIcon} onClick={onMirrorX} tooltip="Mirror across X" />
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "vertex"} icon={WeldDistanceIcon} onClick={onWeldDistance} tooltip="Weld by distance" />
+          <MeshBarButton disabled={!selectedGeometry || meshEditMode !== "vertex"} icon={TargetWeldIcon} onClick={onWeldTarget} tooltip="Target weld" />
         </MeshToolbarSection>
       </div>
       {sculptMode ? (

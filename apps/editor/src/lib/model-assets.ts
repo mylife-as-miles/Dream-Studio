@@ -1,10 +1,10 @@
 import type { Asset, GeometryNode, PrimitiveNode, Vec3 } from "@blud/shared";
 import { isPrimitiveNode, vec3 } from "@blud/shared";
+import { getSharedGLTFLoader } from "@blud/three-runtime";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Box3, Vector3 } from "three";
 
-const gltfLoader = new GLTFLoader();
+const gltfLoader = getSharedGLTFLoader({ publicBaseUrl: import.meta.env.BASE_URL ?? "/" });
 const objLoader = new OBJLoader();
 
 export type ModelBounds = {

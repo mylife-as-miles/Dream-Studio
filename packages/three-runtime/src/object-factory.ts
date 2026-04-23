@@ -28,7 +28,7 @@ import {
   TextureLoader,
   Vector3
 } from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { getSharedGLTFLoader } from "./gltf-loader";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type {
@@ -74,7 +74,7 @@ type WebHammerSceneObjectFactoryResources = {
 };
 
 const textureLoader = new TextureLoader();
-const gltfLoader = new GLTFLoader();
+const gltfLoader = getSharedGLTFLoader();
 const mtlLoader = new MTLLoader();
 const modelTextureLoader = new TextureLoader();
 const tempModelInstanceMatrix = new Matrix4();

@@ -20,15 +20,24 @@ import type { Plane, Vector2 } from "three";
 export type MeshEditToolbarAction =
   | "arc"
   | "bevel"
+  | "bridge"
   | "cut"
   | "delete"
+  | "inset"
   | "extrude"
   | "fill-face"
   | "inflate"
   | "invert-normals"
   | "merge"
+  | "mirror-x"
+  | "poke"
+  | "quadrangulate"
   | "deflate"
-  | "subdivide";
+  | "solidify"
+  | "subdivide"
+  | "triangulate"
+  | "weld-distance"
+  | "weld-target";
 
 export type MeshEditToolbarActionRequest = {
   id: number;

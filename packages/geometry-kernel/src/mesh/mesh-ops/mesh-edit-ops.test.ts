@@ -7,6 +7,17 @@ import {
   getFaceVertices,
   validateEditableMesh
 } from "../editable-mesh";
+import {
+  bridgeEditableMeshEdges,
+  insetEditableMeshFaces,
+  mirrorEditableMesh,
+  pokeEditableMeshFaces,
+  quadrangulateEditableMeshFaces,
+  solidifyEditableMesh,
+  triangulateEditableMeshFaces,
+  weldEditableMeshVerticesByDistance,
+  weldEditableMeshVerticesToTarget
+} from "./advanced-ops";
 import { bevelEditableMeshEdge, bevelEditableMeshEdges } from "./bevel-ops";
 import { buildEditableMeshFaceCutPreview, cutEditableMeshFace } from "./cut-ops";
 import { subdivideEditableMeshFace } from "./subdivide-ops";
@@ -214,6 +225,173 @@ describe("bevelEditableMeshEdges", () => {
     edgeUsage.forEach((count) => {
       expect(count).toBe(2);
     });
+  });
+});
+
+describe("insetEditableMeshFaces", () => {
+  test("replaces a selected face with an inset face and stitched support ring", () => {
+    const result = insetEditableMeshFaces(createCube(), ["front"], 0.2);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(getFaceVertexIds(result!, "front").every((vertexId) => vertexId.startsWith("front:inset:"))).toBe(true);
+    expect(countFacesUsingUndirectedEdge(result!, ["e", "f"])).toBe(2);
+    expect(result!.faces.some((face) => face.id === "front:inset:ring:0")).toBe(true);
+  });
+});
+
+describe("bridgeEditableMeshEdges", () => {
+  test("fills the span between two boundary edges with a bridging quad", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "left",
+        positions: [vec3(0, 0, 0), vec3(0, 1, 0), vec3(1, 1, 0), vec3(1, 0, 0)],
+        vertexIds: ["a", "b", "c", "d"]
+      },
+      {
+        id: "right",
+        positions: [vec3(2, 0, 0), vec3(2, 1, 0), vec3(3, 1, 0), vec3(3, 0, 0)],
+        vertexIds: ["e", "f", "g", "h"]
+      }
+    ]);
+    const result = bridgeEditableMeshEdges(mesh, [["c", "d"], ["e", "f"]]);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.faces).toHaveLength(3);
+    expect(countFacesUsingUndirectedEdge(result!, ["c", "d"])).toBe(2);
+    expect(countFacesUsingUndirectedEdge(result!, ["e", "f"])).toBe(2);
+  });
+});
+
+describe("pokeEditableMeshFaces", () => {
+  test("fans a quad into triangles around a new center vertex", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "face",
+        positions: [vec3(0, 0, 0), vec3(2, 0, 0), vec3(2, 2, 0), vec3(0, 2, 0)],
+        vertexIds: ["a", "b", "c", "d"]
+      }
+    ]);
+    const result = pokeEditableMeshFaces(mesh, ["face"]);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.faces).toHaveLength(4);
+    expect(result!.vertices.filter((vertex) => vertex.id === "face:poke:center")).toHaveLength(1);
+  });
+});
+
+describe("triangulateEditableMeshFaces", () => {
+  test("triangulates selected quads into stitched triangles", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "face",
+        positions: [vec3(0, 0, 0), vec3(2, 0, 0), vec3(2, 2, 0), vec3(0, 2, 0)],
+        vertexIds: ["a", "b", "c", "d"]
+      }
+    ]);
+    const result = triangulateEditableMeshFaces(mesh, ["face"]);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.faces).toHaveLength(2);
+  });
+});
+
+describe("quadrangulateEditableMeshFaces", () => {
+  test("merges adjacent coplanar triangles back into a quad", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "tri-a",
+        positions: [vec3(0, 0, 0), vec3(2, 0, 0), vec3(2, 2, 0)],
+        vertexIds: ["a", "b", "c"]
+      },
+      {
+        id: "tri-b",
+        positions: [vec3(0, 0, 0), vec3(2, 2, 0), vec3(0, 2, 0)],
+        vertexIds: ["a", "c", "d"]
+      }
+    ]);
+    const result = quadrangulateEditableMeshFaces(mesh, ["tri-a", "tri-b"]);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.faces).toHaveLength(1);
+    expect(getFaceVertexIds(result!, "tri-a")).toHaveLength(4);
+  });
+});
+
+describe("solidifyEditableMesh", () => {
+  test("creates inner and side faces for open surfaces", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "face",
+        positions: [vec3(0, 0, 0), vec3(2, 0, 0), vec3(2, 2, 0), vec3(0, 2, 0)],
+        vertexIds: ["a", "b", "c", "d"]
+      }
+    ]);
+    const result = solidifyEditableMesh(mesh, 0.25);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.faces).toHaveLength(6);
+  });
+});
+
+describe("mirrorEditableMesh", () => {
+  test("duplicates a mesh across the requested axis while preserving on-plane ids", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "panel",
+        positions: [vec3(1, 0, 0), vec3(1, 1, 0), vec3(2, 1, 0), vec3(2, 0, 0)],
+        vertexIds: ["a", "b", "c", "d"]
+      }
+    ]);
+    const result = mirrorEditableMesh(mesh, "x");
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.faces).toHaveLength(2);
+  });
+});
+
+describe("weldEditableMeshVerticesByDistance", () => {
+  test("collapses selected near-duplicate vertices into shared positions", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "tri-a",
+        positions: [vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0)],
+        vertexIds: ["a", "b", "c"]
+      },
+      {
+        id: "tri-b",
+        positions: [vec3(1.01, 0, 0), vec3(1, 1, 0), vec3(0.01, 1, 0)],
+        vertexIds: ["b2", "d", "c2"]
+      }
+    ]);
+    const result = weldEditableMeshVerticesByDistance(mesh, 0.02, ["b", "b2", "c", "c2"]);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.vertices.length).toBeLessThan(mesh.vertices.length);
+  });
+});
+
+describe("weldEditableMeshVerticesToTarget", () => {
+  test("snaps selected vertices onto the requested target vertex", () => {
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "face",
+        positions: [vec3(0, 0, 0), vec3(1, 0, 0), vec3(1.1, 1, 0), vec3(0, 1, 0)],
+        vertexIds: ["a", "b", "c", "d"]
+      }
+    ]);
+    const result = weldEditableMeshVerticesToTarget(mesh, "b", ["c"]);
+
+    expect(result).toBeDefined();
+    expect(validateEditableMesh(result!).valid).toBe(true);
+    expect(result!.vertices.some((vertex) => vertex.id === "c")).toBe(false);
   });
 });
 

@@ -169,8 +169,10 @@ export function ToolPalette({
                   <MeshEditToolBars
                     onArc={() => onMeshEditToolbarAction("arc")}
                     onBevel={() => onMeshEditToolbarAction("bevel")}
+                    onBridge={() => onMeshEditToolbarAction("bridge")}
                     onCut={() => onMeshEditToolbarAction("cut")}
                     onDelete={() => onMeshEditToolbarAction("delete")}
+                    onInset={() => onMeshEditToolbarAction("inset")}
                     onExtrude={() => onMeshEditToolbarAction("extrude")}
                     meshEditMode={meshEditMode}
                     onFillFace={() => onMeshEditToolbarAction("fill-face")}
@@ -179,12 +181,19 @@ export function ToolPalette({
                     onInvertNormals={() => onMeshEditToolbarAction("invert-normals")}
                     onLowerTop={onLowerTop}
                     onMerge={() => onMeshEditToolbarAction("merge")}
+                    onMirrorX={() => onMeshEditToolbarAction("mirror-x")}
+                    onPoke={() => onMeshEditToolbarAction("poke")}
+                    onQuadrangulate={() => onMeshEditToolbarAction("quadrangulate")}
                     onRaiseTop={onRaiseTop}
                     onSetSculptBrushRadius={onSetSculptBrushRadius}
                     onSetSculptBrushStrength={onSetSculptBrushStrength}
                     onSetMeshEditMode={onSetMeshEditMode}
+                    onSolidify={() => onMeshEditToolbarAction("solidify")}
                     onSubdivide={() => onMeshEditToolbarAction("subdivide")}
                     onSetTransformMode={onSetTransformMode}
+                    onTriangulate={() => onMeshEditToolbarAction("triangulate")}
+                    onWeldDistance={() => onMeshEditToolbarAction("weld-distance")}
+                    onWeldTarget={() => onMeshEditToolbarAction("weld-target")}
                     sculptMode={sculptMode}
                     sculptBrushRadius={sculptBrushRadius}
                     sculptBrushStrength={sculptBrushStrength}
