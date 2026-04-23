@@ -2,6 +2,7 @@ import type {
   BrushNode,
   Entity,
   GeometryNode,
+  GridMapNode,
   GroupNode,
   InstancingNode,
   LightNode,
@@ -11,6 +12,8 @@ import type {
   NodeID,
   PrimitiveNode,
   SceneSettings,
+  SplineNode,
+  TerrainNode,
   Transform,
   Vec2,
   Vec3,
@@ -510,6 +513,18 @@ export function isInstancingNode(node: GeometryNode): node is InstancingNode {
 
 export function isLightNode(node: GeometryNode): node is LightNode {
   return node.kind === "light";
+}
+
+export function isTerrainNode(node: GeometryNode): node is TerrainNode {
+  return node.kind === "terrain";
+}
+
+export function isGridMapNode(node: GeometryNode): node is GridMapNode {
+  return node.kind === "gridmap";
+}
+
+export function isSplineNode(node: GeometryNode): node is SplineNode {
+  return node.kind === "spline";
 }
 
 export function isInstancingSourceNode(node: GeometryNode): node is BrushNode | MeshNode | PrimitiveNode | ModelNode {

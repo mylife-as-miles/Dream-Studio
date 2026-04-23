@@ -43,6 +43,87 @@ export type ArchitectureElementType =
   | "guide"
   | "scan";
 
+// --- Terrain types ---
+
+export type FalloffType = "linear" | "smooth" | "constant";
+export type TerrainBrushMode = "raise" | "lower" | "flatten" | "smooth" | "noise" | "terrace" | "erosion";
+
+export type TerrainLayerDefinition = {
+  materialId: string;
+  name: string;
+};
+
+export type TerrainNodeData = {
+  heightmap: Float32Array;
+  resolution: number;
+  size: Vec3;
+  splatmap: Float32Array;
+  layers: TerrainLayerDefinition[];
+  lodLevels: number;
+  holeMask?: Uint8Array;
+};
+
+// --- GridMap types ---
+
+export type TileEntry = {
+  tileId: string;
+  rotation: 0 | 90 | 180 | 270;
+  flipX?: boolean;
+  flipZ?: boolean;
+};
+
+export type AutoTileRule = {
+  pattern: string;
+  tileId: string;
+  rotation: 0 | 90 | 180 | 270;
+};
+
+export type TilePaletteEntry = {
+  id: string;
+  name: string;
+  meshAssetId: string;
+  hasCollision: boolean;
+  hasNavMesh: boolean;
+  autoTileRules?: AutoTileRule[];
+};
+
+export type GridMapNodeData = {
+  cellSize: Vec3;
+  tiles: Record<string, TileEntry>;
+  palette: TilePaletteEntry[];
+};
+
+// --- Spline types ---
+
+export type SplineType = "road" | "fence" | "pipe" | "rail" | "cable" | "wall" | "river" | "curb";
+export type SplineInterpolation = "bezier" | "catmull-rom";
+
+export type ControlPoint = {
+  position: Vec3;
+  inTangent: Vec3;
+  outTangent: Vec3;
+};
+
+export type CrossSectionProfile = {
+  points: Vec2[];
+};
+
+export type SplineTerrainIntegration = {
+  flatten: boolean;
+  corridorWidth: number;
+  embedDepth: number;
+};
+
+export type SplineNodeData = {
+  splineType: SplineType;
+  interpolation: SplineInterpolation;
+  controlPoints: ControlPoint[];
+  crossSection: CrossSectionProfile;
+  closed: boolean;
+  segmentCount: number;
+  terrainIntegration?: SplineTerrainIntegration;
+};
+
 export type Vec3 = {
   x: number;
   y: number;
@@ -217,7 +298,22 @@ export type LightNode = GeometryNodeBase & {
   data: LightNodeData;
 };
 
-export type GeometryNode = BrushNode | GroupNode | MeshNode | ModelNode | PrimitiveNode | InstancingNode | LightNode;
+export type TerrainNode = GeometryNodeBase & {
+  kind: "terrain";
+  data: TerrainNodeData;
+};
+
+export type GridMapNode = GeometryNodeBase & {
+  kind: "gridmap";
+  data: GridMapNodeData;
+};
+
+export type SplineNode = GeometryNodeBase & {
+  kind: "spline";
+  data: SplineNodeData;
+};
+
+export type GeometryNode = BrushNode | GroupNode | MeshNode | ModelNode | PrimitiveNode | InstancingNode | LightNode | TerrainNode | GridMapNode | SplineNode;
 
 export type Asset = {
   id: AssetID;
