@@ -3471,6 +3471,8 @@ function installSurfaceBlendShader(
     layers.forEach((layer, index) => {
       shader.uniforms[`surfaceBlendColor${index}`] = { value: new Color(layer.color ?? spec.color) };
       shader.uniforms[`surfaceBlendMap${index}`] = { value: blendLayerTextures[index] ?? null };
+      shader.uniforms[`surfaceBlendMetalness${index}`] = { value: layer.metalness ?? spec.metalness };
+      shader.uniforms[`surfaceBlendRoughness${index}`] = { value: layer.roughness ?? spec.roughness };
       shader.uniforms[`surfaceBlendUseMap${index}`] = { value: Boolean(blendLayerTextures[index]) };
     });
 
@@ -3496,6 +3498,14 @@ uniform vec3 surfaceBlendColor0;
 uniform vec3 surfaceBlendColor1;
 uniform vec3 surfaceBlendColor2;
 uniform vec3 surfaceBlendColor3;
+uniform float surfaceBlendMetalness0;
+uniform float surfaceBlendMetalness1;
+uniform float surfaceBlendMetalness2;
+uniform float surfaceBlendMetalness3;
+uniform float surfaceBlendRoughness0;
+uniform float surfaceBlendRoughness1;
+uniform float surfaceBlendRoughness2;
+uniform float surfaceBlendRoughness3;
 uniform sampler2D surfaceBlendMap0;
 uniform sampler2D surfaceBlendMap1;
 uniform sampler2D surfaceBlendMap2;
@@ -3524,6 +3534,22 @@ surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendCol
 surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendColor2, surfaceBlendMap2, surfaceBlendUseMap2), clamp(vSurfaceBlend.z, 0.0, 1.0));
 surfaceMixedColor = mix(surfaceMixedColor, readSurfaceBlendLayer(surfaceBlendColor3, surfaceBlendMap3, surfaceBlendUseMap3), clamp(vSurfaceBlend.w, 0.0, 1.0));
 diffuseColor = surfaceMixedColor;`
+      )
+      .replace(
+        "#include <roughnessmap_fragment>",
+        `#include <roughnessmap_fragment>
+roughnessFactor = mix(roughnessFactor, surfaceBlendRoughness0, clamp(vSurfaceBlend.x, 0.0, 1.0));
+roughnessFactor = mix(roughnessFactor, surfaceBlendRoughness1, clamp(vSurfaceBlend.y, 0.0, 1.0));
+roughnessFactor = mix(roughnessFactor, surfaceBlendRoughness2, clamp(vSurfaceBlend.z, 0.0, 1.0));
+roughnessFactor = mix(roughnessFactor, surfaceBlendRoughness3, clamp(vSurfaceBlend.w, 0.0, 1.0));`
+      )
+      .replace(
+        "#include <metalnessmap_fragment>",
+        `#include <metalnessmap_fragment>
+metalnessFactor = mix(metalnessFactor, surfaceBlendMetalness0, clamp(vSurfaceBlend.x, 0.0, 1.0));
+metalnessFactor = mix(metalnessFactor, surfaceBlendMetalness1, clamp(vSurfaceBlend.y, 0.0, 1.0));
+metalnessFactor = mix(metalnessFactor, surfaceBlendMetalness2, clamp(vSurfaceBlend.z, 0.0, 1.0));
+metalnessFactor = mix(metalnessFactor, surfaceBlendMetalness3, clamp(vSurfaceBlend.w, 0.0, 1.0));`
       );
   };
   material.customProgramCacheKey = () => `surface-blend:${layers.map((layer) => `${layer.id}:${layer.colorTexture ?? layer.color ?? ""}`).join("|")}`;
