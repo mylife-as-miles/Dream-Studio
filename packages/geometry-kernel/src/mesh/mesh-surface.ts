@@ -419,7 +419,6 @@ export function addEditableMeshProjectedDecal(mesh: EditableMesh, decal: MeshPro
         color: "#ffffff",
         depth: 0.2,
         opacity: 1,
-        up: vec3(0, 1, 0),
         ...decal,
         normal: normalizeVec3(decal.normal),
         up: normalizeVec3(decal.up ?? vec3(0, 1, 0))

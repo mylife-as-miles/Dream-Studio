@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
-import { BellRing, Cable, FolderTree, Globe2, Mic, SlidersHorizontal, SwatchBook, User, Wrench, X } from "lucide-react";
+import { BellRing, Cable, FolderTree, Globe2, Mic, Paintbrush, SlidersHorizontal, SwatchBook, User, Wrench, X } from "lucide-react";
 import type { GridSnapValue } from "@blud/render-pipeline";
 import type { BrushShape, EntityType, LightType, PrimitiveShape, SkateparkElementType } from "@blud/shared";
 import { defaultTools, type ToolId } from "@blud/tool-system";
@@ -32,6 +32,7 @@ const rightPanelOptions: Array<{
   { id: "hooks", label: "Hooks", shortLabel: "Hooks", Icon: Cable },
   { id: "events", label: "Events", shortLabel: "Events", Icon: BellRing },
   { id: "materials", label: "Mats", shortLabel: "Mats", Icon: SwatchBook },
+  { id: "surface", label: "Surface", shortLabel: "Surf", Icon: Paintbrush },
   { id: "voices", label: "Voices", shortLabel: "Voices", Icon: Mic }
 ];
 

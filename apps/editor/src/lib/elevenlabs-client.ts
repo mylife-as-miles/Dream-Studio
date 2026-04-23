@@ -2,8 +2,11 @@
  * elevenlabs-client.ts
  *
  * Thin browser-side client for the /api/elevenlabs/* Vite server plugin.
- * Uses the Replit connectors SDK on the server side — no API key needed here.
+ * Forwards the ElevenLabs API key from Vibe Settings (localStorage) to the
+ * server proxy via the `x-elevenlabs-api-key` header.
  */
+
+import { loadCopilotSettings } from "./copilot/settings";
 
 export interface ElevenLabsVoice {
   voice_id: string;
@@ -17,6 +20,14 @@ export interface TtsOptions {
   modelId?: string;
 }
 
+/** Build common headers that include the API key when available. */
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const key = loadCopilotSettings().elevenlabsApiKey;
+  if (key) headers["x-elevenlabs-api-key"] = key;
+  return headers;
+}
+
 /**
  * Convert text to speech. Returns an AudioBuffer ready to play via Web Audio API.
  * Streams the mp3 from the server plugin then decodes it in the browser.
@@ -24,7 +35,7 @@ export interface TtsOptions {
 export async function textToSpeech(text: string, opts: TtsOptions = {}): Promise<AudioBuffer> {
   const response = await fetch("/api/elevenlabs/tts", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ text, ...opts }),
   });
 
@@ -64,7 +75,9 @@ export function playBuffer(buffer: AudioBuffer): Promise<void> {
  * Fetch available voices from the ElevenLabs API (proxied via server plugin).
  */
 export async function fetchVoices(): Promise<ElevenLabsVoice[]> {
-  const response = await fetch("/api/elevenlabs/voices");
+  const response = await fetch("/api/elevenlabs/voices", {
+    headers: authHeaders(),
+  });
   if (!response.ok) throw new Error("Failed to fetch ElevenLabs voices");
   const data = await response.json() as { voices: ElevenLabsVoice[] };
   return data.voices ?? [];
@@ -80,7 +93,7 @@ export async function generateSoundEffect(
 ): Promise<AudioBuffer> {
   const response = await fetch("/api/elevenlabs/sfx", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ description, durationSeconds }),
   });
 
@@ -103,8 +116,13 @@ export async function cloneVoice(name: string, audioFile: File): Promise<string>
   form.append("name", name);
   form.append("files", audioFile);
 
+  const key = loadCopilotSettings().elevenlabsApiKey;
+  const headers: Record<string, string> = {};
+  if (key) headers["x-elevenlabs-api-key"] = key;
+
   const response = await fetch("/api/elevenlabs/voices/add", {
     method: "POST",
+    headers,
     body: form,
   });
 
@@ -127,7 +145,7 @@ export async function generateSoundEffectUrl(
 ): Promise<string> {
   const response = await fetch("/api/elevenlabs/sfx", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ description, durationSeconds }),
   });
 
@@ -146,6 +164,7 @@ export async function generateSoundEffectUrl(
 export async function deleteVoice(voiceId: string): Promise<void> {
   const response = await fetch(`/api/elevenlabs/voices/${voiceId}`, {
     method: "DELETE",
+    headers: authHeaders(),
   });
   if (!response.ok) {
     throw new Error(`Failed to delete voice ${voiceId}`);

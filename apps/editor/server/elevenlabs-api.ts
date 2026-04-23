@@ -1,8 +1,11 @@
 /**
  * elevenlabs-api.ts — Vite server plugin
  *
- * Proxies ElevenLabs TTS and STT requests through the Replit connectors SDK so
- * the browser never touches the API key directly.
+ * Proxies ElevenLabs requests so the browser never hits the API directly.
+ *
+ * Auth: The browser sends the API key (from Vibe Settings / localStorage) via
+ * the `x-elevenlabs-api-key` request header. The server forwards it to
+ * ElevenLabs as `xi-api-key`.
  *
  * Endpoints exposed by this plugin:
  *
@@ -13,12 +16,34 @@
  *  GET  /api/elevenlabs/voices
  *       Returns: { voices: ElevenLabsVoice[] }
  *
- * The Replit connectors SDK (@replit/connectors-sdk) handles auth header
- * injection automatically — no API key needed in env vars.
+ *  POST /api/elevenlabs/sfx
+ *       Body: { description: string; durationSeconds?: number }
+ *       Returns: audio/mpeg stream
  */
 
-import { ReplitConnectors } from "@replit/connectors-sdk";
 import type { Plugin, ViteDevServer, PreviewServer } from "vite";
+
+const ELEVENLABS_BASE = "https://api.elevenlabs.io";
+
+/**
+ * Fetch helper that forwards the client-provided API key to ElevenLabs.
+ */
+async function elevenLabsFetch(
+  path: string,
+  init: RequestInit = {},
+  clientApiKey?: string,
+): Promise<Response> {
+  if (!clientApiKey) {
+    throw new Error(
+      "No ElevenLabs API key provided. Set it in Vibe Settings.",
+    );
+  }
+
+  const headers = new Headers(init.headers as HeadersInit | undefined);
+  headers.set("xi-api-key", clientApiKey);
+
+  return fetch(`${ELEVENLABS_BASE}${path}`, { ...init, headers });
+}
 
 const TTS_PATH         = "/api/elevenlabs/tts";
 const VOICES_PATH      = "/api/elevenlabs/voices";
@@ -40,8 +65,14 @@ export function createElevenLabsApiPlugin(): Plugin {
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-elevenlabs-api-key",
 };
+
+/** Extract the client-provided API key from the request header. */
+function getClientKey(req: import("node:http").IncomingMessage): string | undefined {
+  const val = req.headers["x-elevenlabs-api-key"];
+  return typeof val === "string" && val ? val : undefined;
+}
 
 function registerApi(
   server: Pick<ViteDevServer, "middlewares"> | Pick<PreviewServer, "middlewares">,
@@ -63,7 +94,7 @@ function registerApi(
     const isVoiceDel = pathname?.includes(VOICE_DEL_PREFIX) && req.method === "DELETE";
 
     if (isVoices && req.method === "GET") {
-      await handleVoices(res);
+      await handleVoices(req, res);
       return;
     }
 
@@ -85,7 +116,7 @@ function registerApi(
     if (isVoiceDel) {
       const parts = pathname!.split(VOICE_DEL_PREFIX);
       const voiceId = parts[parts.length - 1];
-      await handleVoiceDelete(voiceId, res);
+      await handleVoiceDelete(req, voiceId, res);
       return;
     }
 
@@ -93,10 +124,12 @@ function registerApi(
   });
 }
 
-async function handleVoices(res: import("node:http").ServerResponse) {
+async function handleVoices(
+  req: import("node:http").IncomingMessage,
+  res: import("node:http").ServerResponse,
+) {
   try {
-    const connectors = new ReplitConnectors();
-    const response = await connectors.proxy("elevenlabs", "/v1/voices", { method: "GET" });
+    const response = await elevenLabsFetch("/v1/voices", { method: "GET" }, getClientKey(req));
     const data = await response.json() as unknown;
     sendJson(res, 200, data);
   } catch (err) {
@@ -120,9 +153,7 @@ async function handleTts(
     const voiceId = body.voiceId ?? DEFAULT_VOICE_ID;
     const modelId = body.modelId ?? DEFAULT_MODEL_ID;
 
-    const connectors = new ReplitConnectors();
-    const response = await connectors.proxy(
-      "elevenlabs",
+    const response = await elevenLabsFetch(
       `/v1/text-to-speech/${voiceId}/stream`,
       {
         method: "POST",
@@ -133,6 +164,7 @@ async function handleTts(
           output_format: "mp3_44100_128",
         }),
       },
+      getClientKey(req),
     );
 
     if (!response.ok) {
@@ -179,8 +211,7 @@ async function handleSfx(
       return;
     }
 
-    const connectors = new ReplitConnectors();
-    const response = await connectors.proxy("elevenlabs", "/v1/sound-generation", {
+    const response = await elevenLabsFetch("/v1/sound-generation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -189,7 +220,7 @@ async function handleSfx(
         prompt_influence: 0.3,
         output_format: "mp3_44100_128",
       }),
-    });
+    }, getClientKey(req));
 
     if (!response.ok) {
       const errText = await response.text();
@@ -231,15 +262,14 @@ async function handleVoiceAdd(
     });
     const rawBody = Buffer.concat(chunks);
 
-    const connectors = new ReplitConnectors();
-    const response = await connectors.proxy("elevenlabs", "/v1/voices/add", {
+    const response = await elevenLabsFetch("/v1/voices/add", {
       method: "POST",
       headers: {
         "Content-Type": req.headers["content-type"] ?? "multipart/form-data",
         "Content-Length": String(rawBody.byteLength),
       },
       body: rawBody as unknown as BodyInit,
-    });
+    }, getClientKey(req));
 
     if (!response.ok) {
       const errText = await response.text();
@@ -257,14 +287,14 @@ async function handleVoiceAdd(
 }
 
 async function handleVoiceDelete(
+  req: import("node:http").IncomingMessage,
   voiceId: string,
   res: import("node:http").ServerResponse,
 ) {
   try {
-    const connectors = new ReplitConnectors();
-    const response = await connectors.proxy("elevenlabs", `/v1/voices/${voiceId}`, {
+    const response = await elevenLabsFetch(`/v1/voices/${voiceId}`, {
       method: "DELETE",
-    });
+    }, getClientKey(req));
 
     if (!response.ok) {
       const errText = await response.text();

@@ -3,7 +3,7 @@ import type { ViewportState } from "@blud/render-pipeline";
 import { createEditorViewports, type ViewModeId, type ViewportPaneId } from "@/viewport/viewports";
 
 export type ViewportQuality = 0.5 | 0.75 | 1 | 1.5;
-export type RightPanelId = "events" | "hooks" | "inspector" | "materials" | "player" | "scene" | "voices" | "world";
+export type RightPanelId = "events" | "hooks" | "inspector" | "materials" | "player" | "scene" | "surface" | "voices" | "world";
 
 type UiStore = {
   activeViewportId: ViewportPaneId;

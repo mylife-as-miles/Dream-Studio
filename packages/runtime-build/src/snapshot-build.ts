@@ -906,7 +906,15 @@ function clusterPrimitiveVertices(
   const cellSizeY = Math.max(size.y / resolution, 0.0001);
   const cellSizeZ = Math.max(size.z / resolution, 0.0001);
   const vertexCount = primitive.positions.length / 3;
-  const clusters = new Map<string, {
+  type VertexCluster = {
+    blendW: number;
+    blendX: number;
+    blendY: number;
+    blendZ: number;
+    colorA: number;
+    colorB: number;
+    colorG: number;
+    colorR: number;
     count: number;
     normalX: number;
     normalY: number;
@@ -916,7 +924,8 @@ function clusterPrimitiveVertices(
     positionZ: number;
     uvX: number;
     uvY: number;
-  }>();
+  };
+  const clusters = new Map<string, VertexCluster>();
   const clusterKeyByVertex = new Array<string>(vertexCount);
 
   for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex += 1) {

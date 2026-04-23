@@ -45,6 +45,7 @@ import { NpcVoiceInspector } from "@/components/editor-shell/NpcVoiceInspector";
 import { VoicesPanel } from "@/components/editor-shell/VoicesPanel";
 import { MaterialLibraryPanel } from "@/components/editor-shell/MaterialLibraryPanel";
 import { SceneHierarchyPanel } from "@/components/editor-shell/SceneHierarchyPanel";
+import { SurfaceAuthoringPanel } from "@/components/editor-shell/SurfaceAuthoringPanel";
 import { rebaseTransformPivot } from "@/viewport/utils/geometry";
 import { readFileAsDataUrl } from "@/lib/model-assets";
 import { cn } from "@/lib/utils";
@@ -1798,6 +1799,16 @@ export function InspectorSidebar({
               selectedMaterialId={selectedMaterialId}
               selectedNode={selectedNode}
               textures={textures}
+            />
+          </TabsContent>
+
+          <TabsContent className="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2" value="surface">
+            <SurfaceAuthoringPanel
+              materials={materials}
+              onUpdateMeshData={onUpdateMeshData}
+              selectedFaceIds={activeToolId === "mesh-edit" && meshEditMode === "face" ? selectedFaceIds : []}
+              selectedMaterialId={selectedMaterialId}
+              selectedNode={selectedNode}
             />
           </TabsContent>
 

@@ -642,7 +642,7 @@ async function buildExportGeometry(
     vertices: Vec3[];
   }) => {
     const material = params.faceMaterialId ? await resolveExportMaterial(materialsById.get(params.faceMaterialId)) : fallbackMaterial;
-    const primitive = primitiveByMaterial.get(material.id) ?? {
+    const primitive: WebHammerExportGeometry["primitives"][number] = primitiveByMaterial.get(material.id) ?? {
       indices: [],
       material,
       normals: [],

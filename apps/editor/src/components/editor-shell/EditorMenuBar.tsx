@@ -182,9 +182,45 @@ export function EditorMenuBar({
                   <MenubarTrigger>
                     Render
                   </MenubarTrigger>
-                  <MenubarContent className="min-w-44 p-1.5">
+                  <MenubarContent className="min-w-52 p-1.5">
                     <MenubarItem className="rounded-lg text-xs" onClick={onFocusSelection}>
                       Focus Selection
+                    </MenubarItem>
+                    <MenubarItem
+                      className="rounded-lg text-xs"
+                      onClick={() => {
+                        localStorage.setItem("blud_flag_ENABLE_WEBGPU", "true");
+                        window.location.reload();
+                      }}
+                    >
+                      Enable WebGPU viewport (reload)…
+                    </MenubarItem>
+                    <MenubarItem
+                      className="rounded-lg text-xs"
+                      onClick={() => {
+                        localStorage.removeItem("blud_flag_ENABLE_WEBGPU");
+                        window.location.reload();
+                      }}
+                    >
+                      Use WebGL viewport (reload)
+                    </MenubarItem>
+                    <MenubarItem
+                      className="rounded-lg text-xs"
+                      onClick={() => {
+                        localStorage.setItem("blud_flag_WEBGPU_PHASE2_MATERIALS", "true");
+                        window.location.reload();
+                      }}
+                    >
+                      Enable WebGPU PBR node materials (reload)…
+                    </MenubarItem>
+                    <MenubarItem
+                      className="rounded-lg text-xs"
+                      onClick={() => {
+                        localStorage.removeItem("blud_flag_WEBGPU_PHASE2_MATERIALS");
+                        window.location.reload();
+                      }}
+                    >
+                      Disable WebGPU node materials (reload)
                     </MenubarItem>
                   </MenubarContent>
                 </MenubarMenu>

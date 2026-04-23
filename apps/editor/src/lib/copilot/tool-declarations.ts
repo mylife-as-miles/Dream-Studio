@@ -1216,6 +1216,163 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "unwrap_mesh_uvs",
+    description: "Create or replace explicit UVs on mesh faces using smart unwrap, planar, box, or cylindrical projection.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Optional face IDs; omit for whole mesh" },
+        mode: { type: "string", enum: ["smart", "planar", "box", "cylindrical"], description: "UV unwrap/projection mode" },
+        axis: { type: "string", enum: ["x", "y", "z"], description: "Projection axis for planar/cylindrical modes" },
+        angleThresholdDegrees: { type: "number", description: "Smart unwrap hard-edge seam angle, default 66" },
+        margin: { type: "number", description: "Packing margin 0-0.2, default 0.02" },
+        scaleU: { type: "number", description: "U scale for projection" },
+        scaleV: { type: "number", description: "V scale for projection" },
+        offsetU: { type: "number", description: "U offset for projection" },
+        offsetV: { type: "number", description: "V offset for projection" }
+      },
+      required: ["nodeId", "mode"]
+    }
+  },
+  {
+    name: "pack_mesh_uvs",
+    description: "Pack existing mesh UV islands into 0-1 UV space with deterministic shelf packing.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Optional face IDs; omit for whole mesh" },
+        margin: { type: "number", description: "Island margin, default 0.02" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "mark_mesh_uv_seams",
+    description: "Mark UV seams using vertex-id edge pairs. Use list_mesh_topology first to inspect vertex IDs and edges.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        edges: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Edges as [[vertexId1, vertexId2], ...]" },
+        append: { type: "boolean", description: "Append to existing seams, default true" }
+      },
+      required: ["nodeId", "edges"]
+    }
+  },
+  {
+    name: "normalize_mesh_texel_density",
+    description: "Scale selected face UVs to a target texel density for game-production texture consistency.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Optional face IDs; omit for whole mesh" },
+        pixelsPerMeter: { type: "number", description: "Target pixels per meter, default 512" },
+        textureResolution: { type: "number", description: "Texture resolution in pixels, default 1024" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "paint_mesh_face_material",
+    description: "Assign a material to mesh faces and register it as a mesh-local material slot.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to paint; omit for all faces" },
+        materialId: { type: "string", description: "Material ID from list_materials" }
+      },
+      required: ["nodeId", "materialId"]
+    }
+  },
+  {
+    name: "paint_mesh_vertex_color",
+    description: "Paint RGBA vertex colors onto mesh face corners. Hex color is easiest, e.g. #ff8844.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to paint; omit for all faces" },
+        color: { type: "string", description: "Hex color such as #ffffff" },
+        r: { type: "number", description: "Red 0-1 when not using color" },
+        g: { type: "number", description: "Green 0-1 when not using color" },
+        b: { type: "number", description: "Blue 0-1 when not using color" },
+        alpha: { type: "number", description: "Alpha 0-1, default 1" },
+        strength: { type: "number", description: "Paint strength 0-1, default 1" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "add_mesh_surface_blend_layer",
+    description: "Add or update one of the mesh's up-to-4 PBR texture blend layers, usually from an existing material.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        layerId: { type: "string", description: "Stable blend layer ID. Defaults to blend:<materialId>" },
+        materialId: { type: "string", description: "Existing material ID to copy color/textures from" },
+        name: { type: "string", description: "Layer display name" },
+        color: { type: "string", description: "Fallback layer color" },
+        colorTexture: { type: "string", description: "Color texture URL/data URI" },
+        normalTexture: { type: "string", description: "Normal texture URL/data URI" },
+        metalnessTexture: { type: "string", description: "Metalness texture URL/data URI" },
+        roughnessTexture: { type: "string", description: "Roughness texture URL/data URI" },
+        metalness: { type: "number", description: "Layer metalness 0-1" },
+        roughness: { type: "number", description: "Layer roughness 0-1" }
+      },
+      required: ["nodeId"]
+    }
+  },
+  {
+    name: "paint_mesh_texture_blend",
+    description: "Paint normalized per-corner weights for a mesh surface blend layer.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Face IDs to paint; omit for all faces" },
+        layerId: { type: "string", description: "Blend layer ID to paint" },
+        strength: { type: "number", description: "Paint strength 0-1, default 1" }
+      },
+      required: ["nodeId", "layerId"]
+    }
+  },
+  {
+    name: "add_mesh_projected_decal",
+    description: "Add a live projected decal record to a mesh for editor and runtime overlay rendering.",
+    parameters: {
+      type: "object",
+      properties: {
+        nodeId: { type: "string", description: "Mesh node ID" },
+        decalId: { type: "string", description: "Optional stable decal ID" },
+        name: { type: "string", description: "Decal display name" },
+        materialId: { type: "string", description: "Optional material ID to copy texture/color from" },
+        texture: { type: "string", description: "Optional decal texture URL/data URI" },
+        color: { type: "string", description: "Fallback decal color" },
+        blendMode: { type: "string", enum: ["normal", "multiply", "add"], description: "Decal blend mode" },
+        opacity: { type: "number", description: "Opacity 0-1" },
+        x: { type: "number", description: "Local projected decal center X" },
+        y: { type: "number", description: "Local projected decal center Y" },
+        z: { type: "number", description: "Local projected decal center Z" },
+        normalX: { type: "number", description: "Projection normal X" },
+        normalY: { type: "number", description: "Projection normal Y" },
+        normalZ: { type: "number", description: "Projection normal Z" },
+        upX: { type: "number", description: "Decal up vector X" },
+        upY: { type: "number", description: "Decal up vector Y" },
+        upZ: { type: "number", description: "Decal up vector Z" },
+        sizeX: { type: "number", description: "Decal width in mesh-local units" },
+        sizeY: { type: "number", description: "Decal height in mesh-local units" },
+        depth: { type: "number", description: "Projection depth" },
+        faceIds: { type: "array", items: { type: "string" }, description: "Optional target face IDs" }
+      },
+      required: ["nodeId", "x", "y", "z", "normalX", "normalY", "normalZ", "sizeX", "sizeY"]
+    }
+  },
+  {
     name: "split_brush_at_coordinate",
     description: "Split a brush node at an exact world coordinate along an axis (more precise than split_brush which only splits at the midpoint).",
     parameters: {

@@ -16,6 +16,7 @@
     "@blud/dev-sync": "*",
     "@blud/editor-core": "*",
     "@blud/engine-config": "*",
+    "@blud/gameplay-runtime": "^0.1.11",
     "@blud/geometry-kernel": "*",
     "@blud/render-pipeline": "*",
     "@blud/renderer-backend": "*",

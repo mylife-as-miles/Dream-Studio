@@ -29,6 +29,12 @@ import {
   Vector3
 } from "three";
 import { getSharedGLTFLoader } from "./gltf-loader";
+import {
+  applyRuntimeSurfaceAttributes,
+  createRuntimeProjectedDecalMesh,
+  installRuntimeSurfaceBlendShader,
+  WHITE_TEXTURE_DATA_URI
+} from "./surface-runtime";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type {
@@ -43,7 +49,7 @@ import type {
 } from "./types";
 import type { WebHammerSceneLoaderOptions, WebHammerSceneLodOptions } from "./loader";
 
-type TextureSlot = "baseColorTexture" | "metallicRoughnessTexture" | "normalTexture";
+type TextureSlot = "baseColorTexture" | "metallicRoughnessTexture" | "normalTexture" | "surfaceBlendColorTexture" | "surfaceDecalTexture";
 
 type WebHammerSceneObjectFactoryOptions = Pick<
   WebHammerSceneLoaderOptions,
@@ -290,6 +296,8 @@ async function createInstancedGeometryObject(
       primitiveGeometry.setAttribute("uv", new Float32BufferAttribute(primitive.uvs, 2));
     }
 
+    applyRuntimeSurfaceAttributes(primitiveGeometry, primitive);
+
     primitiveGeometry.setIndex(primitive.indices);
     primitiveGeometry.computeBoundingBox();
     primitiveGeometry.computeBoundingSphere();
@@ -487,6 +495,8 @@ async function createGeometryObject(
       primitiveGeometry.setAttribute("uv", new Float32BufferAttribute(primitive.uvs, 2));
     }
 
+    applyRuntimeSurfaceAttributes(primitiveGeometry, primitive);
+
     primitiveGeometry.setIndex(primitive.indices);
     primitiveGeometry.computeBoundingBox();
     primitiveGeometry.computeBoundingSphere();
@@ -510,6 +520,12 @@ async function createGeometryObject(
     group.add(mesh);
   });
 
+  for (const decal of geometry.decals ?? []) {
+    group.add(await createRuntimeProjectedDecalMesh(decal, (path) =>
+      loadTexture(path, createDecalTextureMaterialSpec(decal), "surfaceDecalTexture", resources, options)
+    ));
+  }
+
   return group;
 }
 
@@ -532,11 +548,23 @@ async function createThreeMaterial(
     opacity: materialSpec.transparent ? materialSpec.opacity ?? 1 : 1,
     roughness: materialSpec.roughnessFactor,
     side: resolveMaterialSide(materialSpec.side),
-    transparent: materialSpec.transparent ?? false
+    transparent: materialSpec.transparent ?? false,
+    vertexColors: true
   });
+  const blendLayerTextures = await Promise.all(
+    (materialSpec.blendLayers ?? []).slice(0, 4).map((layer) =>
+      layer.colorTexture
+        ? loadTexture(layer.colorTexture, materialSpec, "surfaceBlendColorTexture", resources, options)
+        : Promise.resolve(undefined)
+    )
+  );
 
   if (materialSpec.baseColorTexture) {
     const texture = await loadTexture(materialSpec.baseColorTexture, materialSpec, "baseColorTexture", resources, options);
+    texture.colorSpace = SRGBColorSpace;
+    material.map = texture;
+  } else if (blendLayerTextures.some(Boolean)) {
+    const texture = await loadTexture(WHITE_TEXTURE_DATA_URI, materialSpec, "baseColorTexture", resources, options);
     texture.colorSpace = SRGBColorSpace;
     material.map = texture;
   }
@@ -558,10 +586,22 @@ async function createThreeMaterial(
   }
 
   material.name = materialSpec.name;
+  installRuntimeSurfaceBlendShader(material, materialSpec, blendLayerTextures);
   material.needsUpdate = true;
   resources.materialCache.set(materialSpec.id, material);
 
   return material;
+}
+
+function createDecalTextureMaterialSpec(decal: NonNullable<WebHammerExportGeometry["decals"]>[number]): WebHammerExportMaterial {
+  return {
+    color: decal.color ?? "#ffffff",
+    id: `material:decal:${decal.id}`,
+    metallicFactor: 0,
+    name: `${decal.name} Decal`,
+    roughnessFactor: 1,
+    transparent: true
+  };
 }
 
 async function loadTexture(

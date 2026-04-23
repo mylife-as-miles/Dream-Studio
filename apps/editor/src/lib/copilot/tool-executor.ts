@@ -77,19 +77,29 @@ import {
   mirrorEditableMesh,
   pokeEditableMeshFaces,
   quadrangulateEditableMeshFaces,
+  markEditableMeshUvSeams,
+  normalizeEditableMeshTexelDensity,
+  packEditableMeshUvs,
+  paintEditableMeshFacesMaterial,
+  paintEditableMeshTextureBlend,
+  paintEditableMeshVertexColors,
+  projectEditableMeshUvs,
   scaleEditableMeshVertices,
   solidifyEditableMesh,
+  smartUnwrapEditableMesh,
   translateEditableMeshVertices,
   subdivideEditableMeshFace,
   triangulateEditableMeshFaces,
   updateEditableMeshModeling,
+  upsertEditableMeshBlendLayer,
   weldEditableMeshVerticesByDistance,
   weldEditableMeshVerticesToTarget,
   createEditableMeshFromPolygons
 } from "@blud/geometry-kernel";
-import { isBrushNode, isMeshNode, makeTransform, resolveSceneGraph, vec3 } from "@blud/shared";
+import { isBrushNode, isMeshNode, makeTransform, resolveSceneGraph, vec2, vec3 } from "@blud/shared";
 import type {
   EditableMesh,
+  ColorRGBA,
   GameplayObject,
   GameplayValue,
   Material,
@@ -364,6 +374,45 @@ function pointArray(value: unknown): Vec3[] {
     const point = pointFromUnknown(entry);
     return point ? [point] : [];
   });
+}
+
+function edgeArray(args: Args, key: string): Array<[string, string]> {
+  const value = args[key];
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) =>
+    Array.isArray(entry) && typeof entry[0] === "string" && typeof entry[1] === "string"
+      ? [[entry[0], entry[1]] as [string, string]]
+      : []
+  );
+}
+
+function colorFromArgs(args: Args): ColorRGBA {
+  const hex = str(args, "color", "#ffffff");
+
+  if (/^#[0-9a-f]{6}$/i.test(hex)) {
+    const value = Number.parseInt(hex.slice(1), 16);
+    return {
+      a: clamp01(num(args, "alpha", 1)),
+      b: ((value >> 0) & 255) / 255,
+      g: ((value >> 8) & 255) / 255,
+      r: ((value >> 16) & 255) / 255
+    };
+  }
+
+  return {
+    a: clamp01(num(args, "alpha", 1)),
+    b: clamp01(num(args, "b", 1)),
+    g: clamp01(num(args, "g", 1)),
+    r: clamp01(num(args, "r", 1))
+  };
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
 }
 
 function ok(data: Record<string, unknown>): string {
@@ -1705,6 +1754,123 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
       }, "Queue mesh bake outputs");
     }
 
+    case "unwrap_mesh_uvs": {
+      const mode = str(args, "mode", "smart");
+
+      if (mode === "smart") {
+        return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+          smartUnwrapEditableMesh(mesh, {
+            angleThresholdDegrees: num(args, "angleThresholdDegrees", 66),
+            faceIds: strArray(args, "faceIds"),
+            margin: num(args, "margin", 0.02)
+          }),
+          "Smart unwrap mesh UVs"
+        );
+      }
+
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        projectEditableMeshUvs(mesh, {
+          axis: optionalStr(args, "axis") as "x" | "y" | "z" | undefined,
+          faceIds: strArray(args, "faceIds"),
+          mode: (["box", "cylindrical", "planar"].includes(mode) ? mode : "planar") as "box" | "cylindrical" | "planar",
+          offset: vec2(num(args, "offsetU"), num(args, "offsetV")),
+          scale: vec2(num(args, "scaleU", 1), num(args, "scaleV", 1))
+        }),
+        "Project mesh UVs"
+      );
+    }
+
+    case "pack_mesh_uvs":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        packEditableMeshUvs(mesh, {
+          faceIds: strArray(args, "faceIds"),
+          margin: num(args, "margin", 0.02)
+        }),
+        "Pack mesh UVs"
+      );
+
+    case "mark_mesh_uv_seams":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        markEditableMeshUvSeams(mesh, edgeArray(args, "edges"), { append: bool(args, "append") ?? true }),
+        "Mark mesh UV seams"
+      );
+
+    case "normalize_mesh_texel_density":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        normalizeEditableMeshTexelDensity(mesh, {
+          faceIds: strArray(args, "faceIds"),
+          pixelsPerMeter: num(args, "pixelsPerMeter", 512),
+          textureResolution: num(args, "textureResolution", 1024)
+        }),
+        "Normalize mesh texel density"
+      );
+
+    case "paint_mesh_face_material":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        paintEditableMeshFacesMaterial(mesh, strArray(args, "faceIds"), str(args, "materialId")),
+        "Paint face material"
+      );
+
+    case "paint_mesh_vertex_color":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        paintEditableMeshVertexColors(mesh, strArray(args, "faceIds"), colorFromArgs(args), num(args, "strength", 1)),
+        "Paint vertex color"
+      );
+
+    case "add_mesh_surface_blend_layer":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) => {
+        const materialId = str(args, "materialId");
+        const material = materialId ? scene.materials.get(materialId) : undefined;
+        return upsertEditableMeshBlendLayer(mesh, {
+          color: str(args, "color") || material?.color,
+          colorTexture: str(args, "colorTexture") || material?.colorTexture,
+          id: str(args, "layerId") || `blend:${materialId || Date.now()}`,
+          materialId: materialId || undefined,
+          metalness: optionalNum(args, "metalness") ?? material?.metalness,
+          metalnessTexture: str(args, "metalnessTexture") || material?.metalnessTexture,
+          name: str(args, "name") || material?.name || "Surface Blend",
+          normalTexture: str(args, "normalTexture") || material?.normalTexture,
+          roughness: optionalNum(args, "roughness") ?? material?.roughness,
+          roughnessTexture: str(args, "roughnessTexture") || material?.roughnessTexture
+        });
+      }, "Add mesh surface blend layer");
+
+    case "paint_mesh_texture_blend":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) =>
+        paintEditableMeshTextureBlend(mesh, strArray(args, "faceIds"), str(args, "layerId"), num(args, "strength", 1)),
+        "Paint texture blend"
+      );
+
+    case "add_mesh_projected_decal":
+      return executeMeshOp(editor, str(args, "nodeId"), (mesh) => {
+        const materialId = str(args, "materialId");
+        const material = materialId ? scene.materials.get(materialId) : undefined;
+        return {
+          ...mesh,
+          surface: {
+            ...(mesh.surface ?? {}),
+            decals: [
+              ...(mesh.surface?.decals ?? []),
+              {
+                blendMode: (str(args, "blendMode", "normal") || "normal") as "add" | "multiply" | "normal",
+                color: str(args, "color") || material?.color,
+                depth: num(args, "depth", 0.25),
+                id: str(args, "decalId") || `decal:${Date.now()}`,
+                materialId: materialId || undefined,
+                name: str(args, "name") || material?.name || "Projected Decal",
+                normal: vec3(num(args, "normalX", 0), num(args, "normalY", 1), num(args, "normalZ", 0)),
+                opacity: num(args, "opacity", material?.opacity ?? 1),
+                position: vec3(num(args, "x"), num(args, "y"), num(args, "z")),
+                size: vec2(num(args, "sizeX", 1), num(args, "sizeY", 1)),
+                targetFaceIds: strArray(args, "faceIds"),
+                texture: str(args, "texture") || material?.colorTexture,
+                up: vec3(num(args, "upX", 0), num(args, "upY", 1), num(args, "upZ", 0))
+              }
+            ]
+          }
+        };
+      }, "Add projected decal");
+
     case "split_brush_at_coordinate": {
       const { command, splitIds } = createSplitBrushNodeAtCoordinateCommand(
         scene,
@@ -1749,6 +1915,7 @@ function executeMeshOp(
   result.physics = node.data.physics;
   result.role = node.data.role;
   result.modeling = node.data.modeling;
+  result.surface = result.surface ?? node.data.surface;
 
   editor.execute(createSetMeshDataCommand(editor.scene, nodeId, result, node.data));
   return ok({});

@@ -1,6 +1,15 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { BallCollider, CapsuleCollider, ConeCollider, CuboidCollider, CylinderCollider, Physics, RigidBody, TrimeshCollider, useRapier, type RapierRigidBody } from "@react-three/rapier";
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject
+} from "react";
 import {
   createCustomScriptController,
   createMutableSceneHostState,
@@ -29,7 +38,6 @@ import {
   MultiplyBlending,
   NormalBlending,
   Object3D,
-  RepeatWrapping,
   SkinnedMesh,
   SphereGeometry,
   SRGBColorSpace,
@@ -54,16 +62,30 @@ import { NPC_CHARACTER_PROMPT_PROPERTY, NPC_VOICE_ID_PROPERTY } from "@/lib/npc-
 import { previewNpcDialogueStore } from "@/state/preview-npc-dialogue-store";
 import { DefaultHumanoidCharacter } from "@/viewport/components/DefaultHumanoidCharacter";
 import { GrassField } from "@/viewport/components/GrassField";
+import { shouldUsePreviewNodeMaterials } from "@/viewport/preview-material-policy";
+import { loadPreviewTexture, WHITE_PREVIEW_TEXTURE_DATA_URI } from "@/viewport/preview-textures";
+import {
+  entityUsesViewportPathMotion,
+  usePathMotionInnerRegister,
+  ViewportNpcPathMotionRoot
+} from "@/viewport/viewport-npc-path-motion";
 import { createIndexedGeometry } from "@/viewport/utils/geometry";
 import type { PreviewSessionMode } from "@/viewport/types";
 import type { ViewportRenderMode } from "@/viewport/viewports";
 import type { SceneSettings } from "@blud/shared";
 
-const previewTextureCache = new Map<string, ReturnType<TextureLoader["load"]>>();
-const WHITE_TEXTURE_DATA_URI =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p94AAAAASUVORK5CYII=";
 const modelSceneCache = new Map<string, Object3D>();
+
+type PreviewNodeMaterialFactory = (
+  spec: DerivedRenderMesh["material"],
+  selected: boolean,
+  hovered: boolean
+) => Material;
+
+const PreviewNodeMaterialContext = createContext<PreviewNodeMaterialFactory | null>(null);
+
 const modelTextureLoader = new TextureLoader();
+const modelTextureCache = new Map<string, Awaited<ReturnType<TextureLoader["loadAsync"]>>>();
 const tempInstanceObject = new Object3D();
 const tempInstanceMatrix = new Matrix4();
 const tempPivotMatrix = new Matrix4();
@@ -209,7 +231,35 @@ export function ScenePreview({
     [renderScene.entityMarkers]
   );
 
+  const [previewNodeMaterialFactory, setPreviewNodeMaterialFactory] = useState<PreviewNodeMaterialFactory | null>(null);
+
+  useEffect(() => {
+    if (!shouldUsePreviewNodeMaterials()) {
+      setPreviewNodeMaterialFactory(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void import("@/viewport/preview-node-material").then((m) => {
+      if (!cancelled) {
+        setPreviewNodeMaterialFactory(() => m.createPreviewNodeMaterial as unknown as PreviewNodeMaterialFactory);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
+    <PreviewNodeMaterialContext.Provider value={previewNodeMaterialFactory}>
+    <ViewportNpcPathMotionRoot
+      entities={entities}
+      pathDefinitions={pathDefinitions ?? sceneSettings.paths}
+      physicsPlayback={physicsPlayback}
+      previewStepTick={previewStepTick}
+    >
     <>
       {renderMode === "lit" && sceneSettings.world.grass.enabled ? (
         <GrassField center={renderScene.boundsCenter} settings={sceneSettings.world.grass} />
@@ -318,6 +368,7 @@ export function ScenePreview({
             onHoverEnd={() => setHoveredNodeId(undefined)}
             onHoverStart={setHoveredNodeId}
             onSelectNodes={onSelectNode}
+            sceneEntities={entities}
             selected={selected}
           />
         );
@@ -354,6 +405,8 @@ export function ScenePreview({
         />
       ))}
     </>
+    </ViewportNpcPathMotionRoot>
+    </PreviewNodeMaterialContext.Provider>
   );
 }
 
@@ -723,6 +776,7 @@ function RenderEntityMarker({
   onHoverEnd,
   onHoverStart,
   onSelectNodes,
+  sceneEntities,
   selected
 }: {
   entity: DerivedEntityMarker;
@@ -733,13 +787,53 @@ function RenderEntityMarker({
   onHoverEnd: () => void;
   onHoverStart: (nodeId: string) => void;
   onSelectNodes: (nodeIds: string[]) => void;
+  sceneEntities: Entity[];
   selected: boolean;
 }) {
+  const registerPathInner = usePathMotionInnerRegister();
+  const entityRecord = useMemo(() => sceneEntities.find((entry) => entry.id === entity.entityId), [entity.entityId, sceneEntities]);
+  const usePathInner = Boolean(entityRecord && entityUsesViewportPathMotion(entityRecord));
   const isHumanoidSpawn = entity.entityType === "player-spawn" || entity.entityType === "npc-spawn";
   const emphasis = selected ? "selected" : hovered ? "hover" : "default";
   const markerColor = selected ? "#ffb35a" : hovered ? "#d8f4f0" : entity.color;
   const humanoidVariant = entity.entityType === "npc-spawn" ? "npc" : entity.entityType === "player-spawn" ? "player" : "neutral";
   const humanoidHeight = entity.entityType === "npc-spawn" ? 1.74 : 1.82;
+
+  const markerVisuals = (
+    <>
+      {isHumanoidSpawn ? (
+        <>
+          <DefaultHumanoidCharacter
+            accentColor={markerColor}
+            emphasis={emphasis}
+            height={humanoidHeight}
+            pose={entity.entityType === "player-spawn" ? "runtime" : "idle"}
+            showSpawnBase
+            variant={humanoidVariant}
+          />
+          <mesh position={[0, 0.015, 0]} raycast={() => null} rotation={[-Math.PI * 0.5, 0, 0]}>
+            <circleGeometry args={[0.42, 28]} />
+            <meshBasicMaterial color={markerColor} opacity={selected ? 0.18 : hovered ? 0.12 : 0.08} toneMapped={false} transparent />
+          </mesh>
+        </>
+      ) : (
+        <>
+          <mesh position={[0, 0.8, 0]}>
+            <octahedronGeometry args={[0.35, 0]} />
+            <meshStandardMaterial color={markerColor} emissive={markerColor} emissiveIntensity={0.25} />
+          </mesh>
+          <mesh position={[0, 0.35, 0]}>
+            <cylinderGeometry args={[0.08, 0.08, 0.7, 8]} />
+            <meshStandardMaterial color="#d8e0ea" metalness={0.1} roughness={0.55} />
+          </mesh>
+        </>
+      )}
+      <mesh>
+        <boxGeometry args={isHumanoidSpawn ? [0.9, humanoidHeight, 0.9] : [0.7, 1.4, 0.7]} />
+        <meshBasicMaterial opacity={0} transparent />
+      </mesh>
+    </>
+  );
 
   return (
     <group
@@ -783,37 +877,7 @@ function RenderEntityMarker({
       rotation={toTuple(entity.rotation)}
       scale={toTuple(entity.scale)}
     >
-      {isHumanoidSpawn ? (
-        <>
-          <DefaultHumanoidCharacter
-            accentColor={markerColor}
-            emphasis={emphasis}
-            height={humanoidHeight}
-            pose={entity.entityType === "player-spawn" ? "runtime" : "idle"}
-            showSpawnBase
-            variant={humanoidVariant}
-          />
-          <mesh position={[0, 0.015, 0]} raycast={() => null} rotation={[-Math.PI * 0.5, 0, 0]}>
-            <circleGeometry args={[0.42, 28]} />
-            <meshBasicMaterial color={markerColor} opacity={selected ? 0.18 : hovered ? 0.12 : 0.08} toneMapped={false} transparent />
-          </mesh>
-        </>
-      ) : (
-        <>
-          <mesh position={[0, 0.8, 0]}>
-            <octahedronGeometry args={[0.35, 0]} />
-            <meshStandardMaterial color={markerColor} emissive={markerColor} emissiveIntensity={0.25} />
-          </mesh>
-          <mesh position={[0, 0.35, 0]}>
-            <cylinderGeometry args={[0.08, 0.08, 0.7, 8]} />
-            <meshStandardMaterial color="#d8e0ea" metalness={0.1} roughness={0.55} />
-          </mesh>
-        </>
-      )}
-      <mesh>
-        <boxGeometry args={isHumanoidSpawn ? [0.9, humanoidHeight, 0.9] : [0.7, 1.4, 0.7]} />
-        <meshBasicMaterial opacity={0} transparent />
-      </mesh>
+      {usePathInner ? <group ref={(inner) => registerPathInner(entity.entityId, inner)}>{markerVisuals}</group> : markerVisuals}
     </group>
   );
 }
@@ -1636,7 +1700,7 @@ function RenderInstancedMeshBatch({
   useEffect(() => {
     return () => {
       previewMaterials.forEach((material) => {
-        if (material instanceof MeshStandardMaterial || material instanceof MeshBasicMaterial) {
+        if (isPreviewDisposableMaterial(material)) {
           material.dispose();
         }
       });
@@ -2448,7 +2512,7 @@ function SurfaceDecalOverlays({ decals }: { decals: NonNullable<DerivedRenderMes
 function SurfaceDecalOverlay({ decal }: { decal: NonNullable<NonNullable<DerivedRenderMesh["surface"]>["decals"]>[number] }) {
   const meshRef = useRef<Mesh | null>(null);
   const material = useMemo(() => {
-    const texture = decal.texture ? loadTexture(decal.texture, true) : undefined;
+    const texture = decal.texture ? loadPreviewTexture(decal.texture, true) : undefined;
     const decalMaterial = new MeshBasicMaterial({
       blending: decal.blendMode === "add" ? AdditiveBlending : decal.blendMode === "multiply" ? MultiplyBlending : NormalBlending,
       color: decal.color ?? "#ffffff",
@@ -2766,7 +2830,7 @@ async function loadModelScene(
 }
 
 async function loadModelTexture(path: string) {
-  const cached = previewTextureCache.get(path);
+  const cached = modelTextureCache.get(path);
 
   if (cached) {
     return cached;
@@ -2774,7 +2838,7 @@ async function loadModelTexture(path: string) {
 
   const texture = await modelTextureLoader.loadAsync(path);
   texture.colorSpace = SRGBColorSpace;
-  previewTextureCache.set(path, texture);
+  modelTextureCache.set(path, texture);
   return texture;
 }
 
@@ -2900,17 +2964,18 @@ function tunePreviewModelMaterial(material: Mesh["material"]) {
 }
 
 function tunePreviewSingleMaterial(material: Material) {
-  if (!(material instanceof MeshStandardMaterial)) {
+  if (!(material instanceof MeshStandardMaterial) && !isMeshStandardNodeMaterial(material)) {
     return;
   }
 
-  material.envMapIntensity = Math.max(material.envMapIntensity ?? 1, 1.15);
+  const tuned = material as Material & { envMapIntensity?: number; roughness: number; needsUpdate: boolean };
+  tuned.envMapIntensity = Math.max(tuned.envMapIntensity ?? 1, 1.15);
 
-  if (material.roughness > 0.94) {
-    material.roughness = 0.94;
+  if (tuned.roughness > 0.94) {
+    tuned.roughness = 0.94;
   }
 
-  material.needsUpdate = true;
+  tuned.needsUpdate = true;
 }
 
 function bakeSkinnedMeshGeometry(mesh: SkinnedMesh) {
@@ -2946,12 +3011,15 @@ function createModelOverlayMaterial(material: Mesh["material"], color: string, r
   return createSingleModelOverlayMaterial(material, color, renderMode);
 }
 
-function createSingleModelOverlayMaterial(material: Mesh["material"], color: string, renderMode: ViewportRenderMode) {
+function createSingleModelOverlayMaterial(material: Material, color: string, renderMode: ViewportRenderMode) {
   return new MeshBasicMaterial({
     color,
     depthWrite: false,
     opacity: renderMode === "wireframe" ? 1 : 0.85,
-    side: material instanceof MeshBasicMaterial || material instanceof MeshStandardMaterial ? material.side : DoubleSide,
+    side:
+      material instanceof MeshBasicMaterial || material instanceof MeshStandardMaterial || isMeshStandardNodeMaterial(material)
+        ? material.side
+        : DoubleSide,
     toneMapped: false,
     transparent: renderMode !== "wireframe",
     wireframe: true
@@ -3230,22 +3298,38 @@ function usePreviewMaterials(
   selected: boolean,
   hovered: boolean
 ) {
+  const previewNodeFactory = useContext(PreviewNodeMaterialContext);
+
   return useMemo(() => {
     if (renderMode !== "lit") {
       return [];
     }
 
     const specs = mesh.materials ?? [mesh.material];
-    return specs.map((spec) => createPreviewMaterial(spec, selected, hovered));
-  }, [hovered, mesh.material, mesh.materials, renderMode, selected]);
+    return specs.map((spec) => {
+      const blendLayers = spec.blendLayers?.length ?? 0;
+      if (previewNodeFactory && blendLayers === 0) {
+        return previewNodeFactory(spec, selected, hovered);
+      }
+      return createClassicPreviewMaterial(spec, selected, hovered);
+    });
+  }, [hovered, mesh.material, mesh.materials, previewNodeFactory, renderMode, selected]);
 }
 
 function useInstancedPreviewMaterials(mesh: DerivedRenderMesh, renderMode: ViewportRenderMode) {
+  const previewNodeFactory = useContext(PreviewNodeMaterialContext);
+
   return useMemo(() => {
     const specs = mesh.materials ?? [mesh.material];
 
     if (renderMode === "lit") {
-      return specs.map((spec) => createPreviewMaterial(spec, false, false));
+      return specs.map((spec) => {
+        const blendLayers = spec.blendLayers?.length ?? 0;
+        if (previewNodeFactory && blendLayers === 0) {
+          return previewNodeFactory(spec, false, false);
+        }
+        return createClassicPreviewMaterial(spec, false, false);
+      });
     }
 
     return specs.map((spec) => new MeshBasicMaterial({
@@ -3255,7 +3339,7 @@ function useInstancedPreviewMaterials(mesh: DerivedRenderMesh, renderMode: Viewp
       toneMapped: false,
       wireframe: true
     }));
-  }, [mesh.material, mesh.materials, renderMode]);
+  }, [mesh.material, mesh.materials, previewNodeFactory, renderMode]);
 }
 
 function resolveMeshPivot(mesh: DerivedRenderMesh) {
@@ -3322,20 +3406,30 @@ function resolveInstancedNodeIdFromObject(object: Object3D | null, instanceId: n
   return undefined;
 }
 
-function createPreviewMaterial(spec: DerivedRenderMesh["material"], selected: boolean, hovered: boolean) {
+function isMeshStandardNodeMaterial(material: Material): boolean {
+  return Boolean((material as unknown as { isMeshStandardNodeMaterial?: boolean }).isMeshStandardNodeMaterial);
+}
+
+function isPreviewDisposableMaterial(material: Material): boolean {
+  return (
+    material instanceof MeshBasicMaterial || material instanceof MeshStandardMaterial || isMeshStandardNodeMaterial(material)
+  );
+}
+
+function createClassicPreviewMaterial(spec: DerivedRenderMesh["material"], selected: boolean, hovered: boolean) {
   const blendLayerTextures = (spec.blendLayers ?? [])
     .slice(0, 4)
-    .map((layer) => layer.colorTexture ? loadTexture(layer.colorTexture, true) : undefined);
+    .map((layer) => (layer.colorTexture ? loadPreviewTexture(layer.colorTexture, true) : undefined));
   const colorTexture = spec.colorTexture
-    ? loadTexture(spec.colorTexture, true)
+    ? loadPreviewTexture(spec.colorTexture, true)
     : spec.category === "blockout"
-      ? loadTexture(createBlockoutTextureDataUri(spec.color, spec.edgeColor ?? "#f5f2ea", spec.edgeThickness ?? 0.018), true)
+      ? loadPreviewTexture(createBlockoutTextureDataUri(spec.color, spec.edgeColor ?? "#f5f2ea", spec.edgeThickness ?? 0.018), true)
       : blendLayerTextures.some(Boolean)
-        ? loadTexture(WHITE_TEXTURE_DATA_URI, true)
+        ? loadPreviewTexture(WHITE_PREVIEW_TEXTURE_DATA_URI, true)
         : undefined;
-  const normalTexture = spec.normalTexture ? loadTexture(spec.normalTexture, false) : undefined;
-  const metalnessTexture = spec.metalnessTexture ? loadTexture(spec.metalnessTexture, false) : undefined;
-  const roughnessTexture = spec.roughnessTexture ? loadTexture(spec.roughnessTexture, false) : undefined;
+  const normalTexture = spec.normalTexture ? loadPreviewTexture(spec.normalTexture, false) : undefined;
+  const metalnessTexture = spec.metalnessTexture ? loadPreviewTexture(spec.metalnessTexture, false) : undefined;
+  const roughnessTexture = spec.roughnessTexture ? loadPreviewTexture(spec.roughnessTexture, false) : undefined;
   const transparent = spec.transparent ?? false;
   const opacity = transparent ? spec.opacity ?? 1 : 1;
 
@@ -3365,7 +3459,7 @@ function createPreviewMaterial(spec: DerivedRenderMesh["material"], selected: bo
 function installSurfaceBlendShader(
   material: MeshStandardMaterial,
   spec: DerivedRenderMesh["material"],
-  blendLayerTextures: Array<ReturnType<typeof loadTexture> | undefined>
+  blendLayerTextures: Array<ReturnType<typeof loadPreviewTexture> | undefined>
 ) {
   const layers = (spec.blendLayers ?? []).slice(0, 4);
 
@@ -3446,29 +3540,8 @@ function resolvePreviewMaterialSide(side?: MaterialRenderSide): Side {
   }
 }
 
-function disposePreviewMaterial(material: MeshStandardMaterial) {
+function disposePreviewMaterial(material: Material) {
   material.dispose();
-}
-
-function loadTexture(source: string, isColor: boolean) {
-  const cacheKey = `${isColor ? "color" : "data"}:${source}`;
-  const cached = previewTextureCache.get(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
-
-  const texture = new TextureLoader().load(source);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-
-  if (isColor) {
-    texture.colorSpace = SRGBColorSpace;
-  }
-
-  previewTextureCache.set(cacheKey, texture);
-
-  return texture;
 }
 
 function applyObjectTransform(object: Object3D, transform: Transform) {

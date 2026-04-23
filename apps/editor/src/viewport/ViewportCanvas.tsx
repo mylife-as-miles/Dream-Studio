@@ -3392,6 +3392,13 @@ export function ViewportCanvas({
         orthographic={viewport.projection === "orthographic"}
         onCreated={(state: RootState) => {
           cameraRef.current = state.camera;
+          const gl = state.gl as unknown as { init?: () => Promise<void> };
+          if (typeof gl.init === "function") {
+            void gl.init().then(
+              () => (state as unknown as { invalidate?: () => void }).invalidate?.(),
+              (err) => console.error("[ViewportCanvas] WebGPU renderer init failed:", err)
+            );
+          }
         }}
         onPointerMissed={() => {
           if (!editorInteractionEnabled) {

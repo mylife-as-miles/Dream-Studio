@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { deriveRenderScene } from "./derived-scene";
 import { makeTransform, vec3, type Entity, type GeometryNode, type Material } from "@blud/shared";
+import { createEditableMeshFromPolygons } from "@blud/geometry-kernel";
 
 describe("deriveRenderScene", () => {
   test("applies parent transforms to child meshes, groups, and entities", () => {
@@ -145,5 +146,60 @@ describe("deriveRenderScene", () => {
     expect(scene.instancedMeshes).toHaveLength(1);
     expect(scene.instancedMeshes[0]?.mesh.modelPath).toBe("crate.glb");
     expect(scene.instancedMeshes[0]?.instances[0]?.nodeId).toBe("node:model-instance");
+  });
+
+  test("preserves mesh surface colors, blend weights, and decals", () => {
+    const material: Material = {
+      color: "#ffffff",
+      id: "material:surface",
+      name: "Surface"
+    };
+    const mesh = createEditableMeshFromPolygons([
+      {
+        id: "quad",
+        materialId: material.id,
+        positions: [vec3(0, 0, 0), vec3(1, 0, 0), vec3(1, 0, 1), vec3(0, 0, 1)],
+        uvs: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+        vertexIds: ["a", "b", "c", "d"]
+      }
+    ]);
+    mesh.surface = {
+      blendLayers: [{ color: "#ff0000", id: "blend:red", name: "Red" }],
+      decals: [
+        {
+          id: "decal:test",
+          name: "Test Decal",
+          normal: vec3(0, 1, 0),
+          position: vec3(0.5, 0.02, 0.5),
+          size: { x: 1, y: 1 }
+        }
+      ]
+    };
+    mesh.faces[0] = {
+      ...mesh.faces[0]!,
+      blendWeights: [{ "blend:red": 1 }, { "blend:red": 1 }, { "blend:red": 1 }, { "blend:red": 1 }],
+      vertexColors: [
+        { a: 1, b: 0, g: 0, r: 1 },
+        { a: 1, b: 0, g: 0, r: 1 },
+        { a: 1, b: 0, g: 0, r: 1 },
+        { a: 1, b: 0, g: 0, r: 1 }
+      ]
+    };
+    const nodes: GeometryNode[] = [
+      {
+        data: mesh,
+        id: "node:surface",
+        kind: "mesh",
+        name: "Surface Mesh",
+        transform: makeTransform(vec3(0, 0, 0))
+      }
+    ];
+
+    const scene = deriveRenderScene(nodes, [], [material]);
+    const surface = scene.meshes[0]?.surface;
+
+    expect(surface?.colors?.length).toBe(16);
+    expect(surface?.blendWeights?.[0]).toBe(1);
+    expect(surface?.decals?.[0]?.id).toBe("decal:test");
   });
 });

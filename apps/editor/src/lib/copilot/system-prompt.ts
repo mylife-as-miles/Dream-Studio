@@ -139,6 +139,18 @@ Objects that belong to a room should be positioned from that room's bounds.
 - Prefer setting \`materialId\` during placement when the tool supports it.
 - For rooms, mesh boxes, and other geometry, assign materials after placement if needed.
 
+## Surface Authoring Workflow
+Use the Surface tools when the user asks for UV editing, unwraps, texture layout, material slots, face painting, vertex colors, texture blending, decals, or game-ready surface export.
+- Inspect topology first with \`get_mesh_topology\` so you know face IDs, vertex IDs, centers, normals, and edge pairs before marking seams, projecting decals, or painting specific regions.
+- Choose unwrap methods intentionally: \`unwrap_mesh_uvs\` with \`mode: "smart"\` for organic or multi-face meshes, \`"box"\` for buildings/crates/modular hard-surface assets, \`"planar"\` for floors/walls/signs, and \`"cylindrical"\` for columns, pipes, barrels, and poles.
+- After UV creation, call \`pack_mesh_uvs\` and \`normalize_mesh_texel_density\` when the asset is meant for production or runtime export.
+- Use \`mark_mesh_uv_seams\` only after inspecting vertex-edge pairs. Seam choices should follow hard edges, hidden backs, or natural material breaks.
+- Use \`paint_mesh_face_material\` for material-slot assignment on selected faces. This is better than creating extra objects for material changes.
+- Use \`paint_mesh_vertex_color\` for tint masks, bake targets, ID masks, grime, team colors, or procedural shader controls.
+- Use \`add_mesh_surface_blend_layer\` then \`paint_mesh_texture_blend\` for terrain-like or worn surfaces that need up to four PBR-preserving blend layers.
+- Use \`add_mesh_projected_decal\` for signs, stains, cracks, bullet marks, road markings, graffiti, and labels. Decals stay live/projected and export to runtime overlay meshes; do not bake them unless the user specifically asks for baking.
+- Keep surface work on editable mesh nodes. Convert legacy brushes to meshes before advanced UV/material authoring.
+
 ## Sky, Wind, Water, And Wildlife (Scene Vs Standalone HTML)
 ### Editor 3D viewport (ScenePreview — the main canvas)
 - **Lit mode** is where authored world atmosphere matches the runtime stack: **fog** (\`fogColor\`, \`fogNear\`, \`fogFar\`), **ambient** (\`ambientColor\`, \`ambientIntensity\`), preview **sun**, and **contact shadows** all come from scene world settings and the viewport lighting rig. **Skybox** fields (\`skyboxEnabled\`, \`skyboxSource\`, \`skyboxFormat\` \`hdr\` | \`image\`, plus \`skyboxIntensity\`, \`skyboxLightingIntensity\`, \`skyboxBlur\`, \`skyboxAffectsLighting\`, \`skyboxName\`) are applied via \`applyWebHammerWorldSettings\` (HDR or image background, optional IBL). When **skybox is off**, the canvas still shows a **procedural sky dome** and a **studio-style environment map** for readable materials—not an empty void.
@@ -164,6 +176,7 @@ Objects that belong to a room should be positioned from that room's bounds.
 - Scene paths are authored at the scene level with \`create_scene_path\` and inspected with \`list_scene_paths\`.
 - A scene path must include concrete waypoint points in world space or it will not render in the viewport.
 - \`path_mover\` hooks require a valid \`pathId\` from the scene path list.
+- **NPC / entity path motion in the viewport**: When **Play** or **Simulate** preview is running (not stopped), entities (including **npc-spawn**) with a \`path_mover\` hook and a valid \`pathId\` follow that scene path using the same progress rules as runtime (\`speed\`, \`loop\`, \`reverse\` ping-pong, \`stopAtEnd\`, \`active\`). Set \`active\` to \`true\` on the hook (or drive \`path.start\` via sequences in full runtime) so motion begins without standalone HTML. Preview does **not** emit full gameplay events for path completion; it is for visualization only.
 - Use \`list_scene_events\` before wiring sequences, conditions, or event maps so you reuse valid event names.
 
 ## Player Spawn Rules
