@@ -6,24 +6,24 @@ This plan implements four worldbuilding tool categories (Terrain, Foliage, GridM
 
 ## Tasks
 
-- [-] 1. Shared types and node definitions (`@blud/shared`)
-  - [-] 1.1 Add TerrainNode type and data types to `packages/shared/src/types.ts`
+- [x] 1. Shared types and node definitions (`@blud/shared`)
+  - [x] 1.1 Add TerrainNode type and data types to `packages/shared/src/types.ts`
     - Add `TerrainLayerDefinition`, `TerrainNodeData`, and `TerrainNode` types
     - Add `FalloffType` and `BrushMode` type aliases
     - Include `heightmap` (Float32Array), `resolution`, `size` (Vec3), `splatmap` (Float32Array), `layers`, `lodLevels`, and optional `holeMask` (Uint8Array) fields
     - _Requirements: 1.1_
 
-  - [~] 1.2 Add GridMapNode type and data types to `packages/shared/src/types.ts`
+  - [x] 1.2 Add GridMapNode type and data types to `packages/shared/src/types.ts`
     - Add `TileEntry`, `TilePaletteEntry`, `AutoTileRule`, `GridMapNodeData`, and `GridMapNode` types
     - Include `cellSize` (Vec3), `tiles` (Record<string, TileEntry>), and `palette` fields
     - _Requirements: 13.1_
 
-  - [~] 1.3 Add SplineNode type and data types to `packages/shared/src/types.ts`
+  - [x] 1.3 Add SplineNode type and data types to `packages/shared/src/types.ts`
     - Add `SplineType`, `SplineInterpolation`, `ControlPoint`, `CrossSectionProfile`, `SplineTerrainIntegration`, `SplineNodeData`, and `SplineNode` types
     - Include `splineType`, `interpolation`, `controlPoints`, `crossSection`, `closed`, `segmentCount`, and optional `terrainIntegration` fields
     - _Requirements: 19.1_
 
-  - [~] 1.4 Extend the `GeometryNode` union and add type guards
+  - [x] 1.4 Extend the `GeometryNode` union and add type guards
     - Add `TerrainNode`, `GridMapNode`, and `SplineNode` to the `GeometryNode` union type
     - Add `isTerrainNode`, `isGridMapNode`, and `isSplineNode` type guard functions
     - Export all new types and guards from `packages/shared/src/index.ts`
@@ -35,11 +35,11 @@ This plan implements four worldbuilding tool categories (Terrain, Foliage, GridM
     - Add tests to `packages/shared/src/scene-graph.test.ts`
     - _Requirements: 1.1, 13.1, 19.1_
 
-- [ ] 2. Checkpoint — Verify shared types compile
+- [x] 2. Checkpoint — Verify shared types compile
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Terrain package (`packages/terrain`)
-  - [~] 3.1 Initialize the `packages/terrain` package
+- [-] 3. Terrain package (`packages/terrain`)
+  - [-] 3.1 Initialize the `packages/terrain` package
     - Create `packages/terrain/package.json` with name `@blud/terrain`, dependencies on `@blud/shared` and `three`
     - Create `packages/terrain/tsconfig.json` extending the monorepo base config
     - Create `packages/terrain/src/index.ts` barrel export file
