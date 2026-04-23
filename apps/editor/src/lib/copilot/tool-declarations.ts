@@ -471,7 +471,7 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   {
     name: "generate_game_html",
     description:
-      "Call this after you have written the complete standalone HTML game in a ```html code block in your message. This tool registers the game artifact so it appears as a playable card in the UI. Do NOT put the HTML in the tool arguments — write it in your message text first, then call this tool with only the title.",
+      "Call this after you have written the complete standalone HTML game in a ```html code block in your message. This tool registers the game artifact so it appears as a playable card in the UI. Do NOT put the HTML in the tool arguments — write it in your message text first, then call this tool with only the title. Default to a premium, polished UI/HUD/layout for game, HTML, browser-based, and viewport-facing experiences unless the user explicitly wants a minimal or debug look.",
     parameters: {
       type: "object",
       properties: {
@@ -910,14 +910,15 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   }
 ];
 
-/** Only `generate_game_html` — used when the model's task is purely game generation */
+/** Only `generate_game_html` — used when the model's task is a standalone game or browser-based interactive experience */
 export const GAME_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   COPILOT_TOOL_DECLARATIONS.find((t) => t.name === "generate_game_html")!
 ];
 
 /**
- * Return `true` when the user's prompt is clearly a standalone-game request
- * (not a scene-editing request). In that case we expose only `generate_game_html`
+ * Return `true` when the user's prompt is clearly a standalone-game or browser-based
+ * interactive request (not a scene-editing request). In that case we expose only
+ * `generate_game_html`
  * instead of all 59 editor tools so the model context stays lean.
  */
 export function isGameGenerationPrompt(prompt: string): boolean {
@@ -950,6 +951,18 @@ export function isGameGenerationPrompt(prompt: string): boolean {
     "standalone game",
     "html game",
     "browser game",
+    "browser-based experience",
+    "browser based experience",
+    "web-based experience",
+    "web based experience",
+    "standalone html",
+    "html prototype",
+    "html demo",
+    "html experience",
+    "interactive prototype",
+    "interactive demo",
+    "viewport demo",
+    "premium viewport demo",
     "platformer",
     "fps game",
     "racing game",
