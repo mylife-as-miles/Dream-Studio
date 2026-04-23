@@ -1,10 +1,11 @@
-import { useCallback, useState } from "react";
-import { Loader2, MessageCircle, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, MessageCircle, Volume2, X } from "lucide-react";
 import { useSnapshot } from "valtio";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { generateNpcReply } from "@/lib/preview-npc-chat";
 import { speak } from "@/lib/elevenlabs-client";
+import { loadCopilotSettings } from "@/lib/copilot/settings";
 import { previewNpcDialogueStore } from "@/state/preview-npc-dialogue-store";
 
 function isTextInputTarget(target: EventTarget | null) {
@@ -36,7 +37,7 @@ export function PreviewNpcDialogueOverlay() {
     }
 
     const entityId = session.entityId;
-    const voiceId = session.voiceId;
+    const voiceId = session.voiceId || "JBFqnCBsd6RMkjVDRZzb"; // fallback to "George" default voice
     previewNpcDialogueStore.busy = true;
     previewNpcDialogueStore.error = null;
     setDraft("");
@@ -60,7 +61,12 @@ export function PreviewNpcDialogueOverlay() {
       active.history.push({ role: "assistant", text: reply });
 
       if (voiceId) {
-        await speak(reply, { voiceId });
+        try {
+          await speak(reply, { voiceId });
+        } catch (ttsErr) {
+          // TTS failure shouldn't block the text reply
+          console.warn("[NPC TTS]", ttsErr);
+        }
       }
     } catch (err) {
       previewNpcDialogueStore.error = err instanceof Error ? err.message : "Request failed.";
@@ -81,10 +87,16 @@ export function PreviewNpcDialogueOverlay() {
             <MessageCircle className="size-3.5 text-emerald-300/90" />
             <span className="truncate">{snap.session.displayName}</span>
             {!snap.session.voiceId ? (
-              <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-normal text-amber-200/90">
-                Text only — assign a voice in Inspector
+              <span className="rounded-md bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-normal text-purple-200/90">
+                <Volume2 className="mr-0.5 inline size-2.5" />
+                Default voice
               </span>
-            ) : null}
+            ) : (
+              <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-normal text-emerald-200/90">
+                <Volume2 className="mr-0.5 inline size-2.5" />
+                Voice assigned
+              </span>
+            )}
           </div>
           <Button className="h-7 w-7 shrink-0" onClick={close} size="icon" variant="ghost">
             <X className="size-3.5" />
