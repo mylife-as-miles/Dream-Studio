@@ -103,17 +103,17 @@ This plan implements five worldbuilding and modeling tool categories (Terrain, F
     - Create `packages/foliage/src/index.ts` barrel export file
     - _Requirements: 28.2_
 
-  - [~] 4.2 Implement foliage palette types in `packages/foliage/src/foliage-palette.ts`
+  - [ ] 4.2 Implement foliage palette types in `packages/foliage/src/foliage-palette.ts`
     - Define `FoliagePaletteEntry` type with `id`, `name`, `meshAssetId`, `minScale`, `maxScale`, `density`, `alignToNormal`, `randomRotationY`, `minSlopeAngle`, `maxSlopeAngle`
     - _Requirements: 8.1_
 
-  - [~] 4.3 Implement foliage instance storage in `packages/foliage/src/foliage-instance.ts`
+  - [ ] 4.3 Implement foliage instance storage in `packages/foliage/src/foliage-instance.ts`
     - Define `FoliageInstance` type with `id`, `paletteEntryId`, `position`, `rotation`, `scale`
     - Implement `FoliageInstanceStore` class with `add`, `remove`, and `queryRadius` methods
     - `queryRadius` performs a linear scan for instances within a given radius of a center point
     - _Requirements: 9.1, 10.1, 10.2_
 
-  - [~] 4.4 Implement GPU instance buffer generation in `packages/foliage/src/gpu-instance-buffer.ts`
+  - [ ] 4.4 Implement GPU instance buffer generation in `packages/foliage/src/gpu-instance-buffer.ts`
     - Define `GpuInstanceGroup` type with `meshAssetId`, `transforms` (Float32Array of 4x4 matrices), and `count`
     - Implement `buildInstanceGroups` that groups instances by mesh asset and builds per-group transform buffers
     - Implement `updateInstanceBuffer` for incremental add/remove updates
@@ -126,7 +126,7 @@ This plan implements five worldbuilding and modeling tool categories (Terrain, F
     - Test `updateInstanceBuffer` handles incremental updates
     - _Requirements: 9.1, 10.2, 11.1, 11.2_
 
-  - [~] 4.6 Export all foliage types and functions from `packages/foliage/src/index.ts`
+  - [ ] 4.6 Export all foliage types and functions from `packages/foliage/src/index.ts`
     - Re-export all public types and functions from foliage-palette, foliage-instance, and gpu-instance-buffer modules
     - _Requirements: 28.2_
 
