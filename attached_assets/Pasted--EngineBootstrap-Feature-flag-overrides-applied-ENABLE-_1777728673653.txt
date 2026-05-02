@@ -1,0 +1,934 @@
+[EngineBootstrap] Feature flag overrides applied: {ENABLE_WEBGPU: true}
+engine-bootstrap.ts:62 [EngineBootstrap] Active flags: {ENABLE_WEBGPU: true, WEBGPU_PHASE2_MATERIALS: false, WEBGPU_PHASE3_PICKING: false, WEBGPU_PHASE4_SIMULATION: false, ENABLE_JOLT_BACKEND: false, …}
+factory.ts:40 [RendererFactory] WebGPU backend selected.
+engine-bootstrap.ts:70 [EngineBootstrap] Renderer: WEBGPU | WebGPU available: true {backend: 'webgpu', maxTextureSize: 16384, floatTextures: true, instancedRendering: true, computeShaders: true, …}
+scheduler-DiKdkkNC.js?v=41704814:14 [Violation] 'message' handler took 409ms
+three_build_three__webgpu__js.js?v=1fec4f3b:41092 Uncaught Error: Renderer: .render() called before the backend is initialized. Use "await renderer.init();" before rendering.
+    at WebGPURenderer.render (three_build_three__webgpu__js.js?v=1fec4f3b:41092:42)
+    at Object.current (@react-three_drei.js?v=75b2d663:48601:7)
+    at update (react-three-fiber.esm-D3ddUo7C.js?v=41704814:9064:20)
+    at loop (react-three-fiber.esm-D3ddUo7C.js?v=41704814:9084:175)
+render @ three_build_three__webgpu__js.js?v=1fec4f3b:41092
+(anonymous) @ @react-three_drei.js?v=75b2d663:48601
+update @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9064
+loop @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9084
+requestAnimationFrame
+invalidate @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9107
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:954
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:17
+setState @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:17
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:8905
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+ca @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194
+Pf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5182
+yn @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5464
+rt @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5827
+yn @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5475
+Th @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6713
+Hf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6673
+yh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6334
+Lf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6319
+Tu @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2709
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<Provider>
+exports.jsx @ react_jsx-runtime.js?v=b2f91a7f:193
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:8888
+Promise.then
+render @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:8887
+run @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9356
+await in run
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9364
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12657
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+commitHookEffectListMount @ react-dom_client.js?v=2b353377:6370
+commitHookLayoutEffects @ react-dom_client.js?v=2b353377:6358
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6712
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6715
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6728
+flushLayoutEffects @ react-dom_client.js?v=2b353377:8424
+commitRoot @ react-dom_client.js?v=2b353377:8337
+commitRootWhenReady @ react-dom_client.js?v=2b353377:7832
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7804
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<CanvasImpl>
+exports.jsx @ react_jsx-runtime.js?v=b2f91a7f:193
+Canvas @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9401
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<Canvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3388
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this error
+three.js?v=fc231afa:2011 Uncaught TypeError: Cannot read properties of undefined (reading 'buffers')
+    at PMREMGenerator._sceneToCubeUV (three.js?v=fc231afa:2011:22)
+    at PMREMGenerator.fromScene (three.js?v=fc231afa:1866:8)
+    at ViewportCanvas.tsx:344:46
+    at Object.react_stack_bottom_frame (react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374:28)
+    at B (react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319:55)
+    at ca (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194:80)
+    at Yp (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241:20)
+    at sh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981:29)
+    at Jr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970:6)
+    at lh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958:192)
+_sceneToCubeUV @ three.js?v=fc231afa:2011
+fromScene @ three.js?v=fc231afa:1866
+(anonymous) @ ViewportCanvas.tsx:344
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+ca @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194
+Yp @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241
+sh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981
+Jr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5954
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5938
+Eh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6809
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6664
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportStudioEnvironment>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3436
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this error
+@react-three_drei.js?v=75b2d663:13417 Uncaught TypeError: Cannot set properties of undefined (setting 'touchAction')
+    at OrbitControls$1.connect (@react-three_drei.js?v=75b2d663:13417:39)
+    at @react-three_drei.js?v=75b2d663:35964:12
+    at Object.react_stack_bottom_frame (react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374:28)
+    at B (react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319:55)
+    at ca (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194:80)
+    at Yp (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241:20)
+    at sh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981:29)
+    at Jr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970:6)
+    at sh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981:7)
+    at Jr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970:6)
+OrbitControls$1.connect @ @react-three_drei.js?v=75b2d663:13417
+(anonymous) @ @react-three_drei.js?v=75b2d663:35964
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+ca @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194
+Yp @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241
+sh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981
+Jr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970
+sh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981
+Jr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5954
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5938
+Eh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6809
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6664
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ForwardRef>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorCameraRig.tsx:460
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7339
+Ou @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:3497
+It @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:3471
+ks @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:4489
+tt @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:4810
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+Ph @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6579
+wh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6498
+Ff @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6489
+Lf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6261
+Tu @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2709
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorCameraRig>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3454
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this error
+EditorCameraRig.tsx:335 Uncaught TypeError: domElement.addEventListener is not a function
+    at EditorCameraRig.tsx:335:16
+    at Object.react_stack_bottom_frame (react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374:28)
+    at B (react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319:55)
+    at ca (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194:80)
+    at Yp (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241:20)
+    at sh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981:29)
+    at Jr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970:6)
+    at lh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958:192)
+    at wr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922:6)
+    at lh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5954:341)
+(anonymous) @ EditorCameraRig.tsx:335
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+ca @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194
+Yp @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241
+sh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981
+Jr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5954
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5938
+Eh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6809
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6664
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorCameraRig>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3454
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this error
+three_build_three__webgpu__js.js?v=1fec4f3b:41092 Uncaught Error: Renderer: .render() called before the backend is initialized. Use "await renderer.init();" before rendering.
+    at WebGPURenderer.render (three_build_three__webgpu__js.js?v=1fec4f3b:41092:42)
+    at update (react-three-fiber.esm-D3ddUo7C.js?v=41704814:9066:60)
+    at loop (react-three-fiber.esm-D3ddUo7C.js?v=41704814:9084:175)
+render @ three_build_three__webgpu__js.js?v=1fec4f3b:41092
+update @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9066
+loop @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9084
+requestAnimationFrame
+loop @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9076
+requestAnimationFrame
+invalidate @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9107
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:954
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:17
+setState @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:17
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:8905
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+ca @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194
+Pf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5182
+yn @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5464
+rt @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5827
+yn @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5475
+Th @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6713
+Hf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6673
+yh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6334
+Lf @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6319
+Tu @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2709
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<Provider>
+exports.jsx @ react_jsx-runtime.js?v=b2f91a7f:193
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:8888
+Promise.then
+render @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:8887
+run @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9356
+await in run
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9364
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12657
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+commitHookEffectListMount @ react-dom_client.js?v=2b353377:6370
+commitHookLayoutEffects @ react-dom_client.js?v=2b353377:6358
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6712
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6715
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6749
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6711
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6800
+recursivelyTraverseLayoutEffects @ react-dom_client.js?v=2b353377:7232
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6728
+flushLayoutEffects @ react-dom_client.js?v=2b353377:8424
+commitRoot @ react-dom_client.js?v=2b353377:8337
+commitRootWhenReady @ react-dom_client.js?v=2b353377:7832
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7804
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<CanvasImpl>
+exports.jsx @ react_jsx-runtime.js?v=b2f91a7f:193
+Canvas @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9401
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<Canvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3388
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this error
+react-dom_client.js?v=2b353377:5010 Uncaught TypeError: domElement.addEventListener is not a function
+    at EditorCameraRig.tsx:335:16
+    at Object.react_stack_bottom_frame (react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374:28)
+    at B (react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319:55)
+    at ca (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194:80)
+    at Yp (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241:20)
+    at sh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981:29)
+    at Jr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970:6)
+    at lh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958:192)
+    at wr (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922:6)
+    at lh (react-three-fiber.esm-D3ddUo7C.js?v=41704814:5954:341)
+(anonymous) @ EditorCameraRig.tsx:335
+react_stack_bottom_frame @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:7374
+B @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:2319
+ca @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5194
+Yp @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5241
+sh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5981
+Jr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5970
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5958
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5954
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5934
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5963
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5931
+wr @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5922
+lh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:5938
+Eh @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6809
+(anonymous) @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:6664
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorCameraRig>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3454
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this error
+client:510 An error occurred in the <CanvasImpl> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+(anonymous) @ client:510
+defaultOnUncaughtError @ react-dom_client.js?v=2b353377:5011
+logUncaughtError @ react-dom_client.js?v=2b353377:5040
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+lane.callback @ react-dom_client.js?v=2b353377:5068
+callCallback @ react-dom_client.js?v=2b353377:3848
+commitCallbacks @ react-dom_client.js?v=2b353377:3856
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+commitLayoutEffectOnFiber @ react-dom_client.js?v=2b353377:6739
+flushLayoutEffects @ react-dom_client.js?v=2b353377:8424
+commitRoot @ react-dom_client.js?v=2b353377:8337
+commitRootWhenReady @ react-dom_client.js?v=2b353377:7832
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7804
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<CanvasImpl>
+exports.jsx @ react_jsx-runtime.js?v=b2f91a7f:193
+Canvas @ react-three-fiber.esm-D3ddUo7C.js?v=41704814:9401
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<Canvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ ViewportCanvas.tsx:3388
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportCanvas>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:411
+ViewportLayout @ EditorShell.tsx:748
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<ViewportLayout>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ EditorShell.tsx:586
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<EditorShell>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ App.tsx:2085
+react_stack_bottom_frame @ react-dom_client.js?v=2b353377:12621
+renderWithHooksAgain @ react-dom_client.js?v=2b353377:4021
+renderWithHooks @ react-dom_client.js?v=2b353377:3972
+updateFunctionComponent @ react-dom_client.js?v=2b353377:5322
+beginWork @ react-dom_client.js?v=2b353377:5893
+runWithFiberInDEV @ react-dom_client.js?v=2b353377:604
+performUnitOfWork @ react-dom_client.js?v=2b353377:8182
+workLoopSync @ react-dom_client.js?v=2b353377:8078
+renderRootSync @ react-dom_client.js?v=2b353377:8062
+performWorkOnRoot @ react-dom_client.js?v=2b353377:7710
+performWorkOnRootViaSchedulerTask @ react-dom_client.js?v=2b353377:8812
+performWorkUntilDeadline @ scheduler-DiKdkkNC.js?v=41704814:34
+<App>
+exports.jsxDEV @ react_jsx-dev-runtime.js?v=b2f91a7f:193
+(anonymous) @ main.tsx:14
+await in (anonymous)
+(anonymous) @ main.tsx:17Understand this warning

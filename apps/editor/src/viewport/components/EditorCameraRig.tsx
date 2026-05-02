@@ -36,6 +36,7 @@ export function EditorCameraRig({
 }: Pick<ViewportCanvasProps, "onViewportChange" | "viewport" | "viewportId"> & { controlsEnabled: boolean }) {
   const camera = useThree((state) => state.camera);
   const gl = useThree((state) => state.gl);
+  const eventsConnected = useThree((state) => state.events.connected as HTMLElement | undefined);
   const controlsRef = useRef<any>(null);
   const flyLookActiveRef = useRef(false);
   const flySpeedRef = useRef(18);
@@ -238,7 +239,15 @@ export function EditorCameraRig({
   }, [controlsEnabled, setViewportNavigationState, syncViewport]);
 
   useEffect(() => {
-    const domElement = gl.domElement;
+    const rawDom = gl.domElement as HTMLElement | undefined;
+    const domElement: HTMLElement =
+      rawDom && typeof rawDom.addEventListener === "function"
+        ? rawDom
+        : eventsConnected ?? (rawDom as unknown as HTMLElement);
+
+    if (!domElement || typeof domElement.addEventListener !== "function") {
+      return;
+    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) {
@@ -353,6 +362,7 @@ export function EditorCameraRig({
   }, [
     applyFlyLookDelta,
     controlsEnabled,
+    eventsConnected,
     gl.domElement,
     setViewportNavigationState,
     syncFlyAnglesFromView,
