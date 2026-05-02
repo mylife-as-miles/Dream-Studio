@@ -47,6 +47,18 @@ export function EditorCameraRig({
   const pitchRef = useRef(0);
   const [flyLookActive, setFlyLookActive] = useState(false);
 
+  const controlsDomElement = useMemo((): HTMLElement | undefined => {
+    const connected = eventsConnected;
+    if (connected && typeof (connected as unknown as { style?: unknown }).style !== "undefined") {
+      return connected;
+    }
+    const dom = gl.domElement as HTMLElement | undefined;
+    if (dom && typeof (dom as unknown as { style?: unknown }).style !== "undefined") {
+      return dom;
+    }
+    return undefined;
+  }, [gl.domElement, eventsConnected]);
+
   const setViewportNavigationState = useCallback((mode?: "fly") => {
     if (typeof document === "undefined") {
       return;
@@ -450,10 +462,15 @@ export function EditorCameraRig({
     []
   );
 
+  if (!controlsDomElement) {
+    return null;
+  }
+
   if (viewport.projection === "orthographic") {
     return (
       <MapControls
         ref={controlsRef}
+        domElement={controlsDomElement}
         enabled={controlsEnabled}
         enableRotate={false}
         makeDefault
@@ -470,6 +487,7 @@ export function EditorCameraRig({
     <OrbitControls
       ref={controlsRef}
       dampingFactor={0.12}
+      domElement={controlsDomElement}
       enableDamping={!flyLookActive}
       enablePan
       enabled={controlsEnabled && !flyLookActive}
