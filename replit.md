@@ -47,6 +47,17 @@ This starts Vite on port 5000 with host `0.0.0.0` and `allowedHosts: true`.
 - **Node Material Editor** — Toggle via View menu → "Node Material Editor". Opens a full-screen sheet with a visual node graph (using `@xyflow/react`) showing the selected material's texture/property nodes.
 - **AI Behavior Tree Editor** — Toggle via View menu → "Behavior Tree Editor" (Cmd+Shift+B). Full-screen overlay with: left node palette (Composite/Decorator/Leaf node types), center React Flow canvas with auto-layout, right properties panel. Trees are saved/loaded from localStorage keyed by ID. The tree ID matches the `behaviorTreeId` field on the `ai_agent` hook. Node types: Root, Selector, Sequence, Parallel, Inverter, Repeater, Condition, Action.
 
+## Sculpt MVP
+
+The Sculpt tool (`ToolId = "sculpt"`) is fully wired in. Key files:
+
+- **`packages/geometry-kernel/src/mesh/mesh-ops/deform-ops.ts`** — `sculptEditableMeshSamples` (draw/inflate/deflate), `smoothEditableMeshSamples` (Laplacian smooth), `grabEditableMeshSamples` (grab-drag), `buildEditableMeshVertexNeighbors`
+- **`apps/editor/src/viewport/ViewportCanvas.tsx`** — `SculptBrushMode` now includes `"draw" | "smooth" | "grab" | "inflate" | "deflate"`. `SculptBrushState` has `symmetryX`, `grabOriginLocal`, `strokeVertexNeighbors`. Auto-enter useEffect fires when `activeToolId === "sculpt"`. Pointer down triggers sculpt for both `mesh-edit` and `sculpt` tools.
+- **`apps/editor/src/components/editor-shell/SculptToolBar.tsx`** — Draw / Smooth / Grab brush picker + Mirror X toggle
+- **`apps/editor/src/components/editor-shell/icons.tsx`** — `SculptToolIcon`, `DrawBrushIcon`, `SmoothBrushIcon`, `GrabBrushIcon`
+- Symmetry X mirrors all brush hits across the world X axis (negate x of hit point/normal/grabOrigin)
+- Undo is handled via existing `onUpdateMeshData` → `createSetMeshDataCommand` pipeline (one command per committed stroke)
+
 ## Notes
 
 - The editor uses `process` global polyfills in the Vite `define` config for `@babel/types` (used by `@blud/scene-importer`)

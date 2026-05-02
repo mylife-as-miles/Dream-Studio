@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CreationToolBar } from "@/components/editor-shell/CreationToolBar";
 import { FloorPresetsPanel } from "@/components/editor-shell/FloorPresetsPanel";
 import { MeshEditToolBars } from "@/components/editor-shell/MeshEditToolBars";
+import { SculptToolBar } from "@/components/editor-shell/SculptToolBar";
 import { PhysicsPlaybackControl } from "@/components/editor-shell/PhysicsPlaybackControl";
 import { SnapControl } from "@/components/editor-shell/SnapControl";
 import { ViewModeControl } from "@/components/editor-shell/ViewModeControl";
@@ -81,9 +82,13 @@ type ToolsPanelProps = {
   physicsPlayback: "paused" | "running" | "stopped";
   previewPossessed: boolean;
   previewSessionMode: PreviewSessionMode | null;
-  sculptMode?: "deflate" | "inflate" | null;
+  sculptMode?: string | null;
   sculptBrushRadius: number;
   sculptBrushStrength: number;
+  sculptBrushType: "draw" | "smooth" | "grab";
+  sculptSymmetryX: boolean;
+  onSetSculptBrushType: (type: "draw" | "smooth" | "grab") => void;
+  onSetSculptSymmetryX: (enabled: boolean) => void;
   selectionEnabled: boolean;
   selectedGeometry: boolean;
   selectedMesh: boolean;
@@ -122,6 +127,8 @@ export function ToolsPanel({
   onStepPhysics,
   onSetSculptBrushRadius,
   onSetSculptBrushStrength,
+  onSetSculptBrushType,
+  onSetSculptSymmetryX,
   onSetRightPanel,
   onStartAiModelPlacement,
   onSelectBrushShape,
@@ -140,6 +147,8 @@ export function ToolsPanel({
   sculptMode,
   sculptBrushRadius,
   sculptBrushStrength,
+  sculptBrushType,
+  sculptSymmetryX,
   selectionEnabled,
   selectedGeometry,
   selectedMesh,
@@ -317,7 +326,18 @@ export function ToolsPanel({
               </div>
             ) : null}
 
-            {activeToolId !== "brush" && activeToolId !== "mesh-edit" ? (
+            {activeToolId === "sculpt" ? (
+              <div className="overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+                <SculptToolBar
+                  brushType={sculptBrushType}
+                  symmetryX={sculptSymmetryX}
+                  onSetBrushType={onSetSculptBrushType}
+                  onSetSymmetryX={onSetSculptSymmetryX}
+                />
+              </div>
+            ) : null}
+
+            {activeToolId !== "brush" && activeToolId !== "mesh-edit" && activeToolId !== "sculpt" ? (
               <div className="editor-dock-note rounded-xl px-3 py-3 text-[11px]">
                 {describeTool(activeToolId)}
               </div>

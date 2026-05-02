@@ -99,9 +99,11 @@ type EditorShellProps = {
   lockedSceneItemIds: string[];
   meshEditMode: MeshEditMode;
   meshEditToolbarAction?: MeshEditToolbarActionRequest;
-  sculptMode?: "deflate" | "inflate" | null;
+  sculptMode?: string | null;
   sculptBrushRadius: number;
   sculptBrushStrength: number;
+  sculptBrushType: "draw" | "smooth" | "grab";
+  sculptSymmetryX: boolean;
   onActivateViewport: (viewportId: ViewportPaneId) => void;
   onApplyMaterial: (materialId: string, scope: "faces" | "object", faceIds: string[]) => void;
   onClipSelection: (axis: TransformAxis) => void;
@@ -149,7 +151,9 @@ type EditorShellProps = {
   onPreviewBrushData: (nodeId: string, brush: Brush) => void;
   onPreviewEntityTransform: (entityId: string, transform: Transform) => void;
   onPreviewMeshData: (nodeId: string, mesh: EditableMesh) => void;
-  onSculptModeChange: (mode: "deflate" | "inflate" | null) => void;
+  onSculptModeChange: (mode: string | null) => void;
+  onSetSculptBrushType: (type: "draw" | "smooth" | "grab") => void;
+  onSetSculptSymmetryX: (enabled: boolean) => void;
   onRedo: () => void;
   onSaveWhmap: () => void;
   onSelectAsset: (assetId: string) => void;
@@ -246,6 +250,8 @@ export function EditorShell({
   sculptMode,
   sculptBrushRadius,
   sculptBrushStrength,
+  sculptBrushType,
+  sculptSymmetryX,
   onActivateViewport,
   onApplyMaterial,
   onClipSelection,
@@ -294,6 +300,8 @@ export function EditorShell({
   onPreviewEntityTransform,
   onPreviewMeshData,
   onSculptModeChange,
+  onSetSculptBrushType,
+  onSetSculptSymmetryX,
   onRedo,
   onSaveWhmap,
   onSelectAsset,
@@ -434,6 +442,8 @@ export function EditorShell({
           meshEditToolbarAction={meshEditToolbarAction}
           sculptBrushRadius={sculptBrushRadius}
           sculptBrushStrength={sculptBrushStrength}
+          sculptBrushType={sculptBrushType}
+          sculptSymmetryX={sculptSymmetryX}
           onActivateViewport={onActivateViewport}
           onClearSelection={onClearSelection}
           onDropBlockout={onDropBlockout}
@@ -580,6 +590,8 @@ export function EditorShell({
               onSetMeshEditMode={onSetMeshEditMode}
               onSetSculptBrushRadius={onSetSculptBrushRadius}
               onSetSculptBrushStrength={onSetSculptBrushStrength}
+              onSetSculptBrushType={onSetSculptBrushType}
+              onSetSculptSymmetryX={onSetSculptSymmetryX}
               onSetGridInfinite={onSetGridInfinite}
               onSetSnapEnabled={onSetSnapEnabled}
               onSetSnapSize={onSetSnapSize}
@@ -594,6 +606,8 @@ export function EditorShell({
               previewSessionMode={previewSessionMode}
               sculptBrushRadius={sculptBrushRadius}
               sculptBrushStrength={sculptBrushStrength}
+              sculptBrushType={sculptBrushType}
+              sculptSymmetryX={sculptSymmetryX}
               selectionEnabled={selectionEnabled}
               sculptMode={sculptMode}
               selectedGeometry={selectedIsGeometry}

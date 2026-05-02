@@ -96,7 +96,7 @@ export function MeshEditToolBars({
   onWeldDistance: () => void;
   onWeldTarget: () => void;
   meshEditMode: MeshEditMode;
-  sculptMode?: "deflate" | "inflate" | null;
+  sculptMode?: string | null;
   sculptBrushRadius: number;
   sculptBrushStrength: number;
   selectedGeometry: boolean;

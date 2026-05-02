@@ -174,9 +174,11 @@ export function App() {
   const [workerJobs, setWorkerJobs] = useState<WorkerJob[]>([]);
   const [sceneRevision, setSceneRevision] = useState(0);
   const [selectionRevision, setSelectionRevision] = useState(0);
-  const [sculptMode, setSculptMode] = useState<"deflate" | "inflate" | null>(null);
+  const [sculptMode, setSculptMode] = useState<string | null>(null);
   const [sculptBrushRadius, setSculptBrushRadius] = useState(3);
   const [sculptBrushStrength, setSculptBrushStrength] = useState(0.2);
+  const [sculptBrushType, setSculptBrushType] = useState<"draw" | "smooth" | "grab">("draw");
+  const [sculptSymmetryX, setSculptSymmetryX] = useState(false);
   const [selectedScenePathId, setSelectedScenePathId] = useState<string>();
   const [projectName, setProjectName] = useState("Untitled Scene");
   const [projectSlug, setProjectSlug] = useState("untitled-scene");
@@ -2189,6 +2191,8 @@ export function App() {
         onPreviewMeshData={handlePreviewMeshData}
         onPreviewNodeTransform={handlePreviewNodeTransform}
         onSculptModeChange={setSculptMode}
+        onSetSculptBrushType={setSculptBrushType}
+        onSetSculptSymmetryX={setSculptSymmetryX}
         onRedo={handleRedo}
         onSaveWhmap={handleSaveWhmap}
         onSelectAsset={handleSelectAsset}
@@ -2235,6 +2239,8 @@ export function App() {
         sculptMode={sculptMode}
         sculptBrushRadius={sculptBrushRadius}
         sculptBrushStrength={sculptBrushStrength}
+        sculptBrushType={sculptBrushType}
+        sculptSymmetryX={sculptSymmetryX}
         physicsPlayback={physicsPlayback}
         physicsRevision={physicsRevision}
         previewPossessed={previewPossessed}

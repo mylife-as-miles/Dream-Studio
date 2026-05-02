@@ -508,6 +508,43 @@ export function SkateparkStairIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function SculptToolIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M5 19c2-4 4-7 7-9s6-2 8-1" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.4" opacity="0.4" />
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" opacity="0.7" />
+    </svg>
+  );
+}
+
+export function DrawBrushIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M12 19V5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+      <path d="M8 8l4-4 4 4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+      <ellipse cx="12" cy="14" rx="5" ry="2.5" stroke="currentColor" strokeWidth="1.4" opacity="0.5" />
+    </svg>
+  );
+}
+
+export function SmoothBrushIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M5 12c0-3.9 3.1-7 7-7s7 3.1 7 7-3.1 7-7 7-7-3.1-7-7Z" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
+      <path d="M8 12c0 1 1.2 2 4 2s4-1 4-2-1.2-2-4-2-4 1-4 2Z" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export function GrabBrushIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" viewBox="0 0 24 24" {...props}>
+      <path d="M8 20V10M11.5 20V8M15 20V10M18 14V12a1 1 0 0 0-2 0v-2a1 1 0 0 0-2 0V8a1.5 1.5 0 0 0-3 0v8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
 export function toolIconFor(toolId: ToolId) {
   switch (toolId) {
     case "select":
@@ -522,6 +559,8 @@ export function toolIconFor(toolId: ToolId) {
       return ExtrudeIcon;
     case "mesh-edit":
       return MeshEditToolIcon;
+    case "sculpt":
+      return SculptToolIcon;
     case "path-add":
       return PathAddIcon;
     case "path-edit":

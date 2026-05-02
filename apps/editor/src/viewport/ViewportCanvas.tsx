@@ -7,6 +7,7 @@ import {
   arcEditableMeshEdges,
   bevelEditableMeshEdges,
   buildEditableMeshVertexNormals,
+  buildEditableMeshVertexNeighbors,
   convertBrushToEditableMesh,
   cutEditableMeshBetweenEdges,
   deleteEditableMeshFaces,
@@ -23,7 +24,9 @@ import {
   mirrorEditableMesh,
   pokeEditableMeshFaces,
   quadrangulateEditableMeshFaces,
+  grabEditableMeshSamples,
   sculptEditableMeshSamples,
+  smoothEditableMeshSamples,
   solidifyEditableMesh,
   subdivideEditableMeshFace,
   triangulateEditableMeshFaces,
@@ -156,7 +159,7 @@ function loadThreeRuntimeWorldSettings() {
   return threeRuntimeWorldSettingsPromise;
 }
 
-type SculptBrushMode = "deflate" | "inflate";
+type SculptBrushMode = "deflate" | "draw" | "grab" | "inflate" | "smooth";
 
 type SculptBrushHit = {
   normal: Vec3;
@@ -166,6 +169,7 @@ type SculptBrushHit = {
 type SculptBrushState = {
   beforeMesh?: EditableMesh;
   dragging: boolean;
+  grabOriginLocal?: Vec3;
   hovered?: SculptBrushHit;
   lastPoint?: Vec3;
   mode: SculptBrushMode;
@@ -173,8 +177,10 @@ type SculptBrushState = {
   nodeId: string;
   previewMesh?: EditableMesh;
   radius: number;
+  strokeVertexNeighbors?: ReadonlyMap<string, string[]>;
   strokeVertexNormals?: ReadonlyMap<string, Vec3>;
   strength: number;
+  symmetryX: boolean;
 };
 
 function ViewportWorldSettings({ renderMode, sceneSettings }: Pick<ViewportCanvasProps, "renderMode" | "sceneSettings">) {
@@ -408,6 +414,8 @@ export function ViewportCanvas({
   meshEditToolbarAction,
   sculptBrushRadius,
   sculptBrushStrength,
+  sculptBrushType,
+  sculptSymmetryX,
   onActivateViewport,
   onClearSelection,
   onDropBlockout,
@@ -1162,13 +1170,38 @@ export function ViewportCanvas({
   };
 
   const applySculptHit = (state: SculptBrushState, hit: SculptBrushHit) => {
+    if (state.mode === "grab") {
+      const sourceMesh = state.beforeMesh;
+
+      if (!sourceMesh || !state.grabOriginLocal) {
+        return state;
+      }
+
+      const displacement = subVec3(hit.point, state.grabOriginLocal);
+      let nextMesh = grabEditableMeshSamples(sourceMesh, state.grabOriginLocal, state.radius, displacement, 0.0001);
+
+      if (state.symmetryX) {
+        const mirrorOrigin = vec3(-state.grabOriginLocal.x, state.grabOriginLocal.y, state.grabOriginLocal.z);
+        const mirrorDisplacement = vec3(-displacement.x, displacement.y, displacement.z);
+
+        nextMesh = grabEditableMeshSamples(nextMesh, mirrorOrigin, state.radius, mirrorDisplacement, 0.0001);
+      }
+
+      return {
+        ...state,
+        hovered: hit,
+        lastPoint: hit.point,
+        modified: true,
+        previewMesh: nextMesh
+      };
+    }
+
     const sourceMesh = state.previewMesh ?? state.beforeMesh;
 
     if (!sourceMesh) {
       return state;
     }
 
-    const signedStrength = state.mode === "inflate" ? state.strength : -state.strength;
     const spacing = Math.max(0.05, state.radius * 0.25);
     const previousPoint = state.lastPoint ?? hit.point;
     const delta = subVec3(hit.point, previousPoint);
@@ -1190,19 +1223,36 @@ export function ViewportCanvas({
         )
       );
 
-      return {
-        normal,
-        point
-      };
+      return { normal, point };
     });
-    const nextMesh = sculptEditableMeshSamples(
-      sourceMesh,
-      samples,
-      state.radius,
-      signedStrength,
-      0.0001,
-      state.strokeVertexNormals
-    );
+
+    let nextMesh: EditableMesh;
+
+    if (state.mode === "smooth") {
+      nextMesh = smoothEditableMeshSamples(sourceMesh, samples, state.radius, state.strength, 0.0001, state.strokeVertexNeighbors);
+
+      if (state.symmetryX) {
+        const mirrorSamples = samples.map((s) => ({
+          normal: vec3(-s.normal.x, s.normal.y, s.normal.z),
+          point: vec3(-s.point.x, s.point.y, s.point.z)
+        }));
+
+        nextMesh = smoothEditableMeshSamples(nextMesh, mirrorSamples, state.radius, state.strength, 0.0001, state.strokeVertexNeighbors);
+      }
+    } else {
+      const signedStrength = state.mode === "inflate" || state.mode === "draw" ? state.strength : -state.strength;
+
+      nextMesh = sculptEditableMeshSamples(sourceMesh, samples, state.radius, signedStrength, 0.0001, state.strokeVertexNormals);
+
+      if (state.symmetryX) {
+        const mirrorSamples = samples.map((s) => ({
+          normal: vec3(-s.normal.x, s.normal.y, s.normal.z),
+          point: vec3(-s.point.x, s.point.y, s.point.z)
+        }));
+
+        nextMesh = sculptEditableMeshSamples(nextMesh, mirrorSamples, state.radius, signedStrength, 0.0001, state.strokeVertexNormals);
+      }
+    }
 
     return {
       ...state,
@@ -1224,16 +1274,21 @@ export function ViewportCanvas({
       return false;
     }
 
+    const currentSculptState = sculptStateRef.current;
+    const strokeMode = currentSculptState?.mode ?? "draw";
     const initialState: SculptBrushState = {
-      ...sculptStateRef.current,
+      ...currentSculptState,
       beforeMesh: selectedMeshNode.data,
       dragging: true,
+      grabOriginLocal: strokeMode === "grab" ? hit.point : undefined,
       hovered: hit,
       lastPoint: hit.point,
       modified: false,
       nodeId: selectedMeshNode.id,
       previewMesh: undefined,
-      strokeVertexNormals: buildEditableMeshVertexNormals(selectedMeshNode.data)
+      strokeVertexNeighbors: strokeMode === "smooth" ? buildEditableMeshVertexNeighbors(selectedMeshNode.data) : undefined,
+      strokeVertexNormals: buildEditableMeshVertexNormals(selectedMeshNode.data),
+      symmetryX: currentSculptState?.symmetryX ?? false
     };
     const nextState = applySculptHit(initialState, hit);
 
@@ -1341,7 +1396,8 @@ export function ViewportCanvas({
       modified: false,
       nodeId: selectedMeshNode.id,
       radius: sculptBrushRadius,
-      strength: sculptBrushStrength
+      strength: sculptBrushStrength,
+      symmetryX: currentState?.symmetryX ?? false
     };
 
     sculptStateRef.current = nextState;
@@ -2174,6 +2230,54 @@ export function ViewportCanvas({
   }, [sculptBrushRadius, sculptBrushStrength]);
 
   useEffect(() => {
+    if (activeToolId !== "sculpt") {
+      const current = sculptStateRef.current;
+
+      if (current && (current.mode === "draw" || current.mode === "smooth" || current.mode === "grab")) {
+        if (!current.dragging) {
+          sculptStateRef.current = null;
+          setSculptState(null);
+        }
+      }
+
+      return;
+    }
+
+    if (!selectedMeshNode) {
+      return;
+    }
+
+    const current = sculptStateRef.current;
+
+    if (current?.dragging) {
+      return;
+    }
+
+    const nextState: SculptBrushState = {
+      dragging: false,
+      hovered: current?.nodeId === selectedMeshNode.id ? current.hovered : undefined,
+      mode: sculptBrushType,
+      modified: false,
+      nodeId: selectedMeshNode.id,
+      radius: sculptBrushRadius,
+      strength: sculptBrushStrength,
+      symmetryX: sculptSymmetryX
+    };
+
+    sculptStateRef.current = nextState;
+    setSculptState(nextState);
+  }, [activeToolId, selectedMeshNode?.id, sculptBrushType, sculptSymmetryX]);
+
+  useEffect(() => {
+    if (activeToolId !== "sculpt" || !sculptStateRef.current || sculptStateRef.current.dragging) {
+      return;
+    }
+
+    sculptStateRef.current = { ...sculptStateRef.current, mode: sculptBrushType, symmetryX: sculptSymmetryX };
+    setSculptState((s) => s ? { ...s, mode: sculptBrushType, symmetryX: sculptSymmetryX } : s);
+  }, [sculptBrushType, sculptSymmetryX]);
+
+  useEffect(() => {
     onSculptModeChange(sculptState?.mode ?? null);
   }, [onSculptModeChange, sculptState?.mode]);
 
@@ -2316,7 +2420,7 @@ export function ViewportCanvas({
       if (sculptState) {
         if (event.key === "Escape") {
           event.preventDefault();
-          cancelSculptStroke(!sculptState.dragging);
+          cancelSculptStroke(sculptState.dragging ? false : true);
         }
         return;
       }
@@ -2956,7 +3060,7 @@ export function ViewportCanvas({
       return;
     }
 
-    if (activeToolId === "mesh-edit" && sculptState && selectedMeshNode && event.button === 0 && !event.shiftKey) {
+    if ((activeToolId === "mesh-edit" || activeToolId === "sculpt") && sculptState && selectedMeshNode && event.button === 0 && !event.shiftKey) {
       if (beginSculptStroke(bounds, event.clientX, event.clientY)) {
         return;
       }
