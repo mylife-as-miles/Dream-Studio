@@ -74,12 +74,13 @@ export function ConstructionGrid({
     return null;
   }
 
+  const infinite = viewport.grid.infinite ?? false;
   const minorStep = viewport.grid.snapSize;
   const majorStep = minorStep * viewport.grid.majorLineEvery;
-  const extent = viewport.grid.size;
+  const extent = infinite ? 16384 : viewport.grid.size;
   const transform = resolveConstructionPlaneTransform(viewportPlane, viewport);
   const editorFloorVisible = renderMode === "lit" && viewport.projection === "perspective";
-  const showPerimeterWalls = viewportPlane === "xz";
+  const showPerimeterWalls = viewportPlane === "xz" && !infinite;
 
   const floorPresetId = sceneSettings.world.floorPresetId;
   const preset = floorPresetId ? getFloorPreset(floorPresetId as Parameters<typeof getFloorPreset>[0]) : undefined;
@@ -89,7 +90,7 @@ export function ConstructionGrid({
 
   return (
     <group position={transform.position} rotation={transform.rotation}>
-      {editorFloorVisible ? (
+      {editorFloorVisible && !infinite ? (
         <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]}>
           <planeGeometry args={[extent, extent]} />
           <meshStandardMaterial
@@ -109,14 +110,14 @@ export function ConstructionGrid({
           majorColor={majorColor}
           minorColor={minorColor}
           renderMode={renderMode}
-          size={extent}
+          size={viewport.grid.size}
         />
       ) : null}
       <GridShaderPlane
         baseAlpha={editorFloorVisible ? 0.78 : 0.32}
         baseColor={editorFloorVisible ? baseColor : new THREE.Color("#657a90")}
         extent={extent}
-        fadeDist={extent * 0.5}
+        fadeDist={infinite ? extent * 0.5 : extent * 0.5}
         majorColor={majorColor}
         majorStep={majorStep}
         minorColor={minorColor}

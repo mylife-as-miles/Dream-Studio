@@ -449,6 +449,12 @@ export function App() {
     });
   };
 
+  const handleSetGridInfinite = (infinite: boolean) => {
+    viewportPaneIds.forEach((viewportId) => {
+      uiStore.viewports[viewportId].grid.infinite = infinite;
+    });
+  };
+
   const handleMeshEditToolbarAction = (kind: MeshEditToolbarActionRequest["kind"]) => {
     setMeshEditToolbarAction((current) => ({
       id: (current?.id ?? 0) + 1,
@@ -2189,6 +2195,7 @@ export function App() {
         onSetSculptBrushStrength={setSculptBrushStrength}
         onSetRightPanel={handleSetRightPanel}
         onSetActiveBrushShape={setActiveBrushShape}
+        onSetGridInfinite={handleSetGridInfinite}
         onSetSnapEnabled={handleSetSnapEnabled}
         onSetSnapSize={handleSetSnapSize}
         onStopPhysics={handleStopPhysics}

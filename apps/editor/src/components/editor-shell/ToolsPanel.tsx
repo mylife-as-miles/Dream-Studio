@@ -42,6 +42,7 @@ type ToolsPanelProps = {
   aiModelPlacementActive: boolean;
   activeToolId: ToolId;
   currentSnapSize: GridSnapValue;
+  gridInfinite: boolean;
   gridSnapValues: readonly GridSnapValue[];
   meshEditMode: MeshEditMode;
   onClose: () => void;
@@ -69,6 +70,7 @@ type ToolsPanelProps = {
   onStartAiModelPlacement: () => void;
   onSelectBrushShape: (shape: BrushShape) => void;
   onSetMeshEditMode: (mode: MeshEditMode) => void;
+  onSetGridInfinite: (infinite: boolean) => void;
   onSetSnapEnabled: (enabled: boolean) => void;
   onSetSnapSize: (snapSize: GridSnapValue) => void;
   onStopPhysics: () => void;
@@ -96,6 +98,7 @@ export function ToolsPanel({
   aiModelPlacementActive,
   activeToolId,
   currentSnapSize,
+  gridInfinite,
   gridSnapValues,
   meshEditMode,
   onClose,
@@ -123,6 +126,7 @@ export function ToolsPanel({
   onStartAiModelPlacement,
   onSelectBrushShape,
   onSetMeshEditMode,
+  onSetGridInfinite,
   onSetSnapEnabled,
   onSetSnapSize,
   onStopPhysics,
@@ -227,7 +231,9 @@ export function ToolsPanel({
               <ViewModeControl currentViewMode={viewMode} onSetViewMode={onSetViewMode} />
               <SnapControl
                 currentSnapSize={currentSnapSize}
+                gridInfinite={gridInfinite}
                 gridSnapValues={gridSnapValues}
+                onSetGridInfinite={onSetGridInfinite}
                 onSetSnapEnabled={onSetSnapEnabled}
                 onSetSnapSize={onSetSnapSize}
                 snapEnabled={snapEnabled}

@@ -158,6 +158,7 @@ type EditorShellProps = {
   onSetSculptBrushRadius: (value: number) => void;
   onSetSculptBrushStrength: (value: number) => void;
   onSetRightPanel: (panel: RightPanelId | null) => void;
+  onSetGridInfinite: (infinite: boolean) => void;
   onSetSnapEnabled: (enabled: boolean) => void;
   onSetSnapSize: (snapSize: GridSnapValue) => void;
   onStopPhysics: () => void;
@@ -301,6 +302,7 @@ export function EditorShell({
   onSetSculptBrushRadius,
   onSetSculptBrushStrength,
   onSetRightPanel,
+  onSetGridInfinite,
   onSetSnapEnabled,
   onSetSnapSize,
   onStopPhysics,
@@ -525,6 +527,7 @@ export function EditorShell({
               aiModelPlacementActive={aiModelPlacementActive || aiModelPlacementArmed}
               activeToolId={activeToolId}
               currentSnapSize={activeViewport.grid.snapSize}
+              gridInfinite={activeViewport.grid.infinite}
               gridSnapValues={gridSnapValues}
               meshEditMode={meshEditMode}
               onClose={onToggleTools}
@@ -554,6 +557,7 @@ export function EditorShell({
               onSetMeshEditMode={onSetMeshEditMode}
               onSetSculptBrushRadius={onSetSculptBrushRadius}
               onSetSculptBrushStrength={onSetSculptBrushStrength}
+              onSetGridInfinite={onSetGridInfinite}
               onSetSnapEnabled={onSetSnapEnabled}
               onSetSnapSize={onSetSnapSize}
               onSetToolId={onSetToolId}
