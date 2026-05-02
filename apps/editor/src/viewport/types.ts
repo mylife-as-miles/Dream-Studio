@@ -84,9 +84,11 @@ export type ViewportCanvasProps = {
   onUpdateNodeTransform: (nodeId: string, transform: Transform, beforeTransform?: Transform) => void;
   onUpdateSceneSettings: (settings: SceneSettings, beforeSettings?: SceneSettings) => void;
   onViewportChange: (viewportId: ViewportPaneId, viewport: ViewportState) => void;
+  physicsDebug?: boolean;
   physicsPlayback: "paused" | "running" | "stopped";
   physicsRevision: number;
   previewPossessed: boolean;
+  showStats?: boolean;
   previewSessionMode: PreviewSessionMode | null;
   previewStepTick: number;
   renderScene: DerivedRenderScene;

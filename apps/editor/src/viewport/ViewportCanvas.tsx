@@ -1,5 +1,6 @@
 import { Canvas, useThree, type RootState } from "@react-three/fiber";
-import { ContactShadows } from "@react-three/drei";
+import { ContactShadows, GizmoHelper, GizmoViewport } from "@react-three/drei";
+import { ViewportStats } from "@/viewport/components/ViewportStats";
 import { useRendererGlConfig } from "@/viewport/hooks/useRendererGlConfig";
 import {
   bridgeEditableMeshEdges,
@@ -414,6 +415,7 @@ export function ViewportCanvas({
   onUpdateNodeTransform,
   onUpdateSceneSettings,
   onViewportChange,
+  physicsDebug = false,
   physicsPlayback,
   physicsRevision,
   previewPossessed,
@@ -422,6 +424,7 @@ export function ViewportCanvas({
   renderMode,
   renderScene,
   sceneSettings,
+  showStats = false,
   nodes,
   selectedScenePathId,
   selectedEntity,
@@ -3437,6 +3440,7 @@ export function ViewportCanvas({
         shadows={renderMode === "lit"}
       >
         <ViewportRendererSetup />
+        {showStats ? <ViewportStats /> : null}
         <ViewportWorldSettings renderMode={renderMode} sceneSettings={sceneSettings} />
         {renderMode !== "lit" || !sceneSettings.world.skybox.enabled ? <EditorSkyDome /> : null}
         {renderMode === "lit" ? <ViewportStudioEnvironment enabled={!sceneSettings.world.skybox.enabled} sceneSettings={sceneSettings} /> : null}
@@ -3473,7 +3477,15 @@ export function ViewportCanvas({
             viewportPlane={viewportPlane}
           />
         ) : null}
-        {renderMode === "lit" && editorInteractionEnabled ? <axesHelper args={[3]} /> : null}
+        {renderMode === "lit" && editorInteractionEnabled ? (
+          <GizmoHelper alignment="bottom-right" margin={[72, 72]}>
+            <GizmoViewport
+              axisColors={["#e75858", "#5eb163", "#5285c9"]}
+              labelColor="white"
+              axisHeadScale={1.1}
+            />
+          </GizmoHelper>
+        ) : null}
         <ScenePreview
           entities={entities}
           hiddenSceneItemIds={
@@ -3488,6 +3500,7 @@ export function ViewportCanvas({
           onMeshObjectChange={handleMeshObjectChange}
           onSelectNode={handleSceneSelectNodes}
           pathDefinitions={pathDefinitions}
+          physicsDebug={physicsDebug}
           physicsPlayback={physicsPlayback}
           physicsRevision={physicsRevision}
           previewPossessed={previewPossessed}
