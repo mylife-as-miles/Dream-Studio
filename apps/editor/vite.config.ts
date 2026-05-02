@@ -208,6 +208,15 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
+    define: {
+      "process.env.BABEL_TYPES_8_BREAKING": JSON.stringify(""),
+      "process.env.NODE_DEBUG": JSON.stringify(""),
+      "process.env.NODE_ENV": JSON.stringify("development"),
+      "process.env": JSON.stringify({}),
+      "process.version": JSON.stringify(process.version),
+      "process.platform": JSON.stringify(process.platform),
+      "process.browser": JSON.stringify(true)
+    },
     server: {
       host: "0.0.0.0",
       port: 5000,
