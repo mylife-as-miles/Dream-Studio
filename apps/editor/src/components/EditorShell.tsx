@@ -26,7 +26,6 @@ import { buildGameBlobUrl } from "@/lib/game-html";
 import { AiModelPromptBar } from "@/components/editor-shell/AiModelPromptBar";
 import { EditorMenuBar } from "@/components/editor-shell/EditorMenuBar";
 import { InspectorSidebar } from "@/components/editor-shell/InspectorSidebar";
-import { StatusBar } from "@/components/editor-shell/StatusBar";
 import { ToolsPanel } from "@/components/editor-shell/ToolsPanel";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ViewportCanvas } from "@/viewport/ViewportCanvas";
@@ -681,20 +680,6 @@ export function EditorShell({
           viewportTarget={activeViewport.camera.target}
         />
 
-        <StatusBar
-          activeBrushShape={activeBrushShape}
-          activeToolLabel={activeToolLabel}
-          activeViewportId={activeViewportId}
-          gridSnapValues={gridSnapValues}
-          jobs={jobs}
-          meshEditMode={meshEditMode}
-          physicsPlayback={physicsPlayback}
-          previewPossessed={previewPossessed}
-          previewSessionMode={previewSessionMode}
-          selectedNode={selectedNode}
-          viewModeLabel={getViewModePreset(viewMode).shortLabel}
-          viewport={activeViewport}
-        />
 
         {logicViewerOpen && (
           <Suspense fallback={<LogicViewerFallback />}>
