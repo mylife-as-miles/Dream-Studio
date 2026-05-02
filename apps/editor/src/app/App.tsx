@@ -1649,6 +1649,12 @@ export function App() {
     }
   };
 
+  useEffect(() => {
+    const handler = () => handlePlayPhysics();
+    window.addEventListener("blud:self-preview-switch", handler);
+    return () => window.removeEventListener("blud:self-preview-switch", handler);
+  }, []);
+
   const buildEditorSnapshot = () => ({
     ...editor.exportSnapshot(),
     metadata: {
