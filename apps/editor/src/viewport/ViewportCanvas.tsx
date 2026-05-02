@@ -250,6 +250,25 @@ const SKY_FRAG = /* glsl */ `
   }
 `;
 
+function ViewportOrientationGizmo() {
+  const { gl } = useThree();
+  const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+
+  // GizmoViewport's AxisHead calls renderer.capabilities.getMaxAnisotropy() which
+  // does not exist on the WebGPU renderer — skip the gizmo in WebGPU mode.
+  if (isWebGPU) return null;
+
+  return (
+    <GizmoHelper alignment="bottom-right" margin={[72, 72]}>
+      <GizmoViewport
+        axisColors={["#e75858", "#5eb163", "#5285c9"]}
+        labelColor="white"
+        axisHeadScale={1.1}
+      />
+    </GizmoHelper>
+  );
+}
+
 function EditorSkyDome() {
   const { gl } = useThree();
   const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
@@ -3478,13 +3497,7 @@ export function ViewportCanvas({
           />
         ) : null}
         {renderMode === "lit" && editorInteractionEnabled ? (
-          <GizmoHelper alignment="bottom-right" margin={[72, 72]}>
-            <GizmoViewport
-              axisColors={["#e75858", "#5eb163", "#5285c9"]}
-              labelColor="white"
-              axisHeadScale={1.1}
-            />
-          </GizmoHelper>
+          <ViewportOrientationGizmo />
         ) : null}
         <ScenePreview
           entities={entities}
