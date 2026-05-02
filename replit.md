@@ -45,6 +45,7 @@ This starts Vite on port 5000 with host `0.0.0.0` and `allowedHosts: true`.
 - **Physics Collider Debug** — Toggle via View menu → "Physics Colliders". Passes `debug={true}` to `@react-three/rapier`'s `<Physics>` component, which renders collider wireframes.
 - **Orientation Gizmo** — Always visible in the bottom-right corner of every viewport. Implemented via `<GizmoHelper>` + `<GizmoViewport>` from `@react-three/drei`, replacing the old axes helper.
 - **Node Material Editor** — Toggle via View menu → "Node Material Editor". Opens a full-screen sheet with a visual node graph (using `@xyflow/react`) showing the selected material's texture/property nodes.
+- **AI Behavior Tree Editor** — Toggle via View menu → "Behavior Tree Editor" (Cmd+Shift+B). Full-screen overlay with: left node palette (Composite/Decorator/Leaf node types), center React Flow canvas with auto-layout, right properties panel. Trees are saved/loaded from localStorage keyed by ID. The tree ID matches the `behaviorTreeId` field on the `ai_agent` hook. Node types: Root, Selector, Sequence, Parallel, Inverter, Repeater, Condition, Action.
 
 ## Notes
 

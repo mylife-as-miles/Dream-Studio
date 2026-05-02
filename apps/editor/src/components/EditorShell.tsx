@@ -57,6 +57,11 @@ const NodeMaterialEditorSheet = lazy(() =>
     default: module.NodeMaterialEditorSheet
   }))
 );
+const BehaviorTreeEditorSheet = lazy(() =>
+  import("@/components/editor-shell/BehaviorTreeEditorSheet").then((module) => ({
+    default: module.BehaviorTreeEditorSheet
+  }))
+);
 
 type EditorShellProps = {
   activeBrushShape: BrushShape;
@@ -358,6 +363,7 @@ export function EditorShell({
   const [showStats, setShowStats] = useState(false);
   const [physicsDebugOpen, setPhysicsDebugOpen] = useState(false);
   const [nodeMaterialEditorOpen, setNodeMaterialEditorOpen] = useState(false);
+  const [btEditorOpen, setBtEditorOpen] = useState(false);
   const gameViewUrlRef = useRef<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -488,6 +494,7 @@ export function EditorShell({
             canUndo={canUndo}
             copilotOpen={copilotPanelOpen}
             gameConnectionControl={gameConnectionControl}
+            btEditorOpen={btEditorOpen}
             logicViewerOpen={logicViewerOpen}
             nodeMaterialEditorOpen={nodeMaterialEditorOpen}
             physicsDebugOpen={physicsDebugOpen}
@@ -515,6 +522,7 @@ export function EditorShell({
             onSimulatePreview={onSimulatePhysics}
             onStepPreview={onStepPhysics}
             onStopPreview={onStopPhysics}
+            onToggleBtEditor={() => setBtEditorOpen((v) => !v)}
             onToggleCopilot={onToggleCopilot}
             onToggleLogicViewer={onToggleLogicViewer}
             onToggleNodeMaterialEditor={() => setNodeMaterialEditorOpen((v) => !v)}
@@ -720,6 +728,14 @@ export function EditorShell({
             <NodeMaterialEditorSheet
               material={materials.find((m) => m.id === selectedMaterialId)}
               onClose={() => setNodeMaterialEditorOpen(false)}
+            />
+          </Suspense>
+        )}
+
+        {btEditorOpen && (
+          <Suspense fallback={null}>
+            <BehaviorTreeEditorSheet
+              onClose={() => setBtEditorOpen(false)}
             />
           </Suspense>
         )}

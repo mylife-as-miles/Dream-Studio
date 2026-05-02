@@ -19,6 +19,7 @@ type EditorMenuBarProps = {
   canUndo: boolean;
   copilotOpen: boolean;
   gameConnectionControl?: ReactNode;
+  btEditorOpen: boolean;
   logicViewerOpen: boolean;
   nodeMaterialEditorOpen: boolean;
   physicsDebugOpen: boolean;
@@ -43,6 +44,7 @@ type EditorMenuBarProps = {
   onStepPreview: () => void;
   onStopPreview: () => void;
   onToggleCopilot: () => void;
+  onToggleBtEditor: () => void;
   onToggleLogicViewer: () => void;
   onToggleNodeMaterialEditor: () => void;
   onTogglePhysicsDebug: () => void;
@@ -63,6 +65,7 @@ export function EditorMenuBar({
   canUndo,
   copilotOpen,
   gameConnectionControl,
+  btEditorOpen,
   logicViewerOpen,
   nodeMaterialEditorOpen,
   physicsDebugOpen,
@@ -86,6 +89,7 @@ export function EditorMenuBar({
   onSimulatePreview,
   onStepPreview,
   onStopPreview,
+  onToggleBtEditor,
   onToggleCopilot,
   onToggleLogicViewer,
   onToggleNodeMaterialEditor,
@@ -295,6 +299,10 @@ export function EditorMenuBar({
                     </MenubarItem>
                     <MenubarItem className="rounded-lg text-xs" onClick={onToggleNodeMaterialEditor}>
                       {nodeMaterialEditorOpen ? "Hide" : "Show"} Node Material Editor
+                    </MenubarItem>
+                    <MenubarItem className="rounded-lg text-xs" onClick={onToggleBtEditor}>
+                      {btEditorOpen ? "Hide" : "Show"} Behavior Tree Editor
+                      <MenubarShortcut>Cmd+Shift+B</MenubarShortcut>
                     </MenubarItem>
                   </MenubarContent>
                 </MenubarMenu>
