@@ -208,6 +208,8 @@ function registerSelfGamePresence(server: ViteDevServer | PreviewServer) {
     }
 
     await mkdir(sceneRoot, { recursive: true });
+    const replitDomain = (process.env.REPLIT_DOMAINS ?? "").split(",")[0]?.trim();
+    const selfUrl = replitDomain ? `https://${replitDomain}` : `http://localhost:${address.port}`;
     await upsertDevSyncRegistration({
       id: registrationId,
       kind: "game",
@@ -217,7 +219,7 @@ function registerSelfGamePresence(server: ViteDevServer | PreviewServer) {
       sceneIds: [],
       sceneRoot,
       updatedAt: Date.now(),
-      url: `http://localhost:${address.port}`
+      url: selfUrl
     });
   };
 
