@@ -972,8 +972,9 @@ export function App() {
   const resolvePlacementPosition = (size: Vec3) => {
     const activeViewportState = resolveActiveViewportState();
     const snappedTarget = snapVec3(activeViewportState.camera.target, resolveViewportSnapSize(activeViewportState));
+    const gridElevation = activeViewportState.grid.elevation;
 
-    return vec3(snappedTarget.x, Math.max(size.y * 0.5, snappedTarget.y), snappedTarget.z);
+    return vec3(snappedTarget.x, gridElevation + size.y * 0.5, snappedTarget.z);
   };
 
   const resolvePlacementTarget = () => {
@@ -1144,9 +1145,10 @@ export function App() {
 
   const handlePlaceBlockoutPlatform = () => {
     const target = resolvePlacementTarget();
+    const gridElevation = resolveActiveViewportState().grid.elevation;
     const { command, nodeId } = createPlaceBlockoutPlatformCommand(editor.scene, {
       name: "Open Platform",
-      position: vec3(target.x, target.y + 0.25, target.z),
+      position: vec3(target.x, gridElevation + 0.25, target.z),
       size: vec3(8, 0.5, 8),
       tags: ["play-space", "open-area"]
     });
@@ -1158,10 +1160,11 @@ export function App() {
 
   const handlePlaceBlockoutRoom = (openSides: Array<"east" | "north" | "south" | "top" | "west"> = []) => {
     const target = resolvePlacementTarget();
+    const gridElevation = resolveActiveViewportState().grid.elevation;
     const { command, nodeIds } = createPlaceBlockoutRoomCommand(editor.scene, {
       name: openSides.length > 0 ? "Open Room" : "Closed Room",
       openSides,
-      position: vec3(target.x, target.y, target.z),
+      position: vec3(target.x, gridElevation, target.z),
       size: vec3(10, 4, 10),
       tags: [openSides.length > 0 ? "open-room" : "closed-room", "play-space"]
     });
@@ -1173,10 +1176,11 @@ export function App() {
 
   const handlePlaceBlockoutStairs = () => {
     const target = resolvePlacementTarget();
+    const gridElevation = resolveActiveViewportState().grid.elevation;
     const { command, nodeIds } = createPlaceBlockoutStairCommand(editor.scene, {
       direction: "north",
       name: "Blockout Stairs",
-      position: vec3(target.x, target.y + 0.1, target.z),
+      position: vec3(target.x, gridElevation + 0.1, target.z),
       stepCount: 10,
       stepHeight: 0.2,
       tags: ["vertical-connector"],
