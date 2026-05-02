@@ -133,11 +133,10 @@ export function useGameConnection() {
         const isStandalone = window.parent === window;
 
         if (isSelfGame && isStandalone) {
-          // Standalone editor (no orchestrator): open a new tab with the same scene
-          // in physics play mode. The draft auto-save ensures the new tab inherits
-          // the current scene; the localStorage flag tells it to auto-start play.
-          localStorage.setItem("blud:autoplay-on-load", "1");
-          window.open(window.location.origin, "_blank");
+          // Standalone editor (no orchestrator): open a new tab showing the game
+          // as a shareable web game page. The draft auto-save ensures the new tab
+          // inherits the current scene.
+          window.open(window.location.origin + "/play", "_blank");
         } else {
           // Signal the orchestrator (if this editor is running inside one) to switch
           // to the game view so the user sees the result immediately.
