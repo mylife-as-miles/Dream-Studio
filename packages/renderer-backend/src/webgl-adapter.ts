@@ -3,6 +3,7 @@ import { detectWebGPUSupport, buildWebGLCapabilities } from "./capabilities.js";
 import type {
   RendererAdapter,
   RendererCapabilities,
+  R3FGlProps,
   PostFXPipeline,
   PostFXPipelineDescriptor,
   PickingPass,
@@ -48,7 +49,7 @@ export class WebGLRendererAdapter implements RendererAdapter {
 
   getR3FGlConfig(
     _capabilities: RendererCapabilities
-  ): ((canvas: HTMLCanvasElement) => THREE.WebGLRenderer) | undefined {
+  ): ((props: R3FGlProps) => Promise<THREE.WebGLRenderer>) | undefined {
     return undefined;
   }
 

@@ -1,5 +1,19 @@
 import type * as THREE from "three";
 
+// ─── R3F gl factory props ──────────────────────────────────────────────────────
+
+/**
+ * The object R3F passes to a `gl` factory function on the <Canvas> prop.
+ * R3F calls `await glConfig(defaultProps)` where defaultProps contains:
+ *   { canvas, powerPreference, antialias, alpha }
+ */
+export type R3FGlProps = HTMLCanvasElement | {
+  canvas: HTMLCanvasElement;
+  powerPreference?: string;
+  antialias?: boolean;
+  alpha?: boolean;
+};
+
 // ─── Backend Enum ──────────────────────────────────────────────────────────────
 
 export type RendererBackendType = "webgl" | "webgpu";
@@ -78,11 +92,14 @@ export interface RendererAdapter {
   /**
    * Returns the value to pass to the R3F <Canvas gl={...}> prop.
    * For WebGL: undefined (let R3F use its default).
-   * For WebGPU: a factory that returns a THREE.WebGPURenderer instance.
+   * For WebGPU: an async factory that R3F awaits — receives R3F's defaultProps
+   * object (which contains `canvas`, `antialias`, `alpha`, `powerPreference`),
+   * initialises the WebGPURenderer via `renderer.init()`, and returns it.
+   * R3F calls `await glConfig(defaultProps)`, so the async factory is safe.
    */
   getR3FGlConfig(
     capabilities: RendererCapabilities
-  ): ((canvas: HTMLCanvasElement) => THREE.WebGLRenderer) | undefined;
+  ): ((props: R3FGlProps) => Promise<THREE.WebGLRenderer>) | undefined;
 
   /**
    * Phase 2 — optional post-FX pipeline (SMAA, bloom, SSAO, tone mapping).
