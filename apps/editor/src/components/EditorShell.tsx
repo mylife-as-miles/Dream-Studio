@@ -52,6 +52,11 @@ const LogicViewerSheet = lazy(() =>
     default: module.LogicViewerSheet
   }))
 );
+const NodeMaterialEditorSheet = lazy(() =>
+  import("@/components/editor-shell/NodeMaterialEditorSheet").then((module) => ({
+    default: module.NodeMaterialEditorSheet
+  }))
+);
 
 type EditorShellProps = {
   activeBrushShape: BrushShape;
@@ -350,6 +355,9 @@ export function EditorShell({
   viewports
 }: EditorShellProps) {
   const [gameViewUrl, setGameViewUrl] = useState<string | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [physicsDebugOpen, setPhysicsDebugOpen] = useState(false);
+  const [nodeMaterialEditorOpen, setNodeMaterialEditorOpen] = useState(false);
   const gameViewUrlRef = useRef<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -446,6 +454,7 @@ export function EditorShell({
           onUpdateNodeTransform={onUpdateNodeTransform}
           onUpdateSceneSettings={onUpdateSceneSettings}
           onViewportChange={onUpdateViewport}
+          physicsDebug={physicsDebugOpen}
           physicsPlayback={physicsPlayback}
           physicsRevision={physicsRevision}
           previewPossessed={previewPossessed}
@@ -454,6 +463,7 @@ export function EditorShell({
           renderMode={definition.renderMode}
           renderScene={renderScene}
           sceneSettings={sceneSettings}
+          showStats={showStats && isActiveViewport}
           nodes={nodes}
           selectedScenePathId={selectedScenePathId}
           selectedEntity={selectedEntity}
@@ -479,6 +489,9 @@ export function EditorShell({
             copilotOpen={copilotPanelOpen}
             gameConnectionControl={gameConnectionControl}
             logicViewerOpen={logicViewerOpen}
+            nodeMaterialEditorOpen={nodeMaterialEditorOpen}
+            physicsDebugOpen={physicsDebugOpen}
+            showStats={showStats}
             onClearSelection={onClearSelection}
             onCreateBrush={onCreateBrush}
             onDeleteSelection={onDeleteSelection}
@@ -504,7 +517,10 @@ export function EditorShell({
             onStopPreview={onStopPhysics}
             onToggleCopilot={onToggleCopilot}
             onToggleLogicViewer={onToggleLogicViewer}
+            onToggleNodeMaterialEditor={() => setNodeMaterialEditorOpen((v) => !v)}
+            onTogglePhysicsDebug={() => setPhysicsDebugOpen((v) => !v)}
             onTogglePreviewPossession={onTogglePreviewPossession}
+            onToggleStats={() => setShowStats((v) => !v)}
             onToggleTools={onToggleTools}
             onToggleViewportQuality={onToggleViewportQuality}
             onUndo={onUndo}
@@ -695,6 +711,15 @@ export function EditorShell({
               }}
               onUpdateEntityHooks={onUpdateEntityHooks}
               onUpdateNodeHooks={onUpdateNodeHooks}
+            />
+          </Suspense>
+        )}
+
+        {nodeMaterialEditorOpen && (
+          <Suspense fallback={null}>
+            <NodeMaterialEditorSheet
+              material={materials.find((m) => m.id === selectedMaterialId)}
+              onClose={() => setNodeMaterialEditorOpen(false)}
             />
           </Suspense>
         )}

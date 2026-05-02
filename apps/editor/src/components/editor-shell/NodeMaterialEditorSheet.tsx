@@ -295,14 +295,14 @@ function NodeMaterialGraph({ material }: { material: Material }) {
     [material]
   );
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   useEffect(() => {
     const { nodes: n, edges: e } = buildGraph(material);
-    onNodesChange(n.map((node) => ({ type: "reset", item: node })));
-    onEdgesChange(e.map((edge) => ({ type: "reset", item: edge })));
-  }, [material, onNodesChange, onEdgesChange]);
+    setNodes(n);
+    setEdges(e);
+  }, [material, setNodes, setEdges]);
 
   return (
     <ReactFlow

@@ -39,6 +39,13 @@ This starts Vite on port 5000 with host `0.0.0.0` and `allowedHosts: true`.
 - `tsconfig.base.json` — Base TypeScript config
 - `package.json` — Root workspace config
 
+## Viewport Features
+
+- **Stats Overlay** — Toggle via View menu → "Stats". Renders a `stats-gl` performance overlay (FPS, draw calls, GPU timing) on the active viewport only.
+- **Physics Collider Debug** — Toggle via View menu → "Physics Colliders". Passes `debug={true}` to `@react-three/rapier`'s `<Physics>` component, which renders collider wireframes.
+- **Orientation Gizmo** — Always visible in the bottom-right corner of every viewport. Implemented via `<GizmoHelper>` + `<GizmoViewport>` from `@react-three/drei`, replacing the old axes helper.
+- **Node Material Editor** — Toggle via View menu → "Node Material Editor". Opens a full-screen sheet with a visual node graph (using `@xyflow/react`) showing the selected material's texture/property nodes.
+
 ## Notes
 
 - The editor uses `process` global polyfills in the Vite `define` config for `@babel/types` (used by `@blud/scene-importer`)
