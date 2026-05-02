@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Gamepad2, LoaderCircle, RefreshCw, Upload } from "lucide-react";
+import { Gamepad2, LoaderCircle, MonitorPlay, RefreshCw, Upload } from "lucide-react";
 import type { DevSyncGameRegistration } from "@blud/dev-sync";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,12 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
+
+const SELF_PREVIEW_GAME_ID_PREFIX = "self-preview:";
+
+function isSelfPreview(game: DevSyncGameRegistration) {
+  return game.id.startsWith(SELF_PREVIEW_GAME_ID_PREFIX);
+}
 
 type GameConnectionControlProps = {
   activeGame?: DevSyncGameRegistration;
@@ -50,11 +56,14 @@ export function GameConnectionControl({
   projectSlug,
   selectedGameId
 }: GameConnectionControlProps) {
+  const hasExternal = games.some((g) => !isSelfPreview(g));
   const connectionLabel = games.length === 0
     ? "No Game"
     : games.length === 1
       ? activeGame?.name ?? games[0]?.name ?? "Game"
       : `${games.length} Games`;
+
+  const activeSelf = activeGame ? isSelfPreview(activeGame) : false;
 
   return (
     <Popover>
@@ -80,7 +89,9 @@ export function GameConnectionControl({
         <PopoverHeader>
           <PopoverTitle className="text-sm text-foreground">Editor Sync</PopoverTitle>
           <PopoverDescription className="text-xs text-foreground/55">
-            Push the current runtime scene straight into a connected game’s `src/scenes` folder.
+            {activeSelf
+              ? "Push the current scene into the built-in preview. Connect an external game project to push into its src/scenes folder."
+              : "Push the current runtime scene straight into a connected game's src/scenes folder."}
           </PopoverDescription>
         </PopoverHeader>
 
@@ -115,7 +126,7 @@ export function GameConnectionControl({
           <div className="grid max-h-40 gap-1 overflow-y-auto">
             {games.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-foreground/50">
-                No scaffolded game dev server is advertising itself yet.
+                Waiting for a game dev server to connect…
               </div>
             ) : (
               games.map((game) => (
@@ -126,17 +137,35 @@ export function GameConnectionControl({
                   type="button"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="truncate text-sm font-medium">{game.name}</span>
-                    <span className="text-[11px] text-foreground/45">{game.sceneIds.length} scenes</span>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      {isSelfPreview(game) ? (
+                        <MonitorPlay className="size-3 shrink-0 text-foreground/40" />
+                      ) : null}
+                      <span className="truncate text-sm font-medium">{game.name}</span>
+                    </div>
+                    {isSelfPreview(game) ? (
+                      <span className="shrink-0 rounded-md bg-white/8 px-1.5 py-0.5 text-[10px] text-foreground/45">built-in</span>
+                    ) : (
+                      <span className="text-[11px] text-foreground/45">{game.sceneIds.length} scenes</span>
+                    )}
                   </div>
-                  <div className="truncate pt-0.5 text-[11px] text-foreground/45">{game.url}</div>
+                  {!isSelfPreview(game) ? (
+                    <div className="truncate pt-0.5 text-[11px] text-foreground/45">{game.url}</div>
+                  ) : null}
                 </button>
               ))
             )}
           </div>
+
+          {!hasExternal && games.length > 0 ? (
+            <p className="text-[11px] text-foreground/35">
+              Run a game project with the <span className="font-mono">web-hammer-game-dev</span> Vite plugin to connect an external target.
+            </p>
+          ) : null}
         </div>
 
         <ForceSwitchRow
+          activeGame={activeGame}
           isPushing={isPushing}
           onPushScene={onPushScene}
           pushDisabled={!activeGame || isPushing || projectSlug.trim().length === 0}
@@ -144,7 +173,9 @@ export function GameConnectionControl({
 
         {lastPush ? (
           <div className="rounded-xl border border-[#f6d07d]/18 bg-[#f6d07d]/8 px-3 py-2 text-xs text-[#fff0cb]/85">
-            Pushed `{lastPush.projectSlug}` to `{lastPush.scenePath}` in {lastPush.game.name}.
+            {isSelfPreview(lastPush.game)
+              ? `Scene "${lastPush.projectSlug}" staged in the built-in preview.`
+              : `Pushed \`${lastPush.projectSlug}\` to \`${lastPush.scenePath}\` in ${lastPush.game.name}.`}
           </div>
         ) : null}
 
@@ -159,17 +190,25 @@ export function GameConnectionControl({
 }
 
 function ForceSwitchRow(props: {
+  activeGame?: DevSyncGameRegistration;
   isPushing: boolean;
   onPushScene: (forceSwitch: boolean) => void;
   pushDisabled: boolean;
 }) {
   const [forceSwitch, setForceSwitch] = React.useState(true);
+  const selfTarget = props.activeGame ? isSelfPreview(props.activeGame) : false;
 
   return (
     <div className="editor-toolbar-segment flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
       <div className="min-w-0">
-        <div className="text-sm text-foreground">Force Scene Switch</div>
-        <div className="text-xs text-foreground/50">Reload the running game into this scene after the files land.</div>
+        <div className="text-sm text-foreground">
+          {selfTarget ? "Switch to Preview" : "Force Scene Switch"}
+        </div>
+        <div className="text-xs text-foreground/50">
+          {selfTarget
+            ? "Signal the orchestrator to open the game view after pushing."
+            : "Reload the running game into this scene after the files land."}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
