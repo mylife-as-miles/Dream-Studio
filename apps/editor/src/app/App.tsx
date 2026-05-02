@@ -1650,10 +1650,11 @@ export function App() {
   };
 
   useEffect(() => {
-    const handler = () => handlePlayPhysics();
-    window.addEventListener("blud:self-preview-switch", handler);
-    return () => window.removeEventListener("blud:self-preview-switch", handler);
-  }, []);
+    if (!draftHydrated) return;
+    if (localStorage.getItem("blud:autoplay-on-load") !== "1") return;
+    localStorage.removeItem("blud:autoplay-on-load");
+    handlePlayPhysics();
+  }, [draftHydrated]);
 
   const buildEditorSnapshot = () => ({
     ...editor.exportSnapshot(),
