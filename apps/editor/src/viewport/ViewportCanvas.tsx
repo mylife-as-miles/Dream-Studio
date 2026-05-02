@@ -250,6 +250,12 @@ const SKY_FRAG = /* glsl */ `
 `;
 
 function EditorSkyDome() {
+  const { gl } = useThree();
+  const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+
+  // ShaderMaterial is not NodeMaterial-compatible — skip sky dome in WebGPU mode.
+  if (isWebGPU) return null;
+
   return (
     <mesh renderOrder={-1}>
       <sphereGeometry args={[900, 32, 16]} />
@@ -267,13 +273,19 @@ function ViewportRendererSetup() {
   const { gl } = useThree();
 
   useEffect(() => {
+    const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+
     if ("outputColorSpace" in gl) {
       gl.outputColorSpace = SRGBColorSpace;
     }
 
     if ("shadowMap" in gl) {
-      gl.shadowMap.enabled = true;
-      gl.shadowMap.type = PCFSoftShadowMap;
+      // MeshDepthMaterial (used by Three.js shadow maps) is not NodeMaterial-compatible.
+      // Disable shadow maps in WebGPU mode to suppress console errors.
+      gl.shadowMap.enabled = !isWebGPU;
+      if (!isWebGPU) {
+        gl.shadowMap.type = PCFSoftShadowMap;
+      }
     }
 
     if ("toneMapping" in gl) {
