@@ -21,7 +21,6 @@ export default defineConfig(() => {
       rollupOptions: {
         input: {
           home: path.resolve(__dirname, "index.html"),
-          gettingStarted: path.resolve(__dirname, "getting-started/index.html"),
           projectLayout: path.resolve(__dirname, "project-layout/index.html"),
           tools: path.resolve(__dirname, "tools/index.html")
         }

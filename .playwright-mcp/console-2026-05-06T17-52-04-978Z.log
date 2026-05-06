@@ -1,0 +1,267 @@
+[    2961ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=6f0166f6:14515
+[  102694ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=6f0166f6:14515
+[  114997ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=6f0166f6:14515
+[  119014ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=6f0166f6:14515
+[  161684ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=6f0166f6:14515
+[  186006ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/@vite/client:509
+[  186204ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=6f0166f6:14515
+[  298238ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=165279a1:14515
+[  298256ms] [ERROR] [vite] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at HMRClient.send (http://127.0.0.1:5173/@vite/client:152:18)
+    at HMRContext.send (http://127.0.0.1:5173/@vite/client:114:18)
+    at HMRContext.invalidate (http://127.0.0.1:5173/@vite/client:83:8)
+    at http://127.0.0.1:5173/src/entries/home.tsx?t=1778090110916:2098:46
+    at http://127.0.0.1:5173/@vite/client:61:95
+    at http://127.0.0.1:5173/@vite/client:213:52
+    at http://127.0.0.1:5173/@vite/client:191:55
+    at Array.forEach (<anonymous>)
+    at HMRClient.queueUpdate (http://127.0.0.1:5173/@vite/client:191:33) @ http://127.0.0.1:5173/@vite/client:509
+[  298541ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendLog (http://127.0.0.1:5173/@vite/client:494:13)
+    at console.<computed> [as error] (http://127.0.0.1:5173/@vite/client:511:4)
+    at Object.error (http://127.0.0.1:5173/@vite/client:905:26)
+    at http://127.0.0.1:5173/@vite/client:153:16
+[  298552ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298552ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298552ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298554ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:968
+[  298557ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298557ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298558ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298558ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298559ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298561ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298564ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298565ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298566ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298566ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298567ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298567ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298568ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298568ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298568ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298569ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298569ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298570ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298570ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298571ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298572ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298572ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298573ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298573ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298573ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298574ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298574ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298574ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298574ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298575ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298576ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298577ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298580ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298581ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298581ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298583ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298583ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298584ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298587ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298590ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298599ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298599ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298599ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298600ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298602ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298603ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298603ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298604ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298605ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298612ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298613ms] Error: send was called before connect
+    at Object.send (http://127.0.0.1:5173/@vite/client:384:15)
+    at sendError (http://127.0.0.1:5173/@vite/client:480:13)
+    at http://127.0.0.1:5173/@vite/client:519:4
+[  298722ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=165279a1:14515

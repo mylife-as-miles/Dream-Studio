@@ -32,7 +32,6 @@ type SectionProps = {
 
 const navigation: NavItem[] = [
   { href: "", label: "Overview" },
-  { href: "getting-started/", label: "Getting Started" },
   { href: "project-layout/", label: "Project Layout" },
   { href: "tools/", label: "Tools" }
 ];
@@ -130,9 +129,9 @@ export function PageShell({ eyebrow, title, intro, currentPath, stats, children 
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
                   className="page-link rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 shadow-[0_18px_48px_rgba(16,185,129,0.25)]"
-                  href={siteHref("getting-started/")}
+                  href={siteHref("")}
                 >
-                  Start a game
+                  Back to Dream Studio
                 </a>
                 <a className="page-link rounded-full bg-white/7 px-5 py-3 text-sm font-semibold text-white/88" href={siteHref("tools/")}> 
                   Open the editors
@@ -173,7 +172,6 @@ export function PageShell({ eyebrow, title, intro, currentPath, stats, children 
             <p>BLUD ships fast, changes fast, and is not stable yet. Treat every release as a moving target.</p>
             <div className="flex flex-wrap gap-3 text-white/72">
               <a className="page-link rounded-full bg-white/6 px-4 py-2" href={siteHref("")}>Overview</a>
-              <a className="page-link rounded-full bg-white/6 px-4 py-2" href={siteHref("getting-started/")}>CLI</a>
               <a className="page-link rounded-full bg-white/6 px-4 py-2" href={siteHref("tools/")}>Editors</a>
             </div>
           </div>

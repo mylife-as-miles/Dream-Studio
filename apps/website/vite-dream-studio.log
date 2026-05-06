@@ -1,0 +1,20 @@
+
+> @blud/website@0.0.3 dev
+> vite --host 127.0.0.1 --port 5173
+
+
+  [32m[1mVITE[22m v8.0.3[39m  [2mready in [0m[1m380[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m18:38:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/main.css[22m
+[2m18:41:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/main.css[22m
+[2m18:55:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/entries/home.tsx, /src/main.css[22m
+[2m18:55:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/main.css[22m
+[2m18:55:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/entries/home.tsx[22m Could not Fast Refresh ("true" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react-swc#consistent-components-exports
+[2m18:55:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/entries/home.tsx[22m
+[2m18:57:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/entries/home.tsx, /src/main.css[22m
+[2m18:57:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/site.tsx, /src/main.css[22m
+[2m18:57:02[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m18:57:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/entries/getting-started.tsx[22m
+[2m18:57:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mgetting-started/index.html[22m
+[2m18:57:02[22m [36m[1m[vite][22m[39m server restarted.
