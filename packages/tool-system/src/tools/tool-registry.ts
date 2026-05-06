@@ -6,6 +6,7 @@ export const defaultTools: Array<{ id: ToolId; label: string }> = [
   { id: "clip", label: "Clip" },
   { id: "extrude", label: "Extrude" },
   { id: "mesh-edit", label: "Mesh Edit" },
+  { id: "sculpt", label: "Sculpt" },
   { id: "brush", label: "Brush" },
   { id: "path-add", label: "Add Path" },
   { id: "path-edit", label: "Edit Path" }

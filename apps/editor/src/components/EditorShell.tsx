@@ -26,7 +26,6 @@ import { buildGameBlobUrl } from "@/lib/game-html";
 import { AiModelPromptBar } from "@/components/editor-shell/AiModelPromptBar";
 import { EditorMenuBar } from "@/components/editor-shell/EditorMenuBar";
 import { InspectorSidebar } from "@/components/editor-shell/InspectorSidebar";
-import { StatusBar } from "@/components/editor-shell/StatusBar";
 import { ToolsPanel } from "@/components/editor-shell/ToolsPanel";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { ViewportCanvas } from "@/viewport/ViewportCanvas";
@@ -51,6 +50,16 @@ const GameBridgePanel = lazy(() =>
 const LogicViewerSheet = lazy(() =>
   import("@/components/editor-shell/logic-viewer/LogicViewerSheet").then((module) => ({
     default: module.LogicViewerSheet
+  }))
+);
+const NodeMaterialEditorSheet = lazy(() =>
+  import("@/components/editor-shell/NodeMaterialEditorSheet").then((module) => ({
+    default: module.NodeMaterialEditorSheet
+  }))
+);
+const BehaviorTreeEditorSheet = lazy(() =>
+  import("@/components/editor-shell/BehaviorTreeEditorSheet").then((module) => ({
+    default: module.BehaviorTreeEditorSheet
   }))
 );
 
@@ -90,9 +99,11 @@ type EditorShellProps = {
   lockedSceneItemIds: string[];
   meshEditMode: MeshEditMode;
   meshEditToolbarAction?: MeshEditToolbarActionRequest;
-  sculptMode?: "deflate" | "inflate" | null;
+  sculptMode?: string | null;
   sculptBrushRadius: number;
   sculptBrushStrength: number;
+  sculptBrushType: "draw" | "smooth" | "grab";
+  sculptSymmetryX: boolean;
   onActivateViewport: (viewportId: ViewportPaneId) => void;
   onApplyMaterial: (materialId: string, scope: "faces" | "object", faceIds: string[]) => void;
   onClipSelection: (axis: TransformAxis) => void;
@@ -140,7 +151,9 @@ type EditorShellProps = {
   onPreviewBrushData: (nodeId: string, brush: Brush) => void;
   onPreviewEntityTransform: (entityId: string, transform: Transform) => void;
   onPreviewMeshData: (nodeId: string, mesh: EditableMesh) => void;
-  onSculptModeChange: (mode: "deflate" | "inflate" | null) => void;
+  onSculptModeChange: (mode: string | null) => void;
+  onSetSculptBrushType: (type: "draw" | "smooth" | "grab") => void;
+  onSetSculptSymmetryX: (enabled: boolean) => void;
   onRedo: () => void;
   onSaveWhmap: () => void;
   onSelectAsset: (assetId: string) => void;
@@ -158,6 +171,7 @@ type EditorShellProps = {
   onSetSculptBrushRadius: (value: number) => void;
   onSetSculptBrushStrength: (value: number) => void;
   onSetRightPanel: (panel: RightPanelId | null) => void;
+  onSetGridInfinite: (infinite: boolean) => void;
   onSetSnapEnabled: (enabled: boolean) => void;
   onSetSnapSize: (snapSize: GridSnapValue) => void;
   onStopPhysics: () => void;
@@ -236,6 +250,8 @@ export function EditorShell({
   sculptMode,
   sculptBrushRadius,
   sculptBrushStrength,
+  sculptBrushType,
+  sculptSymmetryX,
   onActivateViewport,
   onApplyMaterial,
   onClipSelection,
@@ -284,6 +300,8 @@ export function EditorShell({
   onPreviewEntityTransform,
   onPreviewMeshData,
   onSculptModeChange,
+  onSetSculptBrushType,
+  onSetSculptSymmetryX,
   onRedo,
   onSaveWhmap,
   onSelectAsset,
@@ -301,6 +319,7 @@ export function EditorShell({
   onSetSculptBrushRadius,
   onSetSculptBrushStrength,
   onSetRightPanel,
+  onSetGridInfinite,
   onSetSnapEnabled,
   onSetSnapSize,
   onStopPhysics,
@@ -349,6 +368,10 @@ export function EditorShell({
   viewports
 }: EditorShellProps) {
   const [gameViewUrl, setGameViewUrl] = useState<string | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const [physicsDebugOpen, setPhysicsDebugOpen] = useState(false);
+  const [nodeMaterialEditorOpen, setNodeMaterialEditorOpen] = useState(false);
+  const [btEditorOpen, setBtEditorOpen] = useState(false);
   const gameViewUrlRef = useRef<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -419,6 +442,8 @@ export function EditorShell({
           meshEditToolbarAction={meshEditToolbarAction}
           sculptBrushRadius={sculptBrushRadius}
           sculptBrushStrength={sculptBrushStrength}
+          sculptBrushType={sculptBrushType}
+          sculptSymmetryX={sculptSymmetryX}
           onActivateViewport={onActivateViewport}
           onClearSelection={onClearSelection}
           onDropBlockout={onDropBlockout}
@@ -445,6 +470,7 @@ export function EditorShell({
           onUpdateNodeTransform={onUpdateNodeTransform}
           onUpdateSceneSettings={onUpdateSceneSettings}
           onViewportChange={onUpdateViewport}
+          physicsDebug={physicsDebugOpen}
           physicsPlayback={physicsPlayback}
           physicsRevision={physicsRevision}
           previewPossessed={previewPossessed}
@@ -453,6 +479,7 @@ export function EditorShell({
           renderMode={definition.renderMode}
           renderScene={renderScene}
           sceneSettings={sceneSettings}
+          showStats={showStats && isActiveViewport}
           nodes={nodes}
           selectedScenePathId={selectedScenePathId}
           selectedEntity={selectedEntity}
@@ -477,7 +504,11 @@ export function EditorShell({
             canUndo={canUndo}
             copilotOpen={copilotPanelOpen}
             gameConnectionControl={gameConnectionControl}
+            btEditorOpen={btEditorOpen}
             logicViewerOpen={logicViewerOpen}
+            nodeMaterialEditorOpen={nodeMaterialEditorOpen}
+            physicsDebugOpen={physicsDebugOpen}
+            showStats={showStats}
             onClearSelection={onClearSelection}
             onCreateBrush={onCreateBrush}
             onDeleteSelection={onDeleteSelection}
@@ -501,9 +532,13 @@ export function EditorShell({
             onSimulatePreview={onSimulatePhysics}
             onStepPreview={onStepPhysics}
             onStopPreview={onStopPhysics}
+            onToggleBtEditor={() => setBtEditorOpen((v) => !v)}
             onToggleCopilot={onToggleCopilot}
             onToggleLogicViewer={onToggleLogicViewer}
+            onToggleNodeMaterialEditor={() => setNodeMaterialEditorOpen((v) => !v)}
+            onTogglePhysicsDebug={() => setPhysicsDebugOpen((v) => !v)}
             onTogglePreviewPossession={onTogglePreviewPossession}
+            onToggleStats={() => setShowStats((v) => !v)}
             onToggleTools={onToggleTools}
             onToggleViewportQuality={onToggleViewportQuality}
             onUndo={onUndo}
@@ -525,6 +560,7 @@ export function EditorShell({
               aiModelPlacementActive={aiModelPlacementActive || aiModelPlacementArmed}
               activeToolId={activeToolId}
               currentSnapSize={activeViewport.grid.snapSize}
+              gridInfinite={activeViewport.grid.infinite}
               gridSnapValues={gridSnapValues}
               meshEditMode={meshEditMode}
               onClose={onToggleTools}
@@ -554,6 +590,9 @@ export function EditorShell({
               onSetMeshEditMode={onSetMeshEditMode}
               onSetSculptBrushRadius={onSetSculptBrushRadius}
               onSetSculptBrushStrength={onSetSculptBrushStrength}
+              onSetSculptBrushType={onSetSculptBrushType}
+              onSetSculptSymmetryX={onSetSculptSymmetryX}
+              onSetGridInfinite={onSetGridInfinite}
               onSetSnapEnabled={onSetSnapEnabled}
               onSetSnapSize={onSetSnapSize}
               onSetToolId={onSetToolId}
@@ -567,6 +606,8 @@ export function EditorShell({
               previewSessionMode={previewSessionMode}
               sculptBrushRadius={sculptBrushRadius}
               sculptBrushStrength={sculptBrushStrength}
+              sculptBrushType={sculptBrushType}
+              sculptSymmetryX={sculptSymmetryX}
               selectionEnabled={selectionEnabled}
               sculptMode={sculptMode}
               selectedGeometry={selectedIsGeometry}
@@ -677,20 +718,6 @@ export function EditorShell({
           viewportTarget={activeViewport.camera.target}
         />
 
-        <StatusBar
-          activeBrushShape={activeBrushShape}
-          activeToolLabel={activeToolLabel}
-          activeViewportId={activeViewportId}
-          gridSnapValues={gridSnapValues}
-          jobs={jobs}
-          meshEditMode={meshEditMode}
-          physicsPlayback={physicsPlayback}
-          previewPossessed={previewPossessed}
-          previewSessionMode={previewSessionMode}
-          selectedNode={selectedNode}
-          viewModeLabel={getViewModePreset(viewMode).shortLabel}
-          viewport={activeViewport}
-        />
 
         {logicViewerOpen && (
           <Suspense fallback={<LogicViewerFallback />}>
@@ -706,6 +733,23 @@ export function EditorShell({
               }}
               onUpdateEntityHooks={onUpdateEntityHooks}
               onUpdateNodeHooks={onUpdateNodeHooks}
+            />
+          </Suspense>
+        )}
+
+        {nodeMaterialEditorOpen && (
+          <Suspense fallback={null}>
+            <NodeMaterialEditorSheet
+              material={materials.find((m) => m.id === selectedMaterialId)}
+              onClose={() => setNodeMaterialEditorOpen(false)}
+            />
+          </Suspense>
+        )}
+
+        {btEditorOpen && (
+          <Suspense fallback={null}>
+            <BehaviorTreeEditorSheet
+              onClose={() => setBtEditorOpen(false)}
             />
           </Suspense>
         )}

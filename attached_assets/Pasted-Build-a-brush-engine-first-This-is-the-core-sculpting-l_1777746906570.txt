@@ -1,0 +1,246 @@
+Build a brush engine first
+
+This is the core sculpting loop:
+
+Pointer down
+  ↓
+Raycast onto mesh
+  ↓
+Find affected vertices inside brush radius
+  ↓
+Apply falloff curve
+  ↓
+Move vertices based on brush type
+  ↓
+Recalculate normals
+  ↓
+Update renderer mesh
+  ↓
+Store undo stroke
+
+Basic brush formula:
+
+const distance = vertex.distanceTo(hitPoint);
+const t = clamp(1 - distance / radius, 0, 1);
+const falloff = smoothstep(0, 1, t);
+const mask = 1 - vertexMask;
+
+vertex.position += normal * strength * falloff * mask;
+
+For high-poly sculpting, raycasting and vertex search must be accelerated. In Three.js, three-mesh-bvh is specifically built to speed up raycasting and spatial queries against Three.js meshes. Drei also wraps it with a <Bvh> helper for R3F scenes.
+
+Brush types to implement
+
+Start with these:
+
+Brush	Algorithm
+Draw	Move vertices along surface normal
+Inflate	Move vertices along each vertex normal
+Smooth	Laplacian smoothing toward neighbor average
+Grab	Drag affected vertices in screen/world direction
+Pinch	Pull vertices toward brush center
+Crease	Draw + pinch together
+Flatten	Project vertices onto brush plane
+Scrape	Cut peaks against a plane
+Clay	Accumulate volume with plane-based buildup
+
+Example:
+
+function applyDrawBrush(mesh, hit, radius, strength) {
+  const affected = mesh.spatialIndex.querySphere(hit.position, radius);
+
+  for (const vid of affected) {
+    const p = getVertex(mesh, vid);
+    const n = getNormal(mesh, vid);
+
+    const d = distance(p, hit.position);
+    const t = Math.max(0, 1 - d / radius);
+    const falloff = t * t * (3 - 2 * t); // smoothstep
+
+    p.x += n.x * strength * falloff;
+    p.y += n.y * strength * falloff;
+    p.z += n.z * strength * falloff;
+
+    setVertex(mesh, vid, p);
+  }
+
+  recomputeDirtyNormals(mesh, affected);
+}
+3. Add symmetry early
+
+Symmetry is one of the cheapest features that makes sculpting feel professional.
+
+Your brush stroke should generate mirrored hits:
+
+const hits = [mainHit];
+
+if (symmetry.x) hits.push(mirrorHit(mainHit, "x"));
+if (symmetry.y) hits.push(mirrorHit(mainHit, "y"));
+if (symmetry.z) hits.push(mirrorHit(mainHit, "z"));
+
+Blender’s sculpt symmetry tools include mirror axes and axis locking for sculpting.
+
+4. Add masks and face sets
+
+You need this if you want Blender-like control.
+
+finalStrength = brushStrength * falloff * (1 - maskValue);
+
+Face sets are for isolating/editing regions. Masks protect vertices from sculpting. Blender’s docs describe masks and face sets as Sculpt Mode systems for controlling visibility and which faces can be edited.
+
+Implement:
+
+Mask brush
+Invert mask
+Clear mask
+Blur mask
+Grow/shrink mask
+Face set from selection
+Hide face set
+Isolate face set
+5. Add dynamic topology later
+
+This is where it gets hard.
+
+Dynamic topology means the brush does not only move vertices. It also changes the mesh topology while sculpting.
+
+During a stroke:
+
+For each affected triangle:
+  if edge too long → split edge
+  if edge too short → collapse edge
+  if triangle quality bad → flip edge
+  then apply sculpt displacement
+
+Blender’s Dynamic Topology subdivides the mesh during brush strokes, so local detail appears only where needed.
+
+Your dynamic topology module needs:
+
+Operation	Purpose
+Edge split	Add detail where triangles are too large
+Edge collapse	Remove unnecessary dense detail
+Edge flip	Improve triangle quality
+Local remesh	Keep triangles even around brush area
+Normal rebuild	Fix shading after topology changes
+UV/color transfer	Preserve attributes after topology edits
+
+This is why advanced sculpting should be built in a geometry kernel, not directly inside React components.
+
+6. Add voxel remeshing
+
+Voxel remeshing is easier conceptually but expensive computationally.
+
+Pipeline:
+
+Triangle mesh
+  ↓
+Voxel grid / signed distance field
+  ↓
+Marching cubes
+  ↓
+New uniform triangle mesh
+  ↓
+Project details/materials back
+
+Blender’s voxel remesher works by placing the mesh in a virtual 3D grid, finding grid points near the outer surface, and generating a new mesh.
+
+Voxel remesh is useful for:
+
+messy imported meshes
+freeform sculpting
+fixing bad topology
+merging shapes
+preparing for further sculpting
+
+But it can destroy UVs/topology, so it should be a tool, not something that runs every frame.
+
+7. Add multiresolution sculpting
+
+This is the most “Blender-like” feature.
+
+Multires means:
+
+Level 0: low-poly base shape
+Level 1: medium forms
+Level 2: details
+Level 3: pores/wrinkles/fine marks
+
+Blender’s Multiresolution modifier subdivides a mesh like subdivision surfaces but also allows editing subdivision levels in Sculpt Mode.
+
+Your data model:
+
+type MultiresMesh = {
+  baseMesh: SculptMesh;
+  levels: {
+    level: number;
+    vertices: Float32Array;
+    displacement: Float32Array;
+  }[];
+  activeLevel: number;
+};
+
+You need:
+
+Subdivide
+Step up level
+Step down level
+Sculpt current level
+Propagate changes between levels
+Store displacement maps/details
+Bake normal/displacement maps
+
+For a professional path, look at OpenSubdiv. Pixar describes OpenSubdiv as open-source libraries for high-performance subdivision surface evaluation on CPU and GPU architectures.
+
+8. Move heavy work to Web Workers/WASM
+
+Blender-level sculpting will choke the browser if you do everything on the main thread.
+
+Use:
+
+Main thread:
+  UI, viewport, pointer events
+
+Worker/WASM:
+  brush deformation
+  BVH rebuild
+  remeshing
+  normals
+  topology edits
+  voxel operations
+
+MDN explains that OffscreenCanvas can decouple canvas rendering from the DOM and can be used in a worker context; SharedArrayBuffer allows shared memory between threads, but it comes with security/performance concerns.
+
+Your long-term stack:
+
+TypeScript UI
+  ↓
+Web Worker
+  ↓
+WASM geometry kernel
+  ↓
+SharedArrayBuffer mesh buffers
+  ↓
+Babylon/Three viewport updates
+
+Use WASM for:
+
+edge split/collapse
+remeshing
+voxelization
+smoothing
+BVH rebuilds
+mesh repair
+decimation
+boolean operations
+
+Libraries worth studying:
+
+Library	Why
+libigl	Geometry processing algorithms, remeshing/math foundation
+OpenSubdiv	Professional subdivision/multires foundation
+MeshLib	Mesh/voxel/boolean/remeshing operations
+SculptGL	WebGL sculpting reference, though archived/read-only
+
+libigl describes itself as a simple C++ geometry processing library with discrete differential geometry operators, topology structures, and mesh utilities. MeshLib describes itself as an open-source 3D geometry-processing SDK supporting meshes, voxels, point clouds, booleans, mesh fixing, simplification, subdivision, and remeshing.
+
+SculptGL is also worth studying because it was a WebGL/JavaScript sculpting app; its GitHub repository is now archived/read-only, but it remains a useful reference for browser sculpting architecture.

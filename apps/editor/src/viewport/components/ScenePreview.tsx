@@ -138,6 +138,7 @@ export function ScenePreview({
   onPreviewCursorCapturedChange,
   onSelectNode,
   pathDefinitions,
+  physicsDebug = false,
   physicsPlayback,
   physicsRevision,
   previewPossessed,
@@ -159,6 +160,7 @@ export function ScenePreview({
   onPreviewCursorCapturedChange?: (captured: boolean) => void;
   onSelectNode: (nodeIds: string[]) => void;
   pathDefinitions?: SceneSettings["paths"];
+  physicsDebug?: boolean;
   physicsPlayback: "paused" | "running" | "stopped";
   physicsRevision: number;
   previewPossessed: boolean;
@@ -301,6 +303,7 @@ export function ScenePreview({
 
       {physicsActive ? (
         <Physics
+          debug={physicsDebug}
           gravity={toTuple(sceneSettings.world.gravity)}
           key={`physics:${physicsRevision}`}
           paused={physicsPlayback !== "running"}

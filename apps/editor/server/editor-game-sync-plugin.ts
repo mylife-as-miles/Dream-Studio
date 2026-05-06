@@ -1,4 +1,5 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin, PreviewServer, ViteDevServer } from "vite";
@@ -29,16 +30,24 @@ type EditorSyncPushRequest = {
 
 const HEARTBEAT_MS = 2000;
 
+export const SELF_PREVIEW_GAME_ID_PREFIX = "self-preview:";
+
+function selfPreviewSceneRoot() {
+  return join(tmpdir(), "blud-editor-self-preview", "scenes");
+}
+
 export function createEditorGameSyncPlugin(): Plugin {
   return {
     name: "editor-game-sync",
     configureServer(server) {
       registerEditorGameSyncApi(server);
       registerEditorPresence(server);
+      registerSelfGamePresence(server);
     },
     configurePreviewServer(server) {
       registerEditorGameSyncApi(server);
       registerEditorPresence(server);
+      registerSelfGamePresence(server);
     }
   };
 }
@@ -179,6 +188,54 @@ function registerEditorPresence(server: ViteDevServer | PreviewServer) {
     }
 
     void removeDevSyncRegistration("editor", registrationId);
+  });
+}
+
+function registerSelfGamePresence(server: ViteDevServer | PreviewServer) {
+  if (!server.httpServer) {
+    return;
+  }
+
+  const registrationId = `${SELF_PREVIEW_GAME_ID_PREFIX}${server.config.root}`;
+  const sceneRoot = selfPreviewSceneRoot();
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+
+  const publish = async () => {
+    const address = server.httpServer?.address();
+
+    if (!address || typeof address === "string") {
+      return;
+    }
+
+    await mkdir(sceneRoot, { recursive: true });
+    const replitDomain = (process.env.REPLIT_DOMAINS ?? "").split(",")[0]?.trim();
+    const selfUrl = replitDomain ? `https://${replitDomain}` : `http://localhost:${address.port}`;
+    await upsertDevSyncRegistration({
+      id: registrationId,
+      kind: "game",
+      name: "Dream Studio Preview",
+      pid: process.pid,
+      projectRoot: server.config.root,
+      sceneIds: [],
+      sceneRoot,
+      updatedAt: Date.now(),
+      url: selfUrl
+    });
+  };
+
+  server.httpServer.once("listening", () => {
+    void publish();
+    heartbeat = setInterval(() => {
+      void publish();
+    }, HEARTBEAT_MS);
+  });
+
+  server.httpServer.once("close", () => {
+    if (heartbeat) {
+      clearInterval(heartbeat);
+    }
+
+    void removeDevSyncRegistration("game", registrationId);
   });
 }
 

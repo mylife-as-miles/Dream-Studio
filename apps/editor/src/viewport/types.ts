@@ -58,6 +58,8 @@ export type ViewportCanvasProps = {
   meshEditToolbarAction?: MeshEditToolbarActionRequest;
   sculptBrushRadius: number;
   sculptBrushStrength: number;
+  sculptBrushType: "draw" | "smooth" | "grab";
+  sculptSymmetryX: boolean;
   onActivateViewport: (viewportId: ViewportPaneId) => void;
   onClearSelection: () => void;
   onDropBlockout?: (kind: ViewportBlockoutDropKind, position: Vec3) => void;
@@ -72,7 +74,7 @@ export type ViewportCanvasProps = {
   onPreviewEntityTransform: (entityId: string, transform: Transform) => void;
   onPreviewMeshData: (nodeId: string, mesh: EditableMesh) => void;
   onPreviewNodeTransform: (nodeId: string, transform: Transform) => void;
-  onSculptModeChange: (mode: "deflate" | "inflate" | null) => void;
+  onSculptModeChange: (mode: string | null) => void;
   onSelectScenePath: (pathId: string | undefined) => void;
   onSelectMaterialFaces: (faceIds: string[]) => void;
   onSelectNodes: (nodeIds: string[]) => void;
@@ -84,9 +86,11 @@ export type ViewportCanvasProps = {
   onUpdateNodeTransform: (nodeId: string, transform: Transform, beforeTransform?: Transform) => void;
   onUpdateSceneSettings: (settings: SceneSettings, beforeSettings?: SceneSettings) => void;
   onViewportChange: (viewportId: ViewportPaneId, viewport: ViewportState) => void;
+  physicsDebug?: boolean;
   physicsPlayback: "paused" | "running" | "stopped";
   physicsRevision: number;
   previewPossessed: boolean;
+  showStats?: boolean;
   previewSessionMode: PreviewSessionMode | null;
   previewStepTick: number;
   renderScene: DerivedRenderScene;

@@ -6,6 +6,7 @@ import {
 import type {
   RendererAdapter,
   RendererCapabilities,
+  R3FGlProps,
   PostFXPipeline,
   PostFXPipelineDescriptor,
   PickingPass,
@@ -79,11 +80,19 @@ export class WebGPURendererAdapter implements RendererAdapter {
    */
   getR3FGlConfig(
     capabilities: RendererCapabilities
-  ): ((canvas: HTMLCanvasElement) => THREE.WebGLRenderer) | undefined {
+  ): ((props: R3FGlProps) => Promise<THREE.WebGLRenderer>) | undefined {
     if (!capabilities.webgpuAvailable) return undefined;
 
-    return (canvas: HTMLCanvasElement) => {
+    return async (props: R3FGlProps) => {
+      const canvas =
+        props instanceof HTMLCanvasElement
+          ? props
+          : (props as { canvas?: HTMLCanvasElement }).canvas;
+      if (!canvas) {
+        throw new Error("[WebGPURendererAdapter] No canvas element in R3F gl props.");
+      }
       const renderer = createWebGPURenderer(canvas);
+      await (renderer as unknown as { init?: () => Promise<void> }).init?.();
       return renderer;
     };
   }

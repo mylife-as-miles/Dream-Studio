@@ -37,6 +37,7 @@ export type ConstructionGridState = {
   elevation: number;
   enabled: boolean;
   snapSize: GridSnapValue;
+  infinite: boolean;
 };
 
 export type PerspectiveViewportState = {
@@ -61,7 +62,8 @@ function createGridState(snapSize: GridSnapValue): ConstructionGridState {
     majorLineEvery: 8,
     elevation: 0,
     enabled: true,
-    snapSize
+    snapSize,
+    infinite: false
   };
 }
 

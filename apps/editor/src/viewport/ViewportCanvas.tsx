@@ -1,11 +1,13 @@
 import { Canvas, useThree, type RootState } from "@react-three/fiber";
-import { ContactShadows } from "@react-three/drei";
+import { ContactShadows, GizmoHelper, GizmoViewport } from "@react-three/drei";
+import { ViewportStats } from "@/viewport/components/ViewportStats";
 import { useRendererGlConfig } from "@/viewport/hooks/useRendererGlConfig";
 import {
   bridgeEditableMeshEdges,
   arcEditableMeshEdges,
   bevelEditableMeshEdges,
   buildEditableMeshVertexNormals,
+  buildEditableMeshVertexNeighbors,
   convertBrushToEditableMesh,
   cutEditableMeshBetweenEdges,
   deleteEditableMeshFaces,
@@ -22,7 +24,9 @@ import {
   mirrorEditableMesh,
   pokeEditableMeshFaces,
   quadrangulateEditableMeshFaces,
+  grabEditableMeshSamples,
   sculptEditableMeshSamples,
+  smoothEditableMeshSamples,
   solidifyEditableMesh,
   subdivideEditableMeshFace,
   triangulateEditableMeshFaces,
@@ -155,7 +159,7 @@ function loadThreeRuntimeWorldSettings() {
   return threeRuntimeWorldSettingsPromise;
 }
 
-type SculptBrushMode = "deflate" | "inflate";
+type SculptBrushMode = "deflate" | "draw" | "grab" | "inflate" | "smooth";
 
 type SculptBrushHit = {
   normal: Vec3;
@@ -165,6 +169,7 @@ type SculptBrushHit = {
 type SculptBrushState = {
   beforeMesh?: EditableMesh;
   dragging: boolean;
+  grabOriginLocal?: Vec3;
   hovered?: SculptBrushHit;
   lastPoint?: Vec3;
   mode: SculptBrushMode;
@@ -172,8 +177,10 @@ type SculptBrushState = {
   nodeId: string;
   previewMesh?: EditableMesh;
   radius: number;
+  strokeVertexNeighbors?: ReadonlyMap<string, string[]>;
   strokeVertexNormals?: ReadonlyMap<string, Vec3>;
   strength: number;
+  symmetryX: boolean;
 };
 
 function ViewportWorldSettings({ renderMode, sceneSettings }: Pick<ViewportCanvasProps, "renderMode" | "sceneSettings">) {
@@ -249,7 +256,32 @@ const SKY_FRAG = /* glsl */ `
   }
 `;
 
+function ViewportOrientationGizmo() {
+  const { gl } = useThree();
+  const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+
+  // GizmoViewport's AxisHead calls renderer.capabilities.getMaxAnisotropy() which
+  // does not exist on the WebGPU renderer — skip the gizmo in WebGPU mode.
+  if (isWebGPU) return null;
+
+  return (
+    <GizmoHelper alignment="bottom-right" margin={[72, 72]}>
+      <GizmoViewport
+        axisColors={["#e75858", "#5eb163", "#5285c9"]}
+        labelColor="white"
+        axisHeadScale={1.1}
+      />
+    </GizmoHelper>
+  );
+}
+
 function EditorSkyDome() {
+  const { gl } = useThree();
+  const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+
+  // ShaderMaterial is not NodeMaterial-compatible — skip sky dome in WebGPU mode.
+  if (isWebGPU) return null;
+
   return (
     <mesh renderOrder={-1}>
       <sphereGeometry args={[900, 32, 16]} />
@@ -267,13 +299,19 @@ function ViewportRendererSetup() {
   const { gl } = useThree();
 
   useEffect(() => {
+    const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+
     if ("outputColorSpace" in gl) {
       gl.outputColorSpace = SRGBColorSpace;
     }
 
     if ("shadowMap" in gl) {
-      gl.shadowMap.enabled = true;
-      gl.shadowMap.type = PCFSoftShadowMap;
+      // MeshDepthMaterial (used by Three.js shadow maps) is not NodeMaterial-compatible.
+      // Disable shadow maps in WebGPU mode to suppress console errors.
+      gl.shadowMap.enabled = !isWebGPU;
+      if (!isWebGPU) {
+        gl.shadowMap.type = PCFSoftShadowMap;
+      }
     }
 
     if ("toneMapping" in gl) {
@@ -298,7 +336,8 @@ function ViewportStudioEnvironment({
   const { gl, scene } = useThree();
 
   useEffect(() => {
-    if (!enabled) {
+    const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+    if (!enabled || isWebGPU) {
       return;
     }
 
@@ -375,6 +414,8 @@ export function ViewportCanvas({
   meshEditToolbarAction,
   sculptBrushRadius,
   sculptBrushStrength,
+  sculptBrushType,
+  sculptSymmetryX,
   onActivateViewport,
   onClearSelection,
   onDropBlockout,
@@ -401,6 +442,7 @@ export function ViewportCanvas({
   onUpdateNodeTransform,
   onUpdateSceneSettings,
   onViewportChange,
+  physicsDebug = false,
   physicsPlayback,
   physicsRevision,
   previewPossessed,
@@ -409,6 +451,7 @@ export function ViewportCanvas({
   renderMode,
   renderScene,
   sceneSettings,
+  showStats = false,
   nodes,
   selectedScenePathId,
   selectedEntity,
@@ -1127,13 +1170,38 @@ export function ViewportCanvas({
   };
 
   const applySculptHit = (state: SculptBrushState, hit: SculptBrushHit) => {
+    if (state.mode === "grab") {
+      const sourceMesh = state.beforeMesh;
+
+      if (!sourceMesh || !state.grabOriginLocal) {
+        return state;
+      }
+
+      const displacement = subVec3(hit.point, state.grabOriginLocal);
+      let nextMesh = grabEditableMeshSamples(sourceMesh, state.grabOriginLocal, state.radius, displacement, 0.0001);
+
+      if (state.symmetryX) {
+        const mirrorOrigin = vec3(-state.grabOriginLocal.x, state.grabOriginLocal.y, state.grabOriginLocal.z);
+        const mirrorDisplacement = vec3(-displacement.x, displacement.y, displacement.z);
+
+        nextMesh = grabEditableMeshSamples(nextMesh, mirrorOrigin, state.radius, mirrorDisplacement, 0.0001);
+      }
+
+      return {
+        ...state,
+        hovered: hit,
+        lastPoint: hit.point,
+        modified: true,
+        previewMesh: nextMesh
+      };
+    }
+
     const sourceMesh = state.previewMesh ?? state.beforeMesh;
 
     if (!sourceMesh) {
       return state;
     }
 
-    const signedStrength = state.mode === "inflate" ? state.strength : -state.strength;
     const spacing = Math.max(0.05, state.radius * 0.25);
     const previousPoint = state.lastPoint ?? hit.point;
     const delta = subVec3(hit.point, previousPoint);
@@ -1155,19 +1223,36 @@ export function ViewportCanvas({
         )
       );
 
-      return {
-        normal,
-        point
-      };
+      return { normal, point };
     });
-    const nextMesh = sculptEditableMeshSamples(
-      sourceMesh,
-      samples,
-      state.radius,
-      signedStrength,
-      0.0001,
-      state.strokeVertexNormals
-    );
+
+    let nextMesh: EditableMesh;
+
+    if (state.mode === "smooth") {
+      nextMesh = smoothEditableMeshSamples(sourceMesh, samples, state.radius, state.strength, 0.0001, state.strokeVertexNeighbors);
+
+      if (state.symmetryX) {
+        const mirrorSamples = samples.map((s) => ({
+          normal: vec3(-s.normal.x, s.normal.y, s.normal.z),
+          point: vec3(-s.point.x, s.point.y, s.point.z)
+        }));
+
+        nextMesh = smoothEditableMeshSamples(nextMesh, mirrorSamples, state.radius, state.strength, 0.0001, state.strokeVertexNeighbors);
+      }
+    } else {
+      const signedStrength = state.mode === "inflate" || state.mode === "draw" ? state.strength : -state.strength;
+
+      nextMesh = sculptEditableMeshSamples(sourceMesh, samples, state.radius, signedStrength, 0.0001, state.strokeVertexNormals);
+
+      if (state.symmetryX) {
+        const mirrorSamples = samples.map((s) => ({
+          normal: vec3(-s.normal.x, s.normal.y, s.normal.z),
+          point: vec3(-s.point.x, s.point.y, s.point.z)
+        }));
+
+        nextMesh = sculptEditableMeshSamples(nextMesh, mirrorSamples, state.radius, signedStrength, 0.0001, state.strokeVertexNormals);
+      }
+    }
 
     return {
       ...state,
@@ -1189,16 +1274,21 @@ export function ViewportCanvas({
       return false;
     }
 
+    const currentSculptState = sculptStateRef.current;
+    const strokeMode = currentSculptState?.mode ?? "draw";
     const initialState: SculptBrushState = {
-      ...sculptStateRef.current,
+      ...currentSculptState,
       beforeMesh: selectedMeshNode.data,
       dragging: true,
+      grabOriginLocal: strokeMode === "grab" ? hit.point : undefined,
       hovered: hit,
       lastPoint: hit.point,
       modified: false,
       nodeId: selectedMeshNode.id,
       previewMesh: undefined,
-      strokeVertexNormals: buildEditableMeshVertexNormals(selectedMeshNode.data)
+      strokeVertexNeighbors: strokeMode === "smooth" ? buildEditableMeshVertexNeighbors(selectedMeshNode.data) : undefined,
+      strokeVertexNormals: buildEditableMeshVertexNormals(selectedMeshNode.data),
+      symmetryX: currentSculptState?.symmetryX ?? false
     };
     const nextState = applySculptHit(initialState, hit);
 
@@ -1306,7 +1396,8 @@ export function ViewportCanvas({
       modified: false,
       nodeId: selectedMeshNode.id,
       radius: sculptBrushRadius,
-      strength: sculptBrushStrength
+      strength: sculptBrushStrength,
+      symmetryX: currentState?.symmetryX ?? false
     };
 
     sculptStateRef.current = nextState;
@@ -2139,6 +2230,54 @@ export function ViewportCanvas({
   }, [sculptBrushRadius, sculptBrushStrength]);
 
   useEffect(() => {
+    if (activeToolId !== "sculpt") {
+      const current = sculptStateRef.current;
+
+      if (current && (current.mode === "draw" || current.mode === "smooth" || current.mode === "grab")) {
+        if (!current.dragging) {
+          sculptStateRef.current = null;
+          setSculptState(null);
+        }
+      }
+
+      return;
+    }
+
+    if (!selectedMeshNode) {
+      return;
+    }
+
+    const current = sculptStateRef.current;
+
+    if (current?.dragging) {
+      return;
+    }
+
+    const nextState: SculptBrushState = {
+      dragging: false,
+      hovered: current?.nodeId === selectedMeshNode.id ? current.hovered : undefined,
+      mode: sculptBrushType,
+      modified: false,
+      nodeId: selectedMeshNode.id,
+      radius: sculptBrushRadius,
+      strength: sculptBrushStrength,
+      symmetryX: sculptSymmetryX
+    };
+
+    sculptStateRef.current = nextState;
+    setSculptState(nextState);
+  }, [activeToolId, selectedMeshNode?.id, sculptBrushType, sculptSymmetryX]);
+
+  useEffect(() => {
+    if (activeToolId !== "sculpt" || !sculptStateRef.current || sculptStateRef.current.dragging) {
+      return;
+    }
+
+    sculptStateRef.current = { ...sculptStateRef.current, mode: sculptBrushType, symmetryX: sculptSymmetryX };
+    setSculptState((s) => s ? { ...s, mode: sculptBrushType, symmetryX: sculptSymmetryX } : s);
+  }, [sculptBrushType, sculptSymmetryX]);
+
+  useEffect(() => {
     onSculptModeChange(sculptState?.mode ?? null);
   }, [onSculptModeChange, sculptState?.mode]);
 
@@ -2281,7 +2420,7 @@ export function ViewportCanvas({
       if (sculptState) {
         if (event.key === "Escape") {
           event.preventDefault();
-          cancelSculptStroke(!sculptState.dragging);
+          cancelSculptStroke(sculptState.dragging ? false : true);
         }
         return;
       }
@@ -2921,7 +3060,7 @@ export function ViewportCanvas({
       return;
     }
 
-    if (activeToolId === "mesh-edit" && sculptState && selectedMeshNode && event.button === 0 && !event.shiftKey) {
+    if ((activeToolId === "mesh-edit" || activeToolId === "sculpt") && sculptState && selectedMeshNode && event.button === 0 && !event.shiftKey) {
       if (beginSculptStroke(bounds, event.clientX, event.clientY)) {
         return;
       }
@@ -3392,13 +3531,6 @@ export function ViewportCanvas({
         orthographic={viewport.projection === "orthographic"}
         onCreated={(state: RootState) => {
           cameraRef.current = state.camera;
-          const gl = state.gl as unknown as { init?: () => Promise<void> };
-          if (typeof gl.init === "function") {
-            void gl.init().then(
-              () => (state as unknown as { invalidate?: () => void }).invalidate?.(),
-              (err) => console.error("[ViewportCanvas] WebGPU renderer init failed:", err)
-            );
-          }
         }}
         onPointerMissed={() => {
           if (!editorInteractionEnabled) {
@@ -3431,6 +3563,7 @@ export function ViewportCanvas({
         shadows={renderMode === "lit"}
       >
         <ViewportRendererSetup />
+        {showStats ? <ViewportStats /> : null}
         <ViewportWorldSettings renderMode={renderMode} sceneSettings={sceneSettings} />
         {renderMode !== "lit" || !sceneSettings.world.skybox.enabled ? <EditorSkyDome /> : null}
         {renderMode === "lit" ? <ViewportStudioEnvironment enabled={!sceneSettings.world.skybox.enabled} sceneSettings={sceneSettings} /> : null}
@@ -3467,7 +3600,9 @@ export function ViewportCanvas({
             viewportPlane={viewportPlane}
           />
         ) : null}
-        {renderMode === "lit" && editorInteractionEnabled ? <axesHelper args={[3]} /> : null}
+        {renderMode === "lit" && editorInteractionEnabled ? (
+          <ViewportOrientationGizmo />
+        ) : null}
         <ScenePreview
           entities={entities}
           hiddenSceneItemIds={
@@ -3482,6 +3617,7 @@ export function ViewportCanvas({
           onMeshObjectChange={handleMeshObjectChange}
           onSelectNode={handleSceneSelectNodes}
           pathDefinitions={pathDefinitions}
+          physicsDebug={physicsDebug}
           physicsPlayback={physicsPlayback}
           physicsRevision={physicsRevision}
           previewPossessed={previewPossessed}

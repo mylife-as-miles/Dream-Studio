@@ -36,6 +36,7 @@ export function EditorCameraRig({
 }: Pick<ViewportCanvasProps, "onViewportChange" | "viewport" | "viewportId"> & { controlsEnabled: boolean }) {
   const camera = useThree((state) => state.camera);
   const gl = useThree((state) => state.gl);
+  const eventsConnected = useThree((state) => state.events.connected as HTMLElement | undefined);
   const controlsRef = useRef<any>(null);
   const flyLookActiveRef = useRef(false);
   const flySpeedRef = useRef(18);
@@ -45,6 +46,18 @@ export function EditorCameraRig({
   const yawRef = useRef(0);
   const pitchRef = useRef(0);
   const [flyLookActive, setFlyLookActive] = useState(false);
+
+  const controlsDomElement = useMemo((): HTMLElement | undefined => {
+    const connected = eventsConnected;
+    if (connected && typeof (connected as unknown as { style?: unknown }).style !== "undefined") {
+      return connected;
+    }
+    const dom = gl.domElement as HTMLElement | undefined;
+    if (dom && typeof (dom as unknown as { style?: unknown }).style !== "undefined") {
+      return dom;
+    }
+    return undefined;
+  }, [gl.domElement, eventsConnected]);
 
   const setViewportNavigationState = useCallback((mode?: "fly") => {
     if (typeof document === "undefined") {
@@ -238,7 +251,15 @@ export function EditorCameraRig({
   }, [controlsEnabled, setViewportNavigationState, syncViewport]);
 
   useEffect(() => {
-    const domElement = gl.domElement;
+    const rawDom = gl.domElement as HTMLElement | undefined;
+    const domElement: HTMLElement =
+      rawDom && typeof rawDom.addEventListener === "function"
+        ? rawDom
+        : eventsConnected ?? (rawDom as unknown as HTMLElement);
+
+    if (!domElement || typeof domElement.addEventListener !== "function") {
+      return;
+    }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) {
@@ -353,6 +374,7 @@ export function EditorCameraRig({
   }, [
     applyFlyLookDelta,
     controlsEnabled,
+    eventsConnected,
     gl.domElement,
     setViewportNavigationState,
     syncFlyAnglesFromView,
@@ -440,10 +462,15 @@ export function EditorCameraRig({
     []
   );
 
+  if (!controlsDomElement) {
+    return null;
+  }
+
   if (viewport.projection === "orthographic") {
     return (
       <MapControls
         ref={controlsRef}
+        domElement={controlsDomElement}
         enabled={controlsEnabled}
         enableRotate={false}
         makeDefault
@@ -460,6 +487,7 @@ export function EditorCameraRig({
     <OrbitControls
       ref={controlsRef}
       dampingFactor={0.12}
+      domElement={controlsDomElement}
       enableDamping={!flyLookActive}
       enablePan
       enabled={controlsEnabled && !flyLookActive}

@@ -19,7 +19,11 @@ type EditorMenuBarProps = {
   canUndo: boolean;
   copilotOpen: boolean;
   gameConnectionControl?: ReactNode;
+  btEditorOpen: boolean;
   logicViewerOpen: boolean;
+  nodeMaterialEditorOpen: boolean;
+  physicsDebugOpen: boolean;
+  showStats: boolean;
   onClearSelection: () => void;
   onCreateBrush: () => void;
   onDeleteSelection: () => void;
@@ -40,8 +44,12 @@ type EditorMenuBarProps = {
   onStepPreview: () => void;
   onStopPreview: () => void;
   onToggleCopilot: () => void;
+  onToggleBtEditor: () => void;
   onToggleLogicViewer: () => void;
+  onToggleNodeMaterialEditor: () => void;
+  onTogglePhysicsDebug: () => void;
   onTogglePreviewPossession: () => void;
+  onToggleStats: () => void;
   onToggleTools: () => void;
   onToggleViewportQuality: () => void;
   onUndo: () => void;
@@ -57,7 +65,11 @@ export function EditorMenuBar({
   canUndo,
   copilotOpen,
   gameConnectionControl,
+  btEditorOpen,
   logicViewerOpen,
+  nodeMaterialEditorOpen,
+  physicsDebugOpen,
+  showStats,
   onClearSelection,
   onCreateBrush,
   onDeleteSelection,
@@ -77,9 +89,13 @@ export function EditorMenuBar({
   onSimulatePreview,
   onStepPreview,
   onStopPreview,
+  onToggleBtEditor,
   onToggleCopilot,
   onToggleLogicViewer,
+  onToggleNodeMaterialEditor,
+  onTogglePhysicsDebug,
   onTogglePreviewPossession,
+  onToggleStats,
   onToggleTools,
   onToggleViewportQuality,
   physicsPlayback,
@@ -265,7 +281,7 @@ export function EditorMenuBar({
                   <MenubarTrigger>
                     View
                   </MenubarTrigger>
-                  <MenubarContent className="min-w-48 p-1.5">
+                  <MenubarContent className="min-w-56 p-1.5">
                     <MenubarItem className="rounded-lg text-xs" onClick={onToggleLogicViewer}>
                       {logicViewerOpen ? "Hide" : "Show"} Logic Graph
                       <MenubarShortcut>Cmd+Shift+L</MenubarShortcut>
@@ -273,6 +289,20 @@ export function EditorMenuBar({
                     <MenubarItem className="rounded-lg text-xs" onClick={onToggleCopilot}>
                       {copilotOpen ? "Hide" : "Show"} AI Vibe
                       <MenubarShortcut>Cmd+L</MenubarShortcut>
+                    </MenubarItem>
+                    <MenubarItem className="rounded-lg text-xs" onClick={onToggleStats}>
+                      {showStats ? "Hide" : "Show"} Performance Stats
+                      <MenubarShortcut>Cmd+Shift+P</MenubarShortcut>
+                    </MenubarItem>
+                    <MenubarItem className="rounded-lg text-xs" onClick={onTogglePhysicsDebug}>
+                      {physicsDebugOpen ? "Hide" : "Show"} Physics Colliders
+                    </MenubarItem>
+                    <MenubarItem className="rounded-lg text-xs" onClick={onToggleNodeMaterialEditor}>
+                      {nodeMaterialEditorOpen ? "Hide" : "Show"} Node Material Editor
+                    </MenubarItem>
+                    <MenubarItem className="rounded-lg text-xs" onClick={onToggleBtEditor}>
+                      {btEditorOpen ? "Hide" : "Show"} Behavior Tree Editor
+                      <MenubarShortcut>Cmd+Shift+B</MenubarShortcut>
                     </MenubarItem>
                   </MenubarContent>
                 </MenubarMenu>

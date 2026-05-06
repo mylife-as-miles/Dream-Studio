@@ -128,14 +128,24 @@ export function useGameConnection() {
       setError(undefined);
       setRefreshToken((current) => current + 1);
 
-      // Signal the orchestrator (if this editor is running inside one) to switch
-      // to the game view so the user sees the result immediately.
       if (options?.forceSwitch) {
-        window.parent.postMessage({
-          type: "wh-orchestrator:switch-view",
-          sceneId: options.metadata.projectSlug,
-          view: "game"
-        }, "*");
+        const isSelfGame = payload.game?.id?.startsWith("self-preview:");
+        const isStandalone = window.parent === window;
+
+        if (isSelfGame && isStandalone) {
+          // Standalone editor (no orchestrator): open a new tab showing the game
+          // as a shareable web game page. The draft auto-save ensures the new tab
+          // inherits the current scene.
+          window.open(window.location.origin + "/play", "_blank");
+        } else {
+          // Signal the orchestrator (if this editor is running inside one) to switch
+          // to the game view so the user sees the result immediately.
+          window.parent.postMessage({
+            type: "wh-orchestrator:switch-view",
+            sceneId: options.metadata.projectSlug,
+            view: "game"
+          }, "*");
+        }
       }
 
       return payload;

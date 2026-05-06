@@ -252,3 +252,124 @@ function smoothBrushFalloff(distanceRatio: number) {
 
   return inverse * inverse * (3 - 2 * inverse);
 }
+
+export function buildEditableMeshVertexNeighbors(mesh: EditableMesh): ReadonlyMap<VertexID, VertexID[]> {
+  const neighbors = new Map<VertexID, Set<VertexID>>();
+
+  for (const vertex of mesh.vertices) {
+    neighbors.set(vertex.id, new Set());
+  }
+
+  for (const face of mesh.faces) {
+    const verts = getFaceVertices(mesh, face.id);
+
+    for (let i = 0; i < verts.length; i++) {
+      const a = verts[i].id;
+      const b = verts[(i + 1) % verts.length].id;
+
+      neighbors.get(a)?.add(b);
+      neighbors.get(b)?.add(a);
+    }
+  }
+
+  const result = new Map<VertexID, VertexID[]>();
+
+  for (const [id, set] of neighbors) {
+    result.set(id, Array.from(set));
+  }
+
+  return result;
+}
+
+export function smoothEditableMeshSamples(
+  mesh: EditableMesh,
+  samples: SculptSample[],
+  radius: number,
+  strength: number,
+  epsilon = 0.0001,
+  vertexNeighbors?: ReadonlyMap<VertexID, VertexID[]>
+): EditableMesh {
+  if (radius <= epsilon || Math.abs(strength) <= epsilon) {
+    return {
+      ...mesh,
+      vertices: mesh.vertices.map((v) => ({ ...v, position: vec3(v.position.x, v.position.y, v.position.z) }))
+    };
+  }
+
+  const neighbors = vertexNeighbors ?? buildEditableMeshVertexNeighbors(mesh);
+  const posById = new Map<VertexID, Vec3>(mesh.vertices.map((v) => [v.id, v.position]));
+  const clampedStrength = Math.max(0, Math.min(1, Math.abs(strength)));
+
+  return {
+    ...mesh,
+    vertices: mesh.vertices.map((vertex) => {
+      let totalWeight = 0;
+
+      for (const sample of samples) {
+        const offset = subVec3(vertex.position, sample.point);
+        const dist = lengthVec3(offset);
+
+        if (dist < radius) {
+          totalWeight += smoothBrushFalloff(dist / radius);
+        }
+      }
+
+      if (totalWeight <= epsilon) {
+        return { ...vertex, position: vec3(vertex.position.x, vertex.position.y, vertex.position.z) };
+      }
+
+      const neighborIds = neighbors.get(vertex.id) ?? [];
+
+      if (neighborIds.length === 0) {
+        return { ...vertex, position: vec3(vertex.position.x, vertex.position.y, vertex.position.z) };
+      }
+
+      const laplacian = averageVec3(
+        neighborIds.map((nid) => posById.get(nid) ?? vertex.position)
+      );
+
+      const t = Math.min(1, clampedStrength * Math.min(1, totalWeight));
+      const smoothed = vec3(
+        vertex.position.x + (laplacian.x - vertex.position.x) * t,
+        vertex.position.y + (laplacian.y - vertex.position.y) * t,
+        vertex.position.z + (laplacian.z - vertex.position.z) * t
+      );
+
+      return { ...vertex, position: smoothed };
+    })
+  };
+}
+
+export function grabEditableMeshSamples(
+  mesh: EditableMesh,
+  grabOrigin: Vec3,
+  radius: number,
+  displacement: Vec3,
+  epsilon = 0.0001
+): EditableMesh {
+  if (radius <= epsilon || lengthVec3(displacement) <= epsilon) {
+    return {
+      ...mesh,
+      vertices: mesh.vertices.map((v) => ({ ...v, position: vec3(v.position.x, v.position.y, v.position.z) }))
+    };
+  }
+
+  return {
+    ...mesh,
+    vertices: mesh.vertices.map((vertex) => {
+      const offset = subVec3(vertex.position, grabOrigin);
+      const dist = lengthVec3(offset);
+
+      if (dist >= radius) {
+        return { ...vertex, position: vec3(vertex.position.x, vertex.position.y, vertex.position.z) };
+      }
+
+      const falloff = smoothBrushFalloff(dist / radius);
+
+      return {
+        ...vertex,
+        position: addVec3(vertex.position, scaleVec3(displacement, falloff))
+      };
+    })
+  };
+}
