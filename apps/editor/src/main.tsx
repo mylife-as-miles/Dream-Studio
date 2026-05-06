@@ -3,10 +3,21 @@ import ReactDOM from "react-dom/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "@/styles.css";
 
-const isPlayPage = window.location.pathname === "/play";
+const pathname = window.location.pathname;
+const isPlayPage = pathname === "/play";
+const isLandingPage = pathname === "/" || pathname === "";
 
 (async () => {
-  if (isPlayPage) {
+  if (isLandingPage) {
+    await import("@/landing.css");
+    const { LandingPage } = await import("@/app/LandingPage");
+
+    ReactDOM.createRoot(document.getElementById("root")!).render(
+      <React.StrictMode>
+        <LandingPage />
+      </React.StrictMode>
+    );
+  } else if (isPlayPage) {
     const { PlayPage } = await import("@/app/PlayPage");
 
     ReactDOM.createRoot(document.getElementById("root")!).render(

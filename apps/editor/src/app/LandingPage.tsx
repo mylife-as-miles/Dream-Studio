@@ -76,9 +76,6 @@ export function LandingPage() {
           <span>DREAM STUDIO</span>
         </a>
         <div className="nav-actions">
-          <a className="button button-ghost" href="/editor">
-            Sign in
-          </a>
           <a className="button button-primary" href="#demo">
             <span>Start Building Free</span>
             <ArrowRightIcon className="button-icon" />

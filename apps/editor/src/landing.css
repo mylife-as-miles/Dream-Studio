@@ -1,4 +1,4 @@
-@import "tailwindcss";
+/* Landing page styles — loaded dynamically on / route */
 
 :root {
   color-scheme: dark;
