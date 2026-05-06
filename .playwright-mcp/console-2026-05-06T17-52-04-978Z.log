@@ -265,3 +265,5 @@
     at sendError (http://127.0.0.1:5173/@vite/client:480:13)
     at http://127.0.0.1:5173/@vite/client:519:4
 [  298722ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=165279a1:14515
+[  928558ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=165279a1:14515
+[  937246ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=165279a1:14515
