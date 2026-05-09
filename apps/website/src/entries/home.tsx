@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { renderPage, siteHref } from "../site";
 
 const heroImage = siteHref("images/dream-studio-hero-editor.png");
+const landingHref = "https://dream-studio-editor.vercel.app/#demo";
 
 type IconProps = {
   className?: string;
@@ -79,10 +80,10 @@ function DreamStudioLanding() {
           <span>DREAM STUDIO</span>
         </a>
         <div className="nav-actions">
-          <a className="button button-ghost" href={siteHref("tools/")}>
+          <a className="button button-ghost" href={landingHref}>
             Sign in
           </a>
-          <a className="button button-primary" href="#demo">
+          <a className="button button-primary" href={landingHref}>
             <span>Start Building Free</span>
             <ArrowRightIcon className="button-icon" />
           </a>
@@ -106,11 +107,11 @@ function DreamStudioLanding() {
               intelligent copilot - all in one premium workspace.
             </p>
             <div className="hero-actions">
-              <a className="button button-primary button-large" href="#demo">
+              <a className="button button-primary button-large" href={landingHref}>
                 <span>Start Building Free</span>
                 <ArrowRightIcon className="button-icon" />
               </a>
-              <a className="button button-secondary button-large" href="#demo">
+              <a className="button button-secondary button-large" href={landingHref}>
                 Book a Demo
               </a>
             </div>
@@ -186,11 +187,11 @@ function DreamStudioLanding() {
               <p>Join creators building the next generation of playable worlds.</p>
             </div>
             <div className="cta-actions">
-              <a className="button button-primary button-large" href="#demo">
+              <a className="button button-primary button-large" href={landingHref}>
                 <span>Start Building Free</span>
                 <ArrowRightIcon className="button-icon" />
               </a>
-              <a className="button button-secondary button-large" href={siteHref("tools/")}>
+              <a className="button button-secondary button-large" href={landingHref}>
                 Book a Demo
               </a>
             </div>
