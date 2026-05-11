@@ -2,12 +2,12 @@ import type { CopilotProviderId, CopilotSettings, CodexModelId, GeminiModelId } 
 
 const STORAGE_KEY = "web-hammer:copilot";
 
-const GEMINI_MODELS: GeminiModelId[] = ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
+const GEMINI_MODELS: GeminiModelId[] = ["gemma-4-31b-it", "gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
 const CODEX_MODELS: CodexModelId[] = ["gpt-5.4", "gpt-5.3-codex", "gpt-5.1-codex-max", "gpt-4.1", "gpt-4.1-mini", "codex-mini-latest", "o3", "o4-mini"];
 
 const DEFAULT_SETTINGS: CopilotSettings = {
   provider: "codex",
-  gemini: { apiKey: "", model: "gemini-3-flash-preview" },
+  gemini: { apiKey: "", model: "gemma-4-31b-it" },
   codex: { model: "gpt-5.4" },
   temperature: 0.3,
   elevenlabsApiKey: ""
@@ -60,6 +60,9 @@ export function isCopilotConfigured(settings?: CopilotSettings): boolean {
   const s = settings ?? loadCopilotSettings();
 
   if (s.provider === "gemini") {
+    // Gemma 4 is free and doesn't require an API key;
+    // other Gemini models still need one.
+    if (s.gemini.model.startsWith("gemma-")) return true;
     return s.gemini.apiKey.length > 0;
   }
 
