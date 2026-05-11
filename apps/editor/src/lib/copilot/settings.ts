@@ -60,10 +60,11 @@ export function isCopilotConfigured(settings?: CopilotSettings): boolean {
   const s = settings ?? loadCopilotSettings();
 
   if (s.provider === "gemini") {
-    // Gemma 4 is free and doesn't require an API key;
-    // other Gemini models still need one.
-    if (s.gemini.model.startsWith("gemma-")) return true;
-    return s.gemini.apiKey.length > 0;
+    // User-provided key in settings
+    if (s.gemini.apiKey.length > 0) return true;
+    // Vercel env var baked in at build time
+    if (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) return true;
+    return false;
   }
 
   // Codex uses local login — always "configured" from the browser's perspective
