@@ -9,20 +9,13 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog";
-import type { CopilotSettings, GeminiModelId } from "@/lib/copilot/types";
+import type { CopilotSettings } from "@/lib/copilot/types";
 import { loadCopilotSettings, saveCopilotSettings } from "@/lib/copilot/settings";
 
 export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<CopilotSettings>(loadCopilotSettings);
-  const [showKey, setShowKey] = useState(false);
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
-
-  const isGemmaModel = settings.gemini.model.startsWith("gemma-");
-  const hasEnvKey = Boolean(
-    typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY
-  );
-
   const handleSave = () => {
     saveCopilotSettings({ ...settings, provider: "gemini" });
     setOpen(false);
@@ -43,76 +36,7 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
           <DialogTitle>Vibe Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
-              Provider
-            </label>
-            <div className="flex h-9 items-center rounded-xl bg-emerald-500/10 px-3 text-xs text-emerald-200">
-              {hasEnvKey ? "Gemini API (env key)" : isGemmaModel ? "Gemma (Free)" : "Gemini API"}
-            </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
-              Model
-            </label>
-            <select
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm text-foreground"
-              onChange={(e) => setSettings({ ...settings, gemini: { ...settings.gemini, model: e.target.value as GeminiModelId } })}
-              value={settings.gemini.model}
-            >
-              <option value="gemma-4-31b-it">Gemma 4 31B</option>
-              <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-            </select>
-          </div>
-
-          {!hasEnvKey && (
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
-                API Key {hasEnvKey ? "(set via environment)" : ""}
-              </label>
-              <div className="relative">
-                <Input
-                  className="h-10 rounded-xl border-white/10 bg-white/[0.045] pr-10 text-sm font-mono"
-                  onChange={(e) => setSettings({ ...settings, gemini: { ...settings.gemini, apiKey: e.target.value } })}
-                  placeholder="Enter your Gemini API key (optional if set in Vercel)"
-                  type={showKey ? "text" : "password"}
-                  value={settings.gemini.apiKey}
-                />
-                <Button
-                  className="absolute right-1 top-1 size-8 rounded-lg text-foreground/48"
-                  onClick={() => setShowKey(!showKey)}
-                  size="icon-sm"
-                  variant="ghost"
-                >
-                  {showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                </Button>
-              </div>
-              <p className="text-[10px] text-foreground/36">
-                Optional — override the Vercel env key, or leave blank if VITE_GEMINI_API_KEY is set.
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
-              Temperature ({settings.temperature.toFixed(1)})
-            </label>
-            <input
-              className="w-full accent-emerald-400"
-              max={1}
-              min={0}
-              onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })}
-              step={0.1}
-              type="range"
-              value={settings.temperature}
-            />
-            <div className="flex justify-between text-[10px] text-foreground/36">
-              <span>Precise</span>
-              <span>Creative</span>
-            </div>
-          </div>
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
