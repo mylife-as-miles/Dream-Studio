@@ -6,7 +6,7 @@ const GEMINI_MODELS: GeminiModelId[] = ["gemma-4-31b-it", "gemini-3-flash-previe
 const CODEX_MODELS: CodexModelId[] = ["gpt-5.4", "gpt-5.3-codex", "gpt-5.1-codex-max", "gpt-4.1", "gpt-4.1-mini", "codex-mini-latest", "o3", "o4-mini"];
 
 const DEFAULT_SETTINGS: CopilotSettings = {
-  provider: "codex",
+  provider: "gemini",
   gemini: { apiKey: "", model: "gemma-4-31b-it" },
   codex: { model: "gpt-5.4" },
   temperature: 0.3,
