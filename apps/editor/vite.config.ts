@@ -9,6 +9,7 @@ import { createCopilotGenerateApiPlugin } from "./server/copilot-generate-api";
 import { createEditorGameSyncPlugin } from "./server/editor-game-sync-plugin";
 import { createElevenLabsApiPlugin } from "./server/elevenlabs-api";
 import { createObjectGenerationApiPlugin } from "./server/object-generation-api";
+import { createNpcChatApiPlugin } from "./server/npc-chat-api";
 import { createTextureGenerationApiPlugin } from "./server/texture-generation-api";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -187,6 +188,7 @@ export default defineConfig(({ mode }) => {
       createCodexBridgePlugin(),
       createEditorGameSyncPlugin(),
       createElevenLabsApiPlugin(),
+      createNpcChatApiPlugin(),
       createObjectGenerationApiPlugin(),
       createTextureGenerationApiPlugin()
     ],
