@@ -85,7 +85,7 @@ export async function generateCopilotContent(
 
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL?.trim() || process.env.GEMMA_MODEL?.trim() || SERVER_GEMMA_MODEL,
+    model: SERVER_GEMMA_MODEL,
     contents: convertMessages(request.messages),
     config: {
       systemInstruction: request.systemPrompt,
