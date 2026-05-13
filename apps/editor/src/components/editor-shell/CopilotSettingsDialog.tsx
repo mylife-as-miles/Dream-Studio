@@ -83,7 +83,7 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
               value={settings.gemini.model}
             >
               <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+              <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
             </select>
           </div>
 

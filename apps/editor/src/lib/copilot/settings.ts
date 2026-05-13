@@ -2,7 +2,7 @@ import type { CopilotProviderId, CopilotSettings, CodexModelId, GeminiModelId } 
 
 const STORAGE_KEY = "web-hammer:copilot";
 
-const GEMINI_MODELS: GeminiModelId[] = ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
+const GEMINI_MODELS: GeminiModelId[] = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
 const CODEX_MODELS: CodexModelId[] = ["gpt-5.4", "gpt-5.3-codex", "gpt-5.1-codex-max", "gpt-4.1", "gpt-4.1-mini", "codex-mini-latest", "o3", "o4-mini"];
 
 const DEFAULT_SETTINGS: CopilotSettings = {
@@ -26,7 +26,7 @@ export function loadCopilotSettings(): CopilotSettings {
         provider: "gemini",
         gemini: {
           apiKey: parsed.apiKey,
-          model: isGeminiModel(parsed.model) ? parsed.model : DEFAULT_SETTINGS.gemini.model
+          model: normalizeGeminiModel(parsed.model) ?? DEFAULT_SETTINGS.gemini.model
         },
         codex: { ...DEFAULT_SETTINGS.codex },
         temperature: validTemperature(parsed.temperature),
@@ -39,7 +39,7 @@ export function loadCopilotSettings(): CopilotSettings {
       provider: isValidProvider(parsed.provider) ? parsed.provider : DEFAULT_SETTINGS.provider,
       gemini: {
         apiKey: typeof parsed.gemini?.apiKey === "string" ? parsed.gemini.apiKey : DEFAULT_SETTINGS.gemini.apiKey,
-        model: isGeminiModel(parsed.gemini?.model) ? parsed.gemini.model : DEFAULT_SETTINGS.gemini.model
+        model: normalizeGeminiModel(parsed.gemini?.model) ?? DEFAULT_SETTINGS.gemini.model
       },
       codex: {
         model: isCodexModel(parsed.codex?.model) ? parsed.codex.model : DEFAULT_SETTINGS.codex.model
@@ -74,6 +74,11 @@ function isValidProvider(v: unknown): v is CopilotProviderId {
 
 function isGeminiModel(v: unknown): v is GeminiModelId {
   return typeof v === "string" && (GEMINI_MODELS as string[]).includes(v);
+}
+
+function normalizeGeminiModel(v: unknown): GeminiModelId | undefined {
+  if (v === "gemini-3.1-pro-preview") return "gemini-3-pro-preview";
+  return isGeminiModel(v) ? v : undefined;
 }
 
 function isCodexModel(v: unknown): v is CodexModelId {

@@ -1,0 +1,6 @@
+[ 1639712ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5000/@vite/client:968
+[ 1639734ms] [ERROR] Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED @ http://127.0.0.1:5000/api/editor-sync/games:0
+[ 1814341ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5000/node_modules/.vite/deps/react-dom_client.js?v=1b4d0024:14090
+[ 1816816ms] [INFO] [EngineBootstrap] Active flags: {ENABLE_WEBGPU: false, WEBGPU_PHASE2_MATERIALS: false, WEBGPU_PHASE3_PICKING: false, WEBGPU_PHASE4_SIMULATION: false, ENABLE_JOLT_BACKEND: false} @ http://127.0.0.1:5000/src/lib/engine-bootstrap.ts:50
+[ 1817229ms] [INFO] [RendererFactory] WebGL backend selected. @ http://127.0.0.1:5000/@fs/C:/Users/MILES/Documents/Dream-Studio/packages/renderer-backend/src/factory.ts:45
+[ 1817229ms] [INFO] [EngineBootstrap] Renderer: WEBGL | WebGPU available: true {backend: webgl, webgpuAvailable: true, maxTextureSize: 8192, floatTextures: true, instancedRendering: true} @ http://127.0.0.1:5000/src/lib/engine-bootstrap.ts:56
