@@ -167,7 +167,7 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
       );
 
       const providerConfig = {
-        apiKey: settings.provider === "gemini" ? settings.gemini.apiKey : "",
+        apiKey: "",
         model: settings.provider === "gemini" ? settings.gemini.model : settings.codex.model,
         temperature: settings.temperature
       };
