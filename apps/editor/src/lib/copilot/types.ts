@@ -1,7 +1,7 @@
 // ── Provider and model IDs ────────────────────────────────────
 
 export type CopilotProviderId = "gemini" | "codex";
-export type GeminiModelId = "gemma-server" | "gemma-4-31b-it" | "gemini-3-flash-preview" | "gemini-3.1-pro-preview" | "gemini-1.5-pro" | "gemini-1.5-flash" | "gemini-2.0-flash-exp";
+export type GeminiModelId = "gemma-4-31b-it";
 
 export type CodexModelId = "gpt-5.4" | "gpt-5.3-codex" | "gpt-5.1-codex-max" | "gpt-4.1" | "gpt-4.1-mini" | "codex-mini-latest" | "o3" | "o4-mini";
 export type CopilotModelId = GeminiModelId | CodexModelId;

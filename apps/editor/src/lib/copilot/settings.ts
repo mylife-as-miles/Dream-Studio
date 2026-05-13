@@ -3,8 +3,7 @@ import type { CopilotSettings, CodexModelId, GeminiModelId } from "./types";
 const STORAGE_KEY = "web-hammer:copilot";
 
 const CODEX_MODELS: CodexModelId[] = ["gpt-5.4", "gpt-5.3-codex", "gpt-5.1-codex-max", "gpt-4.1", "gpt-4.1-mini", "codex-mini-latest", "o3", "o4-mini"];
-const GEMINI_MODELS: GeminiModelId[] = ["gemma-4-31b-it", "gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
-const SERVER_GEMMA_MODEL: GeminiModelId = "gemma-server";
+const SERVER_GEMMA_MODEL: GeminiModelId = "gemma-4-31b-it";
 
 const DEFAULT_SETTINGS: CopilotSettings = {
   provider: "gemini",

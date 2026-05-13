@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { createAntigravitySkillsApiPlugin } from "./server/antigravity-skills-api";
 import { createCodexBridgePlugin } from "./server/codex-bridge-plugin";
+import { createCopilotGenerateApiPlugin } from "./server/copilot-generate-api";
 import { createEditorGameSyncPlugin } from "./server/editor-game-sync-plugin";
 import { createElevenLabsApiPlugin } from "./server/elevenlabs-api";
 import { createObjectGenerationApiPlugin } from "./server/object-generation-api";
@@ -182,6 +183,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       createAntigravitySkillsApiPlugin(),
+      createCopilotGenerateApiPlugin(),
       createCodexBridgePlugin(),
       createEditorGameSyncPlugin(),
       createElevenLabsApiPlugin(),

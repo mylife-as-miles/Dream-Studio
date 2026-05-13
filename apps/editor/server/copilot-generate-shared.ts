@@ -1,0 +1,123 @@
+import { FunctionCallingConfigMode, GoogleGenAI } from "@google/genai";
+import type {
+  CopilotMessage,
+  CopilotResponse,
+  CopilotToolCall,
+  CopilotToolDeclaration
+} from "../src/lib/copilot/types";
+
+export const SERVER_GEMMA_MODEL = "gemma-4-31b-it";
+
+export type CopilotGenerateRequest = {
+  messages: CopilotMessage[];
+  tools: CopilotToolDeclaration[];
+  systemPrompt: string;
+  temperature: number;
+};
+
+function convertMessages(messages: CopilotMessage[]) {
+  const contents: Record<string, unknown>[] = [];
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      const parts: Record<string, unknown>[] = [];
+      if (message.images && message.images.length > 0) {
+        for (const img of message.images) {
+          const base64 = img.dataUrl.split(",")[1] ?? img.dataUrl;
+          parts.push({ inlineData: { mimeType: img.mimeType, data: base64 } });
+        }
+      }
+      if (message.content) {
+        parts.push({ text: message.content });
+      }
+      contents.push({ role: "user", parts });
+    } else if (message.role === "assistant") {
+      if (message.rawParts && message.rawParts.length > 0) {
+        contents.push({ role: "model", parts: message.rawParts });
+      } else {
+        const parts: Record<string, unknown>[] = [];
+
+        if (message.content) {
+          parts.push({ text: message.content });
+        }
+
+        if (message.toolCalls) {
+          for (const tc of message.toolCalls) {
+            parts.push({ functionCall: { name: tc.name, args: tc.args } });
+          }
+        }
+
+        if (parts.length > 0) {
+          contents.push({ role: "model", parts });
+        }
+      }
+    } else if (message.role === "tool" && message.toolResults) {
+      const parts = message.toolResults.map((tr) => ({
+        functionResponse: {
+          name: tr.name,
+          response: JSON.parse(tr.result) as Record<string, unknown>
+        }
+      }));
+
+      contents.push({ role: "user", parts });
+    }
+  }
+
+  return contents;
+}
+
+function convertToolDeclarations(tools: CopilotToolDeclaration[]) {
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters
+  }));
+}
+
+export async function generateCopilotContent(
+  request: CopilotGenerateRequest
+): Promise<CopilotResponse> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error("Missing GEMINI_API_KEY in the server environment.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: process.env.GEMINI_MODEL?.trim() || process.env.GEMMA_MODEL?.trim() || SERVER_GEMMA_MODEL,
+    contents: convertMessages(request.messages),
+    config: {
+      systemInstruction: request.systemPrompt,
+      temperature: request.temperature,
+      tools: [{ functionDeclarations: convertToolDeclarations(request.tools) }],
+      toolConfig: {
+        functionCallingConfig: {
+          mode: FunctionCallingConfigMode.AUTO
+        }
+      }
+    }
+  });
+
+  const rawParts: unknown[] =
+    (response.candidates?.[0]?.content?.parts as unknown[]) ?? [];
+
+  const toolCalls: CopilotToolCall[] = [];
+  const functionCalls = response.functionCalls;
+
+  if (functionCalls) {
+    for (const fc of functionCalls) {
+      toolCalls.push({
+        id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: fc.name ?? "",
+        args: (fc.args as Record<string, unknown>) ?? {}
+      });
+    }
+  }
+
+  return {
+    text: response.text ?? "",
+    toolCalls,
+    rawParts
+  };
+}
