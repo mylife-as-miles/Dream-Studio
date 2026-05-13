@@ -16,15 +16,19 @@ export async function generateNpcReply(params: {
   userMessage: string;
 }): Promise<string> {
   const settings = loadCopilotSettings();
-  const apiKey = settings.gemini.apiKey.trim();
+  const model = settings.gemini.model;
 
-  if (!apiKey) {
+  // Prefer user-provided key; fall back to Vercel env var
+  const resolvedApiKey =
+    settings.gemini.apiKey.trim() ||
+    (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+    "";
+
+  if (!resolvedApiKey) {
     throw new Error(
-      "Add a Gemini API key in Copilot settings to talk with NPCs during viewport preview."
+      "No Gemini API key found. Set VITE_GEMINI_API_KEY in Vercel, or add a key in Copilot settings."
     );
   }
-
-  const model = settings.gemini.model;
   const systemInstruction = [
     `You are “${params.npcName}” in a real-time 3D game the designer is building.`,
     params.characterPrompt.trim() || "Stay in character. Keep answers to about 2–4 short sentences unless the player clearly wants more.",
@@ -45,7 +49,7 @@ export async function generateNpcReply(params: {
     parts: [{ text: params.userMessage }]
   });
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: resolvedApiKey });
   const response = await ai.models.generateContent({
     model,
     contents,

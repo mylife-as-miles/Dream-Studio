@@ -77,7 +77,17 @@ export function createGeminiProvider(): CopilotProvider {
       config: CopilotProviderConfig,
       signal?: AbortSignal
     ): Promise<CopilotResponse> {
-      const ai = new GoogleGenAI({ apiKey: config.apiKey });
+      // Prefer user-provided key; fall back to Vercel env var baked in at build time
+      const resolvedApiKey =
+        config.apiKey?.trim() ||
+        (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+        "";
+      if (!resolvedApiKey) {
+        throw new Error(
+          "No Gemini API key found. Set VITE_GEMINI_API_KEY in Vercel environment variables, or add a key in Copilot settings."
+        );
+      }
+      const ai = new GoogleGenAI({ apiKey: resolvedApiKey });
       const contents = convertMessages(messages);
 
       const response = await ai.models.generateContent({

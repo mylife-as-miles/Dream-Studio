@@ -1,13 +1,14 @@
-import type { CopilotProviderId, CopilotSettings, CodexModelId, GeminiModelId } from "./types";
+import type { CopilotSettings, CodexModelId, GeminiModelId } from "./types";
 
 const STORAGE_KEY = "web-hammer:copilot";
 
-const GEMINI_MODELS: GeminiModelId[] = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
 const CODEX_MODELS: CodexModelId[] = ["gpt-5.4", "gpt-5.3-codex", "gpt-5.1-codex-max", "gpt-4.1", "gpt-4.1-mini", "codex-mini-latest", "o3", "o4-mini"];
+const GEMINI_MODELS: GeminiModelId[] = ["gemma-4-31b-it", "gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"];
+const SERVER_GEMMA_MODEL: GeminiModelId = "gemma-server";
 
 const DEFAULT_SETTINGS: CopilotSettings = {
-  provider: "codex",
-  gemini: { apiKey: "", model: "gemini-3-flash-preview" },
+  provider: "gemini",
+  gemini: { model: SERVER_GEMMA_MODEL },
   codex: { model: "gpt-5.4" },
   temperature: 0.3,
   elevenlabsApiKey: ""
@@ -20,27 +21,9 @@ export function loadCopilotSettings(): CopilotSettings {
 
     const parsed = JSON.parse(raw);
 
-    // Migration: detect old flat format { apiKey, model, temperature }
-    if (typeof parsed.apiKey === "string" && !parsed.provider) {
-      return {
-        provider: "gemini",
-        gemini: {
-          apiKey: parsed.apiKey,
-          model: normalizeGeminiModel(parsed.model) ?? DEFAULT_SETTINGS.gemini.model
-        },
-        codex: { ...DEFAULT_SETTINGS.codex },
-        temperature: validTemperature(parsed.temperature),
-        elevenlabsApiKey: typeof parsed.elevenlabsApiKey === "string" ? parsed.elevenlabsApiKey : ""
-      };
-    }
-
-    // New format
     return {
-      provider: isValidProvider(parsed.provider) ? parsed.provider : DEFAULT_SETTINGS.provider,
-      gemini: {
-        apiKey: typeof parsed.gemini?.apiKey === "string" ? parsed.gemini.apiKey : DEFAULT_SETTINGS.gemini.apiKey,
-        model: normalizeGeminiModel(parsed.gemini?.model) ?? DEFAULT_SETTINGS.gemini.model
-      },
+      provider: "gemini",
+      gemini: { model: SERVER_GEMMA_MODEL },
       codex: {
         model: isCodexModel(parsed.codex?.model) ? parsed.codex.model : DEFAULT_SETTINGS.codex.model
       },
@@ -53,32 +36,21 @@ export function loadCopilotSettings(): CopilotSettings {
 }
 
 export function saveCopilotSettings(settings: CopilotSettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      ...settings,
+      provider: "gemini",
+      gemini: { model: SERVER_GEMMA_MODEL }
+    })
+  );
 }
 
 export function isCopilotConfigured(settings?: CopilotSettings): boolean {
-  const s = settings ?? loadCopilotSettings();
-
-  if (s.provider === "gemini") {
-    return s.gemini.apiKey.length > 0;
-  }
-
-  // Codex uses local login — always "configured" from the browser's perspective
-  // (auth is checked server-side on connect)
+  settings ?? loadCopilotSettings();
+  // Gemini/Gemma is configured server-side through Vercel environment variables.
+  // The browser never receives or stores the API key.
   return true;
-}
-
-function isValidProvider(v: unknown): v is CopilotProviderId {
-  return v === "gemini" || v === "codex";
-}
-
-function isGeminiModel(v: unknown): v is GeminiModelId {
-  return typeof v === "string" && (GEMINI_MODELS as string[]).includes(v);
-}
-
-function normalizeGeminiModel(v: unknown): GeminiModelId | undefined {
-  if (v === "gemini-3.1-pro-preview") return "gemini-3-pro-preview";
-  return isGeminiModel(v) ? v : undefined;
 }
 
 function isCodexModel(v: unknown): v is CodexModelId {

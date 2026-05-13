@@ -17,7 +17,6 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
   const [settings, setSettings] = useState<CopilotSettings>(loadCopilotSettings);
   const [showKey, setShowKey] = useState(false);
   const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
-
   const handleSave = () => {
     saveCopilotSettings({ ...settings, provider: "gemini" });
     setOpen(false);
@@ -38,14 +37,6 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
           <DialogTitle>Vibe Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
-              Provider
-            </label>
-            <div className="flex h-9 items-center rounded-xl bg-emerald-500/10 px-3 text-xs text-emerald-200">
-              Gemini API
-            </div>
-          </div>
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
@@ -82,8 +73,9 @@ export function CopilotSettingsDialog({ onSaved }: { onSaved?: () => void }) {
               onChange={(e) => setSettings({ ...settings, gemini: { ...settings.gemini, model: e.target.value as GeminiModelId } })}
               value={settings.gemini.model}
             >
+              <option value="gemma-4-31b-it">Gemma 4 31B IT</option>
               <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-              <option value="gemini-3-pro-preview">Gemini 3 Pro Preview</option>
+              <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
             </select>
           </div>
 
