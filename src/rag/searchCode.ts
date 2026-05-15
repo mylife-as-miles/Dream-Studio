@@ -48,7 +48,7 @@ export const searchCode = async (userPrompt: string, filters?: SearchFilters): P
     return [];
   }
 
-  return response.matches.map(match => {
+  return response.matches.map((match: any) => {
     const metadata = match.metadata || {};
 
     // Format for Gemma 4 context injection
