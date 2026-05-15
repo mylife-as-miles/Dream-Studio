@@ -2,7 +2,8 @@ import type { CopilotSession } from "./types";
 
 export type MorphusFileRecord = {
   content: string;
-  language: "html" | "javascript" | "css" | "json" | "text";
+  language: "html" | "javascript" | "css" | "json" | "asset" | "text";
+  mimeType?: string;
   path: string;
   updatedAt: number;
 };
@@ -17,7 +18,7 @@ export type MorphusMemorySnapshot = {
 const DB_NAME = "dream-studio-morphus";
 const DB_VERSION = 1;
 const STORE_NAME = "memory";
-const SNAPSHOT_KEY = "default";
+const DEFAULT_SNAPSHOT_KEY = "morphus";
 
 const EMPTY_MEMORY: MorphusMemorySnapshot = {
   files: [],
@@ -26,14 +27,14 @@ const EMPTY_MEMORY: MorphusMemorySnapshot = {
   updatedAt: 0
 };
 
-export async function loadMorphusMemory(): Promise<MorphusMemorySnapshot> {
+export async function loadMorphusMemory(key = DEFAULT_SNAPSHOT_KEY): Promise<MorphusMemorySnapshot> {
   if (!canUseIndexedDb()) {
     return EMPTY_MEMORY;
   }
 
   try {
     const db = await openMorphusDb();
-    const snapshot = await getValue<MorphusMemorySnapshot>(db, SNAPSHOT_KEY);
+    const snapshot = await getValue<MorphusMemorySnapshot>(db, key);
     db.close();
     return snapshot ?? EMPTY_MEMORY;
   } catch {
@@ -41,14 +42,14 @@ export async function loadMorphusMemory(): Promise<MorphusMemorySnapshot> {
   }
 }
 
-export async function saveMorphusMemory(snapshot: MorphusMemorySnapshot): Promise<void> {
+export async function saveMorphusMemory(snapshot: MorphusMemorySnapshot, key = DEFAULT_SNAPSHOT_KEY): Promise<void> {
   if (!canUseIndexedDb()) {
     return;
   }
 
   try {
     const db = await openMorphusDb();
-    await setValue(db, SNAPSHOT_KEY, {
+    await setValue(db, key, {
       ...snapshot,
       updatedAt: Date.now()
     });
@@ -115,6 +116,7 @@ export function buildMorphusPreviewHtml(files: MorphusFileRecord[]): string | nu
 
   let html = htmlFile.content;
   const byPath = new Map(files.map((file) => [file.path.toLowerCase(), file]));
+  const assetFiles = files.filter((file) => file.language === "asset");
 
   html = html.replace(
     /<link\b([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi,
@@ -124,7 +126,7 @@ export function buildMorphusPreviewHtml(files: MorphusFileRecord[]): string | nu
         return tag;
       }
 
-      return `<style data-morphus-source="${escapeAttribute(file.path)}">\n${file.content}\n</style>`;
+      return `<style data-morphus-source="${escapeAttribute(file.path)}">\n${rewriteAssetReferences(file.content, assetFiles)}\n</style>`;
     }
   );
 
@@ -137,9 +139,12 @@ export function buildMorphusPreviewHtml(files: MorphusFileRecord[]): string | nu
       }
 
       const attrs = `${before} ${after}`.replace(/\s*src=["'][^"']+["']/i, "").trim();
-      return `<script ${attrs} data-morphus-source="${escapeAttribute(file.path)}">\n${file.content.replace(/<\/script/gi, "<\\/script")}\n</script>`;
+      const script = rewriteAssetReferences(file.content, assetFiles).replace(/<\/script/gi, "<\\/script");
+      return `<script ${attrs} data-morphus-source="${escapeAttribute(file.path)}">\n${script}\n</script>`;
     }
   );
+
+  html = rewriteAssetReferences(html, assetFiles);
 
   return html;
 }
@@ -153,6 +158,7 @@ export function inferMorphusFileLanguage(
   if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".ts")) return "javascript";
   if (lower.endsWith(".css")) return "css";
   if (lower.endsWith(".json") || lower.endsWith(".gltf")) return "json";
+  if (isAssetPath(lower)) return "asset";
   return languageHint || "text";
 }
 
@@ -186,6 +192,7 @@ function defaultPathForLanguage(language: MorphusFileRecord["language"] | "", fi
   if (language === "javascript") return countByLanguage === 0 ? "index.js" : `scripts/script-${countByLanguage + 1}.js`;
   if (language === "css") return countByLanguage === 0 ? "style.css" : `styles/style-${countByLanguage + 1}.css`;
   if (language === "json") return countByLanguage === 0 ? "assets/manifest.json" : `assets/data-${countByLanguage + 1}.json`;
+  if (language === "asset") return `assets/asset-${files.length + 1}`;
   return `notes/file-${files.length + 1}.txt`;
 }
 
@@ -214,6 +221,31 @@ function uniquePath(path: string, usedPaths: Set<string>) {
 
 function stripRelativePrefix(path: string) {
   return path.replace(/\\/g, "/").replace(/^\.?\//, "").toLowerCase();
+}
+
+function rewriteAssetReferences(source: string, assetFiles: MorphusFileRecord[]) {
+  return assetFiles.reduce((nextSource, asset) => {
+    if (!asset.content.startsWith("data:")) {
+      return nextSource;
+    }
+
+    const escapedPath = escapeRegExp(asset.path);
+    const basename = asset.path.split("/").pop() ?? asset.path;
+    const escapedBase = escapeRegExp(basename);
+
+    return nextSource
+      .replace(new RegExp(`(["'\\(])(?:\\./)?${escapedPath}(["'\\)])`, "g"), `$1${asset.content}$2`)
+      .replace(new RegExp(`(["'\\(])(?:\\./)?assets/${escapedBase}(["'\\)])`, "g"), `$1${asset.content}$2`)
+      .replace(new RegExp(`(["'\\(])(?:\\./)?${escapedBase}(["'\\)])`, "g"), `$1${asset.content}$2`);
+  }, source);
+}
+
+function isAssetPath(path: string) {
+  return /\.(glb|bin|png|jpe?g|webp|gif|svg|hdr|exr|ktx2|mp3|wav|ogg|fbx|obj|mtl|usdz)$/i.test(path);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function escapeAttribute(value: string) {

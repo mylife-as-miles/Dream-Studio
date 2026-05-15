@@ -1,5 +1,5 @@
-import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, Gamepad2, LayoutPanelLeft, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, FolderUp, Gamepad2, LayoutPanelLeft, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
 import type { MorphusFileRecord } from "@/lib/copilot/morphus-memory";
@@ -40,6 +40,8 @@ export function MorphusWorkspace({
   const [draftContent, setDraftContent] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [requestStarted, setRequestStarted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const hasConversation = session.messages.length > 0 || session.activity.length > 0;
   const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
   const activeFile = files.find((file) => file.path === activePath) ?? files[0];
@@ -74,6 +76,18 @@ export function MorphusWorkspace({
   const sendMorphusMessage = (prompt: string, images?: CopilotImageAttachment[]) => {
     setRequestStarted(true);
     onSendMessage(prompt, images);
+  };
+
+  const handleImportChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const importedFiles = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    for (const file of importedFiles) {
+      const path = getImportPath(file);
+      const content = await readImportedFile(file);
+      onSaveFile(path, content);
+      setActivePath(path);
+    }
   };
 
   const clearMorphusHistory = () => {
@@ -127,13 +141,50 @@ export function MorphusWorkspace({
         />
       ) : (
         <>
+          <input
+            className="hidden"
+            multiple
+            onChange={(event) => {
+              void handleImportChange(event);
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
+          <input
+            {...folderInputProps}
+            className="hidden"
+            multiple
+            onChange={(event) => {
+              void handleImportChange(event);
+            }}
+            ref={folderInputRef}
+            type="file"
+          />
           <aside className="flex w-56 shrink-0 flex-col border-r border-white/8 bg-[#11161d]">
         <div className="flex h-12 items-center justify-between border-b border-white/8 px-3">
           <div className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] text-white/44 uppercase">
             <Folder className="size-3.5" />
             Explorer
           </div>
-          <LayoutPanelLeft className="size-3.5 text-white/28" />
+          <div className="flex items-center gap-1">
+            <button
+              className="flex size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76"
+              onClick={() => fileInputRef.current?.click()}
+              title="Import files"
+              type="button"
+            >
+              <Upload className="size-3.5" />
+            </button>
+            <button
+              className="flex size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76"
+              onClick={() => folderInputRef.current?.click()}
+              title="Import folder"
+              type="button"
+            >
+              <FolderUp className="size-3.5" />
+            </button>
+            <LayoutPanelLeft className="size-3.5 text-white/28" />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           {files.length === 0 ? (
@@ -220,7 +271,7 @@ export function MorphusWorkspace({
             <div className="flex h-9 items-center gap-2 border-b border-white/8 bg-[#191e25] px-3 text-[11px] text-white/52">
               <FileCode2 className="size-3.5 shrink-0 text-cyan-300/70" />
               <span className="min-w-0 flex-1 truncate">{activeFile?.path ?? "No file selected"}</span>
-              {activeFile && (
+              {activeFile && activeFile.language !== "asset" && (
                 <div className="flex items-center gap-1">
                   {editingActiveFile ? (
                     <>
@@ -258,7 +309,24 @@ export function MorphusWorkspace({
               )}
             </div>
             {activeFile ? (
-              editingActiveFile ? (
+              activeFile.language === "asset" ? (
+                <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
+                  <div className="max-w-md">
+                    <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d]">
+                      <FileCode2 className="size-5" />
+                    </div>
+                    <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/72 uppercase">
+                      Asset imported
+                    </div>
+                    <p className="mt-2 break-all text-[11px] leading-relaxed text-white/38">
+                      {activeFile.path}
+                    </p>
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/34">
+                      Binary assets are stored locally as data URLs and can be referenced by generated HTML, CSS, or JavaScript.
+                    </p>
+                  </div>
+                </div>
+              ) : editingActiveFile ? (
                 <textarea
                   className="h-full w-full resize-none overflow-auto border-0 bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-100 outline-none selection:bg-emerald-400/20"
                   onChange={(event) => setDraftContent(event.target.value)}
@@ -309,6 +377,40 @@ export function MorphusWorkspace({
         </>
       )}
     </div>
+  );
+}
+
+const folderInputProps = {
+  directory: "",
+  webkitdirectory: ""
+} as InputHTMLAttributes<HTMLInputElement> & {
+  directory: string;
+  webkitdirectory: string;
+};
+
+function getImportPath(file: File) {
+  const maybeRelative = file as File & { webkitRelativePath?: string };
+  return (maybeRelative.webkitRelativePath || file.name).replace(/\\/g, "/");
+}
+
+function readImportedFile(file: File): Promise<string> {
+  if (isTextLikeFile(file)) {
+    return file.text();
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.readAsDataURL(file);
+  });
+}
+
+function isTextLikeFile(file: File) {
+  const lower = file.name.toLowerCase();
+  return (
+    file.type.startsWith("text/") ||
+    /\.(html?|css|m?js|ts|tsx|jsx|json|gltf|glsl|wgsl|md|txt|csv|xml|svg|obj|mtl)$/i.test(lower)
   );
 }
 

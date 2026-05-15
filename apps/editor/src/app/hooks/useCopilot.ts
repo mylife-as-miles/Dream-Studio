@@ -93,7 +93,8 @@ export function useCopilot(
   const abortRef = useRef<AbortController | null>(null);
   const codexThreadIdRef = useRef<string | undefined>(undefined);
   const pendingGameTitleRef = useRef<string | null>(null);
-  const memoryLoadedRef = useRef(mode !== "morphus");
+  const memoryLoadedRef = useRef(false);
+  const memoryKey = mode === "morphus" ? "morphus" : "copilot";
 
   const publishSession = useCallback((updated: CopilotSession) => {
     const nextSession = cloneSession(updated);
@@ -126,12 +127,8 @@ export function useCopilot(
   }, []);
 
   useEffect(() => {
-    if (mode !== "morphus") {
-      return;
-    }
-
     let cancelled = false;
-    void loadMorphusMemory().then((memory) => {
+    void loadMorphusMemory(memoryKey).then((memory) => {
       if (cancelled) {
         return;
       }
@@ -139,30 +136,32 @@ export function useCopilot(
       if (memory.session) {
         setSession(memory.session);
       }
-      if (memory.latestGame) {
+      if (mode === "morphus" && memory.latestGame) {
         setLatestGame(memory.latestGame);
       }
-      setFiles(memory.files);
+      if (mode === "morphus") {
+        setFiles(memory.files);
+      }
       memoryLoadedRef.current = true;
     });
 
     return () => {
       cancelled = true;
     };
-  }, [mode]);
+  }, [memoryKey, mode]);
 
   useEffect(() => {
-    if (mode !== "morphus" || !memoryLoadedRef.current) {
+    if (!memoryLoadedRef.current) {
       return;
     }
 
     void saveMorphusMemory({
-      files,
-      latestGame,
+      files: mode === "morphus" ? files : [],
+      latestGame: mode === "morphus" ? latestGame : null,
       session,
       updatedAt: Date.now()
-    });
-  }, [files, latestGame, mode, session]);
+    }, memoryKey);
+  }, [files, latestGame, memoryKey, mode, session]);
 
   useEffect(() => {
     if (session.status !== "idle" || !pendingGameTitleRef.current) {
@@ -299,14 +298,14 @@ export function useCopilot(
     if (mode === "morphus") {
       setFiles([]);
       setLatestGame(null);
-      void saveMorphusMemory({
-        files: [],
-        latestGame: null,
-        session: EMPTY_SESSION,
-        updatedAt: Date.now()
-      });
     }
-  }, [mode]);
+    void saveMorphusMemory({
+      files: [],
+      latestGame: null,
+      session: EMPTY_SESSION,
+      updatedAt: Date.now()
+    }, memoryKey);
+  }, [memoryKey, mode]);
 
   const clearLatestGame = useCallback(() => setLatestGame(null), []);
 
