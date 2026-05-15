@@ -70,9 +70,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error("[copilot/generate] error", error);
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Copilot generation failed."
+      error: formatCopilotGenerateError(error)
     });
   }
+}
+
+function formatCopilotGenerateError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/resource_exhausted|quota|rate-limit|rate limit|429/i.test(message)) {
+    const retryMatch = message.match(/Please retry in\s+([0-9.]+)s/i);
+    const retryText = retryMatch ? ` Try again in about ${Math.ceil(Number(retryMatch[1]))} seconds.` : "";
+    return `Gemini quota was reached for the current model.${retryText}`;
+  }
+
+  return message || "Copilot generation failed.";
 }
 
 function convertMessages(messages: CopilotMessage[]) {

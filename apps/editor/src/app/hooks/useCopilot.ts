@@ -211,6 +211,10 @@ export function useCopilot(
 
   const sendMessage = useCallback(
     async (prompt: string, images?: CopilotImageAttachment[]) => {
+      if (abortRef.current || session.status === "thinking" || session.status === "executing") {
+        return;
+      }
+
       const settings = loadCopilotSettings();
 
       if (!isCopilotConfigured(settings)) {
@@ -286,7 +290,7 @@ export function useCopilot(
           prompt,
           session.messages,
           {
-            maxIterations: 25,
+            maxIterations: mode === "morphus" ? 6 : 8,
             provider: copilotProvider.provider,
             providerConfig,
             providerId: settings.provider,
