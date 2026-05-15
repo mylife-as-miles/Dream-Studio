@@ -1,0 +1,11 @@
+--- src/rag/searchCode.ts
++++ src/rag/searchCode.ts
+@@ -48,7 +48,7 @@
+     return [];
+   }
+
+-  return response.matches.map(match => {
++  return response.matches.map((match: any) => {
+     const metadata = match.metadata || {};
+
+     // Format for Gemma 4 context injection

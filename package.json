@@ -28,16 +28,23 @@
     "dev:three-vanilla": "npm run dev -w @blud/three-vanilla-playground",
     "build:three-vanilla": "npm run build -w @blud/three-vanilla-playground",
     "typecheck:three-vanilla": "npm run typecheck -w @blud/three-vanilla-playground",
-    "build:published": "node ./scripts/build-published-app.mjs"
+    "build:published": "node ./scripts/build-published-app.mjs",
+    "rag:ingest": "tsx scripts/ingest-games.ts",
+    "rag:search": "tsx scripts/test-rag-search.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
     "@types/node": "^24.10.1",
+    "dotenv": "^17.4.2",
+    "glob": "^13.0.6",
     "tsup": "^8.5.0",
+    "tsx": "^4.22.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.2",
+    "@google/genai": "^2.3.0",
+    "@pinecone-database/pinecone": "^7.2.0",
     "@replit/connectors-sdk": "^0.3.0",
     "three-mesh-bvh": "^0.9.2"
   }
