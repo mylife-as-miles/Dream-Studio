@@ -299,6 +299,29 @@ export function useCopilot(
 
   const clearLatestGame = useCallback(() => setLatestGame(null), []);
 
+  const saveFile = useCallback((path: string, content: string) => {
+    setFiles((previous) => {
+      const now = Date.now();
+      const nextFiles = previous.some((file) => file.path === path)
+        ? previous.map((file) => (file.path === path ? { ...file, content, updatedAt: now } : file))
+        : [
+            ...previous,
+            {
+              content,
+              language: inferMorphusFileLanguage(path),
+              path,
+              updatedAt: now
+            }
+          ];
+
+      return nextFiles;
+    });
+
+    if (path.toLowerCase().endsWith(".html")) {
+      setLatestGame((previous) => previous ? { ...previous, html: content } : { title: "Edited Game", html: content });
+    }
+  }, []);
+
   return {
     session,
     sendMessage,
@@ -308,6 +331,15 @@ export function useCopilot(
     refreshConfigured: () => setConfigured(isCopilotConfigured()),
     latestGame,
     clearLatestGame,
-    files
+    files,
+    saveFile
   };
+}
+
+function inferMorphusFileLanguage(path: string): MorphusFileRecord["language"] {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".html")) return "html";
+  if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".ts")) return "javascript";
+  if (lower.endsWith(".css")) return "css";
+  return "text";
 }

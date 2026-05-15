@@ -1,4 +1,4 @@
-import { Code2, ExternalLink, FileCode2, Folder, Gamepad2, LayoutPanelLeft, X } from "lucide-react";
+import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, Gamepad2, LayoutPanelLeft, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
@@ -16,6 +16,7 @@ type MorphusWorkspaceProps = {
   onClearHistory: () => void;
   onClose: () => void;
   onPlayInViewport?: () => void;
+  onSaveFile: (path: string, content: string) => void;
   onSendMessage: (prompt: string, images?: CopilotImageAttachment[]) => void;
   onSettingsChanged: () => void;
   session: CopilotSession;
@@ -30,11 +31,14 @@ export function MorphusWorkspace({
   onClearHistory,
   onClose,
   onPlayInViewport,
+  onSaveFile,
   onSendMessage,
   onSettingsChanged,
   session
 }: MorphusWorkspaceProps) {
   const [activePath, setActivePath] = useState("");
+  const [draftContent, setDraftContent] = useState("");
+  const [editingPath, setEditingPath] = useState("");
   const [requestStarted, setRequestStarted] = useState(false);
   const hasConversation = session.messages.length > 0 || session.activity.length > 0;
   const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
@@ -50,6 +54,14 @@ export function MorphusWorkspace({
       setActivePath(files[0].path);
     }
   }, [activePath, files]);
+
+  useEffect(() => {
+    if (!activeFile || editingPath !== activeFile.path) {
+      return;
+    }
+
+    setDraftContent(activeFile.content);
+  }, [activeFile, editingPath]);
 
   const openGame = () => {
     if (!latestGame) {
@@ -67,8 +79,36 @@ export function MorphusWorkspace({
   const clearMorphusHistory = () => {
     setRequestStarted(false);
     setActivePath("");
+    setEditingPath("");
+    setDraftContent("");
     onClearHistory();
   };
+
+  const startEditing = () => {
+    if (!activeFile) {
+      return;
+    }
+
+    setEditingPath(activeFile.path);
+    setDraftContent(activeFile.content);
+  };
+
+  const cancelEditing = () => {
+    setEditingPath("");
+    setDraftContent("");
+  };
+
+  const saveEditing = () => {
+    if (!activeFile || editingPath !== activeFile.path) {
+      return;
+    }
+
+    onSaveFile(activeFile.path, draftContent);
+    setEditingPath("");
+    setDraftContent("");
+  };
+
+  const editingActiveFile = Boolean(activeFile && editingPath === activeFile.path);
 
   return (
     <div className="absolute inset-0 z-40 flex overflow-hidden rounded-[32px] border border-white/10 bg-[#0b0f14] shadow-[0_30px_90px_rgba(0,0,0,0.48)]">
@@ -178,13 +218,58 @@ export function MorphusWorkspace({
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0 overflow-hidden border-r border-white/8">
             <div className="flex h-9 items-center gap-2 border-b border-white/8 bg-[#191e25] px-3 text-[11px] text-white/52">
-              <FileCode2 className="size-3.5 text-cyan-300/70" />
-              {activeFile?.path ?? "No file selected"}
+              <FileCode2 className="size-3.5 shrink-0 text-cyan-300/70" />
+              <span className="min-w-0 flex-1 truncate">{activeFile?.path ?? "No file selected"}</span>
+              {activeFile && (
+                <div className="flex items-center gap-1">
+                  {editingActiveFile ? (
+                    <>
+                      <Button
+                        className="editor-toolbar-button h-7 rounded-[9px] px-2 text-[10px]"
+                        onClick={cancelEditing}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        <X className="size-3" />
+                        Cancel
+                      </Button>
+                      <Button
+                        className="h-7 rounded-[9px] border border-emerald-400/20 bg-emerald-500/20 px-2 text-[10px] font-medium text-emerald-200 hover:bg-emerald-500/30"
+                        onClick={saveEditing}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        <Check className="size-3" />
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      className="editor-toolbar-button h-7 rounded-[9px] px-2 text-[10px]"
+                      onClick={startEditing}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      <Edit3 className="size-3" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             {activeFile ? (
-              <pre className="h-full overflow-auto bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-200">
-                <code>{activeFile.content}</code>
-              </pre>
+              editingActiveFile ? (
+                <textarea
+                  className="h-full w-full resize-none overflow-auto border-0 bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-100 outline-none selection:bg-emerald-400/20"
+                  onChange={(event) => setDraftContent(event.target.value)}
+                  spellCheck={false}
+                  value={draftContent}
+                />
+              ) : (
+                <pre className="h-full overflow-auto bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-200">
+                  <code>{activeFile.content}</code>
+                </pre>
+              )
             ) : (
               <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
                 <div className="max-w-xs">
@@ -238,7 +323,7 @@ function MorphusStart({
   onSendMessage,
   onSettingsChanged,
   session
-}: Omit<MorphusWorkspaceProps, "files">) {
+}: Omit<MorphusWorkspaceProps, "files" | "onSaveFile">) {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0b0f14]">
       <header className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between px-5">

@@ -81,6 +81,7 @@ type EditorShellProps = {
     latestGame: { title: string; html: string } | null;
     clearLatestGame: () => void;
     files?: MorphusFileRecord[];
+    saveFile?: (path: string, content: string) => void;
   };
   morphus: {
     session: CopilotSession;
@@ -92,6 +93,7 @@ type EditorShellProps = {
     latestGame: { title: string; html: string } | null;
     clearLatestGame: () => void;
     files: MorphusFileRecord[];
+    saveFile: (path: string, content: string) => void;
   };
   aiAssistantMode: AiAssistantMode;
   aiModePickerOpen: boolean;
@@ -689,6 +691,7 @@ export function EditorShell({
                 onClearHistory={morphus.clearHistory}
                 onClose={onToggleCopilot}
                 onPlayInViewport={handlePlayInViewport}
+                onSaveFile={morphus.saveFile}
                 onSendMessage={morphus.sendMessage}
                 onSettingsChanged={morphus.refreshConfigured}
                 session={morphus.session}
