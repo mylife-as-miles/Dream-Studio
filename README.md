@@ -20,6 +20,7 @@ The project is built for developers who want editor-grade world authoring withou
 - [Core concepts](#core-concepts)
 - [Runtime packages](#runtime-packages)
 - [Development workflow](#development-workflow)
+- [Keyboard shortcuts](#keyboard-shortcuts)
 - [Project status](#project-status)
 - [Contributing](#contributing)
 - [License](#license)
@@ -134,16 +135,28 @@ cd dream-studio
 npm install
 ```
 
+Start the main editor:
+
+```bash
+npm run dev
+```
+
 Start the orchestrator:
 
 ```bash
 npm start
 ```
 
-Start Dream Studio directly:
+Start the animation editor:
 
 ```bash
-npm run dev
+npm run dev:animation-editor
+```
+
+Start the docs website:
+
+```bash
+npm run dev:website
 ```
 
 Build the main editor:
@@ -215,6 +228,17 @@ Path: `apps/three-vanilla-playground`
 
 This app is a small runtime experimentation surface for validating package behavior outside the full editor.
 
+### Animation studio
+
+```bash
+npm run dev -w animation-studio
+```
+
+Workspace package: `animation-studio`  
+Path: `apps/animation-studio`
+
+This is a separate experimental animation-focused app with its own toolchain and dev server settings. It is not currently wired into the root shortcut scripts.
+
 ## Common scripts
 
 | Command | Description |
@@ -228,13 +252,18 @@ This app is a small runtime experimentation surface for validating package behav
 | `npm run typecheck:orchestrator` | Typecheck the orchestrator |
 | `npm run dev:animation-editor` | Run the animation editor |
 | `npm run build:animation-editor` | Build the animation editor |
+| `npm run typecheck:animation-editor` | Typecheck the animation editor |
 | `npm run dev:website` | Run the website |
 | `npm run build:website` | Build the website |
+| `npm run typecheck:website` | Typecheck the website |
 | `npm run dev:three-vanilla` | Run the Three.js playground |
+| `npm run build:three-vanilla` | Build the Three.js playground |
+| `npm run typecheck:three-vanilla` | Typecheck the Three.js playground |
 | `npm run build:packages` | Build publishable packages through the release helper |
 | `npm run version:packages` | Apply Changesets version updates |
 | `npm run publish:packages:dry-run` | Dry-run package publication |
 | `npm run publish:packages` | Publish packages through the release helper |
+| `npm run build:published` | Build the published app bundle through the release helper |
 
 ## Configuration
 
@@ -246,7 +275,7 @@ Optional provider-backed features are configured through local environment files
 FAL_KEY=your_fal_key
 ```
 
-Some experimental copilot, model, voice, or generation features may also reference provider SDKs in code. Treat those paths as optional alpha features unless your branch or deployment explicitly documents the required keys.
+Some experimental copilot, model, voice, or generation features also reference provider integrations such as ElevenLabs and Google GenAI in the editor codebase and local server routes. Treat those paths as optional alpha features unless your branch or deployment explicitly documents the required keys.
 
 ## Core concepts
 
@@ -323,6 +352,12 @@ or:
 
 ```bash
 npm run dev:animation-editor
+```
+
+For workspace packages or apps without a root shortcut, run them directly with npm workspace targeting:
+
+```bash
+npm run dev -w animation-studio
 ```
 
 ### Validate changes
