@@ -1,10 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { installChunkReloadHandler, isChunkLoadError, reloadOnceForFreshAssets } from "@/lib/chunk-reload";
 import "@/styles.css";
 
 const pathname = window.location.pathname;
 const isPlayPage = pathname === "/play";
+
+installChunkReloadHandler();
 
 (async () => {
   if (isPlayPage) {
@@ -29,4 +32,11 @@ const isPlayPage = pathname === "/play";
       </React.StrictMode>
     );
   }
-})();
+})().catch((error) => {
+  if (isChunkLoadError(error)) {
+    reloadOnceForFreshAssets();
+    return;
+  }
+
+  throw error;
+});
