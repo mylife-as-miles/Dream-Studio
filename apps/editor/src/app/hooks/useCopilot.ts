@@ -189,6 +189,26 @@ export function useCopilot(
     }
   }, [mode, session.status, session.messages]);
 
+  useEffect(() => {
+    if (mode !== "morphus" || session.status !== "idle" || (files.length > 0 && latestGame)) {
+      return;
+    }
+
+    const latestAssistantMessage = findLatestAssistantContent(session.messages);
+    if (!latestAssistantMessage) {
+      return;
+    }
+
+    const morphusFiles = createMorphusFilesFromAssistantContent(latestAssistantMessage);
+    const html = buildMorphusPreviewHtml(morphusFiles);
+    if (!html) {
+      return;
+    }
+
+    setFiles(morphusFiles.length > 0 ? morphusFiles : createMorphusFilesFromGame({ title: "Generated Game", html }));
+    setLatestGame((previousGame) => previousGame ?? { title: "Generated Game", html });
+  }, [files.length, latestGame, mode, session.status, session.messages]);
+
   const sendMessage = useCallback(
     async (prompt: string, images?: CopilotImageAttachment[]) => {
       const settings = loadCopilotSettings();
@@ -224,7 +244,11 @@ export function useCopilot(
       const copilotProvider = createCopilotProvider(settings.provider);
       const baseSystemPrompt =
         mode === "morphus" ? buildMorphusSystemPrompt() : buildEditorSystemPrompt(editor);
-      const systemPrompt = appendSkillContextToPrompt(baseSystemPrompt, skillContext);
+      const audioContext =
+        mode === "morphus"
+          ? `\n\n## Runtime Context\n- ElevenLabs audio is ${settings.elevenlabsApiKey ? "available" : "not configured"} in this browser.`
+          : "";
+      const systemPrompt = appendSkillContextToPrompt(`${baseSystemPrompt}${audioContext}`, skillContext);
       const modeLabel = mode === "morphus" ? "morphus" : "editor";
       const tools = mode === "morphus" ? GAME_TOOL_DECLARATIONS : EDITOR_COPILOT_TOOL_DECLARATIONS;
 

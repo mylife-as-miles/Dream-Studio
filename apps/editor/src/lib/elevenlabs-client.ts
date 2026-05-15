@@ -158,6 +158,25 @@ export async function generateSoundEffectUrl(
   return URL.createObjectURL(blob);
 }
 
+export async function generateSoundEffectDataUrl(
+  description: string,
+  durationSeconds?: number,
+): Promise<string> {
+  const response = await fetch("/api/elevenlabs/sfx", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ description, durationSeconds }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
+    throw new Error(`ElevenLabs SFX failed: ${err.error}`);
+  }
+
+  const blob = await response.blob();
+  return blobToDataUrl(blob);
+}
+
 /**
  * Delete a cloned voice.
  */
@@ -180,4 +199,13 @@ function getAudioContext(): AudioContext {
     _audioCtx.resume().catch(() => {});
   }
   return _audioCtx;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.readAsDataURL(blob);
+  });
 }

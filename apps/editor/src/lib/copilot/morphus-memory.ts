@@ -15,6 +15,13 @@ export type MorphusMemorySnapshot = {
   updatedAt: number;
 };
 
+export type MorphusAudioRequest = {
+  description: string;
+  durationSeconds?: number;
+  kind: "music" | "sfx";
+  path: string;
+};
+
 const DB_NAME = "dream-studio-morphus";
 const DB_VERSION = 1;
 const STORE_NAME = "memory";
@@ -77,6 +84,18 @@ export function createMorphusFilesFromGame(game: { title: string; html: string }
 export function createMorphusFilesFromAssistantContent(content: string): MorphusFileRecord[] {
   const files: MorphusFileRecord[] = [];
   const usedPaths = new Set<string>();
+
+  for (const file of readLooseFilenameBlocks(content)) {
+    const path = uniquePath(normalizePath(file.path), usedPaths);
+    usedPaths.add(path);
+    files.push({
+      content: file.content,
+      language: inferMorphusFileLanguage(path, file.languageHint),
+      path,
+      updatedAt: Date.now()
+    });
+  }
+
   const fencePattern = /```([a-zA-Z0-9_-]+)?([^\n`]*)\n([\s\S]*?)```/g;
   let match: RegExpExecArray | null;
 
@@ -84,6 +103,14 @@ export function createMorphusFilesFromAssistantContent(content: string): Morphus
     const languageHint = normalizeLanguage(match[1]);
     const meta = match[2]?.trim() ?? "";
     let code = match[3].trim();
+    if (!code || code.includes("```")) {
+      continue;
+    }
+
+    if (isFilenameOnlyFence(code)) {
+      continue;
+    }
+
     const pathFromCode = readFileMarker(code);
     if (pathFromCode) {
       code = code.replace(/^\s*(?:<!--\s*)?(?:\/\/|#|\/\*)?\s*(?:file|filename|path):\s*([^\n*]+?)(?:\s*-->)?\s*(?:\*\/)?\s*\r?\n/i, "").trim();
@@ -104,6 +131,77 @@ export function createMorphusFilesFromAssistantContent(content: string): Morphus
   }
 
   return files;
+}
+
+export function extractMorphusAudioRequests(content: string): MorphusAudioRequest[] {
+  const requests: MorphusAudioRequest[] = [];
+  const fencePattern = /```(?:morphus-audio|audio-assets|audio_requests)\s*\n([\s\S]*?)```/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = fencePattern.exec(content)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      const entries = Array.isArray(parsed) ? parsed : [parsed];
+
+      for (const entry of entries) {
+        if (!isRecord(entry)) {
+          continue;
+        }
+
+        const description = typeof entry.description === "string" ? entry.description.trim() : "";
+        const path = normalizePath(typeof entry.path === "string" ? entry.path : "");
+        const kind = entry.kind === "music" ? "music" : "sfx";
+        const durationSeconds =
+          typeof entry.durationSeconds === "number"
+            ? Math.max(0.5, Math.min(22, entry.durationSeconds))
+            : undefined;
+
+        if (!description || !path || !isAudioPath(path)) {
+          continue;
+        }
+
+        requests.push({ description, durationSeconds, kind, path });
+      }
+    } catch {
+      // Ignore malformed audio request blocks; Morphus should still show the game files.
+    }
+  }
+
+  return dedupeAudioRequests(requests);
+}
+
+function readLooseFilenameBlocks(content: string) {
+  const files: Array<{
+    content: string;
+    languageHint: MorphusFileRecord["language"] | "";
+    path: string;
+  }> = [];
+  const markerPattern =
+    /```([a-zA-Z0-9_-]+)?[^\n`]*\n\s*([^\n`]+\.[a-zA-Z0-9]+)\s*\n```\s*\n([\s\S]*?)(?=\n```|(?:\n|^)generate_game_html\s*\(|$)/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = markerPattern.exec(content)) !== null) {
+    const code = trimDanglingFence(match[3] ?? "");
+    if (!code.trim()) {
+      continue;
+    }
+
+    files.push({
+      content: code.trim(),
+      languageHint: normalizeLanguage(match[1]),
+      path: match[2].trim()
+    });
+  }
+
+  return files;
+}
+
+function isFilenameOnlyFence(code: string) {
+  return /^[^\n`]+\.[a-zA-Z0-9]+\s*$/.test(code.trim());
+}
+
+function trimDanglingFence(code: string) {
+  return code.replace(/\n```\s*$/m, "");
 }
 
 export function buildMorphusPreviewHtml(files: MorphusFileRecord[]): string | null {
@@ -242,6 +340,27 @@ function rewriteAssetReferences(source: string, assetFiles: MorphusFileRecord[])
 
 function isAssetPath(path: string) {
   return /\.(glb|bin|png|jpe?g|webp|gif|svg|hdr|exr|ktx2|mp3|wav|ogg|fbx|obj|mtl|usdz)$/i.test(path);
+}
+
+function isAudioPath(path: string) {
+  return /\.(mp3|wav|ogg)$/i.test(path);
+}
+
+function dedupeAudioRequests(requests: MorphusAudioRequest[]) {
+  const seen = new Set<string>();
+  return requests.filter((request) => {
+    const key = request.path.toLowerCase();
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function escapeRegExp(value: string) {

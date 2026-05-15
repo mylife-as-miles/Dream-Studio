@@ -1,8 +1,10 @@
-import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, FolderUp, Gamepad2, LayoutPanelLeft, Upload, X } from "lucide-react";
-import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
+import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, FolderUp, LayoutPanelLeft, Loader2, MessageSquareText, Music2, Upload, Volume2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
-import type { MorphusFileRecord } from "@/lib/copilot/morphus-memory";
+import { generateSoundEffectDataUrl } from "@/lib/elevenlabs-client";
+import { loadCopilotSettings } from "@/lib/copilot/settings";
+import { extractMorphusAudioRequests, type MorphusAudioRequest, type MorphusFileRecord } from "@/lib/copilot/morphus-memory";
 import { CopilotPanel } from "@/components/editor-shell/CopilotPanel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,12 +41,30 @@ export function MorphusWorkspace({
   const [activePath, setActivePath] = useState("");
   const [draftContent, setDraftContent] = useState("");
   const [editingPath, setEditingPath] = useState("");
+  const [audioError, setAudioError] = useState("");
+  const [generatingAudioPaths, setGeneratingAudioPaths] = useState<string[]>([]);
+  const [mobileTab, setMobileTab] = useState<"files" | "code" | "chat">("chat");
+  const [rejectedAudioPaths, setRejectedAudioPaths] = useState<string[]>([]);
   const [requestStarted, setRequestStarted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const hasConversation = session.messages.length > 0 || session.activity.length > 0;
   const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
   const activeFile = files.find((file) => file.path === activePath) ?? files[0];
+  const elevenLabsAvailable = Boolean(loadCopilotSettings().elevenlabsApiKey);
+  const audioRequests = useMemo(() => {
+    const existingPaths = new Set(files.map((file) => file.path.toLowerCase()));
+    const rejectedPaths = new Set(rejectedAudioPaths.map((path) => path.toLowerCase()));
+
+    return session.messages
+      .filter((message) => message.role === "assistant" && message.content)
+      .flatMap((message) => extractMorphusAudioRequests(message.content))
+      .filter(
+        (request) =>
+          !existingPaths.has(request.path.toLowerCase()) &&
+          !rejectedPaths.has(request.path.toLowerCase())
+      );
+  }, [files, rejectedAudioPaths, session.messages]);
 
   useEffect(() => {
     if (files.length === 0) {
@@ -87,14 +107,17 @@ export function MorphusWorkspace({
       const content = await readImportedFile(file);
       onSaveFile(path, content);
       setActivePath(path);
+      setMobileTab("code");
     }
   };
 
   const clearMorphusHistory = () => {
     setRequestStarted(false);
     setActivePath("");
+    setAudioError("");
     setEditingPath("");
     setDraftContent("");
+    setRejectedAudioPaths([]);
     onClearHistory();
   };
 
@@ -122,10 +145,204 @@ export function MorphusWorkspace({
     setDraftContent("");
   };
 
+  const approveAudioRequest = async (request: MorphusAudioRequest) => {
+    setAudioError("");
+    setGeneratingAudioPaths((previous) => [...previous, request.path]);
+
+    try {
+      const dataUrl = await generateSoundEffectDataUrl(request.description, request.durationSeconds);
+      onSaveFile(request.path, dataUrl);
+      setActivePath(request.path);
+      setMobileTab("code");
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Could not generate audio.");
+    } finally {
+      setGeneratingAudioPaths((previous) => previous.filter((path) => path !== request.path));
+    }
+  };
+
+  const rejectAudioRequest = (request: MorphusAudioRequest) => {
+    setRejectedAudioPaths((previous) => [...previous, request.path]);
+  };
+
   const editingActiveFile = Boolean(activeFile && editingPath === activeFile.path);
+  const importButtons = (
+    <div className="flex items-center gap-1">
+      <button
+        className="flex size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76"
+        onClick={() => fileInputRef.current?.click()}
+        title="Import files"
+        type="button"
+      >
+        <Upload className="size-3.5" />
+      </button>
+      <button
+        className="flex size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76"
+        onClick={() => folderInputRef.current?.click()}
+        title="Import folder"
+        type="button"
+      >
+        <FolderUp className="size-3.5" />
+      </button>
+      <LayoutPanelLeft className="hidden size-3.5 text-white/28 md:block" />
+    </div>
+  );
+  const fileList = (
+    <>
+      <div className="flex-1 overflow-y-auto py-2">
+        {files.length === 0 ? (
+          <div className="px-3 py-4 text-[11px] leading-relaxed text-white/34">
+            Import assets or ask Morphus to generate a game. Files will appear here.
+          </div>
+        ) : null}
+        {files.map((file) => (
+          <button
+            className={cn(
+              "flex w-full items-center gap-2 border-l-2 px-3 py-2 text-left text-[12px] transition-colors",
+              activeFile?.path === file.path
+                ? "border-[#f6d07d] bg-white/[0.06] text-white"
+                : "border-transparent text-white/58 hover:bg-white/[0.035] hover:text-white/82"
+            )}
+            key={file.path}
+            onClick={() => {
+              setActivePath(file.path);
+              setMobileTab("code");
+            }}
+            type="button"
+          >
+            <FileCode2 className="size-3.5 text-cyan-300/72" />
+            <span className="truncate font-medium">{file.path}</span>
+          </button>
+        ))}
+      </div>
+      <div className="border-t border-white/8 p-3 text-[10px] leading-relaxed text-white/34">
+        Chat memory and generated files are saved locally in IndexedDB.
+      </div>
+    </>
+  );
+  const codePane = (
+    <div className="h-full min-h-0 min-w-0 overflow-hidden border-white/8 md:border-r">
+      <div className="flex h-9 items-center gap-2 border-b border-white/8 bg-[#191e25] px-3 text-[11px] text-white/52">
+        <FileCode2 className="size-3.5 shrink-0 text-cyan-300/70" />
+        <span className="min-w-0 flex-1 truncate">{activeFile?.path ?? "No file selected"}</span>
+        {activeFile && activeFile.language !== "asset" && (
+          <div className="flex items-center gap-1">
+            {editingActiveFile ? (
+              <>
+                <Button
+                  className="editor-toolbar-button h-7 rounded-[9px] px-2 text-[10px]"
+                  onClick={cancelEditing}
+                  size="sm"
+                  variant="ghost"
+                >
+                  <X className="size-3" />
+                  Cancel
+                </Button>
+                <Button
+                  className="h-7 rounded-[9px] border border-emerald-400/20 bg-emerald-500/20 px-2 text-[10px] font-medium text-emerald-200 hover:bg-emerald-500/30"
+                  onClick={saveEditing}
+                  size="sm"
+                  variant="ghost"
+                >
+                  <Check className="size-3" />
+                  Save
+                </Button>
+              </>
+            ) : (
+              <Button
+                className="editor-toolbar-button h-7 rounded-[9px] px-2 text-[10px]"
+                onClick={startEditing}
+                size="sm"
+                variant="ghost"
+              >
+                <Edit3 className="size-3" />
+                Edit
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      {activeFile ? (
+        activeFile.language === "asset" ? (
+          <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
+            <div className="max-w-md">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d]">
+                <FileCode2 className="size-5" />
+              </div>
+              <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/72 uppercase">
+                Asset imported
+              </div>
+              <p className="mt-2 break-all text-[11px] leading-relaxed text-white/38">{activeFile.path}</p>
+              <p className="mt-3 text-[11px] leading-relaxed text-white/34">
+                Binary assets are stored locally as data URLs and can be referenced by generated HTML, CSS, or JavaScript.
+              </p>
+            </div>
+          </div>
+        ) : editingActiveFile ? (
+          <textarea
+            className="h-full w-full resize-none overflow-auto border-0 bg-[#171a1f] px-4 py-4 font-mono text-[12px] leading-6 text-slate-100 outline-none selection:bg-emerald-400/20 md:px-6 md:py-5"
+            onChange={(event) => setDraftContent(event.target.value)}
+            spellCheck={false}
+            value={draftContent}
+          />
+        ) : (
+          <pre className="h-full overflow-auto bg-[#171a1f] px-4 py-4 font-mono text-[12px] leading-6 text-slate-200 md:px-6 md:py-5">
+            <code>{activeFile.content}</code>
+          </pre>
+        )
+      ) : (
+        <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
+          <div className="max-w-xs">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-cyan-200/70">
+              <FileCode2 className="size-4" />
+            </div>
+            <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/62 uppercase">
+              Waiting for files
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-white/36">
+              Morphus will place generated HTML, JavaScript, CSS, and imported assets here.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+  const chatPane = (
+    <div className="flex h-full min-h-0 flex-col gap-2 bg-[#0f151a] p-2 md:p-3">
+      {audioRequests.length > 0 && (
+        <AudioApprovalTray
+          available={elevenLabsAvailable}
+          error={audioError}
+          generatingPaths={generatingAudioPaths}
+          onApprove={(request) => {
+            void approveAudioRequest(request);
+          }}
+          onReject={rejectAudioRequest}
+          requests={audioRequests}
+        />
+      )}
+      <div className="min-h-0 flex-1">
+        <CopilotPanel
+          emptyText="Describe the HTML game you want Morphus to create."
+          isConfigured={isConfigured}
+          latestGame={latestGame}
+          onAbort={onAbort}
+          onClearGame={onClearGame}
+          onClearHistory={clearMorphusHistory}
+          onClose={onClose}
+          onPlayInViewport={onPlayInViewport}
+          onSendMessage={sendMorphusMessage}
+          onSettingsChanged={onSettingsChanged}
+          placeholder="Create a playable HTML game..."
+          session={session}
+          title="Morphus"
+        />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="absolute inset-0 z-40 flex overflow-hidden rounded-[32px] border border-white/10 bg-[#0b0f14] shadow-[0_30px_90px_rgba(0,0,0,0.48)]">
+    <div className="absolute inset-0 z-40 flex overflow-hidden rounded-[22px] border border-white/10 bg-[#0b0f14] shadow-[0_30px_90px_rgba(0,0,0,0.48)] md:rounded-[32px]">
       {!workspaceActive ? (
         <MorphusStart
           isConfigured={isConfigured}
@@ -160,58 +377,15 @@ export function MorphusWorkspace({
             ref={folderInputRef}
             type="file"
           />
-          <aside className="flex w-56 shrink-0 flex-col border-r border-white/8 bg-[#11161d]">
+          <aside className="hidden w-56 shrink-0 flex-col border-r border-white/8 bg-[#11161d] md:flex">
         <div className="flex h-12 items-center justify-between border-b border-white/8 px-3">
           <div className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] text-white/44 uppercase">
             <Folder className="size-3.5" />
             Explorer
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              className="flex size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76"
-              onClick={() => fileInputRef.current?.click()}
-              title="Import files"
-              type="button"
-            >
-              <Upload className="size-3.5" />
-            </button>
-            <button
-              className="flex size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76"
-              onClick={() => folderInputRef.current?.click()}
-              title="Import folder"
-              type="button"
-            >
-              <FolderUp className="size-3.5" />
-            </button>
-            <LayoutPanelLeft className="size-3.5 text-white/28" />
-          </div>
+          {importButtons}
         </div>
-        <div className="flex-1 overflow-y-auto py-2">
-          {files.length === 0 ? (
-            <div className="px-3 py-4 text-[11px] leading-relaxed text-white/34">
-              Files will appear here after Morphus generates a game.
-            </div>
-          ) : null}
-          {files.map((file) => (
-            <button
-              className={cn(
-                "flex w-full items-center gap-2 border-l-2 px-3 py-2 text-left text-[12px] transition-colors",
-                activeFile?.path === file.path
-                  ? "border-[#f6d07d] bg-white/[0.06] text-white"
-                  : "border-transparent text-white/58 hover:bg-white/[0.035] hover:text-white/82"
-              )}
-              key={file.path}
-              onClick={() => setActivePath(file.path)}
-              type="button"
-            >
-              <FileCode2 className="size-3.5 text-cyan-300/72" />
-              <span className="truncate font-medium">{file.path}</span>
-            </button>
-          ))}
-        </div>
-        <div className="border-t border-white/8 p-3 text-[10px] leading-relaxed text-white/34">
-          Chat memory and generated files are saved locally in IndexedDB.
-        </div>
+        {fileList}
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col bg-[#15191f]">
@@ -241,17 +415,6 @@ export function MorphusWorkspace({
                   <ExternalLink className="size-3.5" />
                   Open
                 </Button>
-                {onPlayInViewport && (
-                  <Button
-                    className="editor-toolbar-button h-8 rounded-[10px] px-2.5 text-[11px]"
-                    onClick={onPlayInViewport}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    <Gamepad2 className="size-3.5" />
-                    Play
-                  </Button>
-                )}
               </>
             )}
             <Button
@@ -266,116 +429,154 @@ export function MorphusWorkspace({
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="min-w-0 overflow-hidden border-r border-white/8">
-            <div className="flex h-9 items-center gap-2 border-b border-white/8 bg-[#191e25] px-3 text-[11px] text-white/52">
-              <FileCode2 className="size-3.5 shrink-0 text-cyan-300/70" />
-              <span className="min-w-0 flex-1 truncate">{activeFile?.path ?? "No file selected"}</span>
-              {activeFile && activeFile.language !== "asset" && (
-                <div className="flex items-center gap-1">
-                  {editingActiveFile ? (
-                    <>
-                      <Button
-                        className="editor-toolbar-button h-7 rounded-[9px] px-2 text-[10px]"
-                        onClick={cancelEditing}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        <X className="size-3" />
-                        Cancel
-                      </Button>
-                      <Button
-                        className="h-7 rounded-[9px] border border-emerald-400/20 bg-emerald-500/20 px-2 text-[10px] font-medium text-emerald-200 hover:bg-emerald-500/30"
-                        onClick={saveEditing}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        <Check className="size-3" />
-                        Save
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      className="editor-toolbar-button h-7 rounded-[9px] px-2 text-[10px]"
-                      onClick={startEditing}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      <Edit3 className="size-3" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-            {activeFile ? (
-              activeFile.language === "asset" ? (
-                <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
-                  <div className="max-w-md">
-                    <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d]">
-                      <FileCode2 className="size-5" />
-                    </div>
-                    <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/72 uppercase">
-                      Asset imported
-                    </div>
-                    <p className="mt-2 break-all text-[11px] leading-relaxed text-white/38">
-                      {activeFile.path}
-                    </p>
-                    <p className="mt-3 text-[11px] leading-relaxed text-white/34">
-                      Binary assets are stored locally as data URLs and can be referenced by generated HTML, CSS, or JavaScript.
-                    </p>
+        <div className="hidden min-h-0 flex-1 grid-cols-[minmax(0,1fr)_22rem] md:grid">
+          {codePane}
+          {chatPane}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col md:hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {mobileTab === "files" ? (
+              <div className="flex h-full flex-col bg-[#11161d]">
+                <div className="flex h-11 items-center justify-between border-b border-white/8 px-3">
+                  <div className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] text-white/44 uppercase">
+                    <Folder className="size-3.5" />
+                    Explorer
                   </div>
+                  {importButtons}
                 </div>
-              ) : editingActiveFile ? (
-                <textarea
-                  className="h-full w-full resize-none overflow-auto border-0 bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-100 outline-none selection:bg-emerald-400/20"
-                  onChange={(event) => setDraftContent(event.target.value)}
-                  spellCheck={false}
-                  value={draftContent}
-                />
-              ) : (
-                <pre className="h-full overflow-auto bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-200">
-                  <code>{activeFile.content}</code>
-                </pre>
-              )
-            ) : (
-              <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
-                <div className="max-w-xs">
-                  <div className="mx-auto flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-cyan-200/70">
-                    <FileCode2 className="size-4" />
-                  </div>
-                  <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/62 uppercase">
-                    Waiting for files
-                  </div>
-                  <p className="mt-2 text-[11px] leading-relaxed text-white/36">
-                    Morphus will place generated HTML and JavaScript here once the first response completes.
-                  </p>
-                </div>
+                {fileList}
               </div>
+            ) : mobileTab === "code" ? (
+              codePane
+            ) : (
+              chatPane
             )}
           </div>
-
-          <div className="min-h-0 bg-[#0f151a] p-3">
-            <CopilotPanel
-              emptyText="Describe the HTML game you want Morphus to create."
-              isConfigured={isConfigured}
-              latestGame={latestGame}
-              onAbort={onAbort}
-              onClearGame={onClearGame}
-              onClearHistory={clearMorphusHistory}
-              onClose={onClose}
-              onPlayInViewport={onPlayInViewport}
-              onSendMessage={sendMorphusMessage}
-              onSettingsChanged={onSettingsChanged}
-              placeholder="Create a playable HTML game..."
-              session={session}
-              title="Morphus"
-            />
-          </div>
+          <nav className="grid h-16 shrink-0 grid-cols-3 border-t border-white/8 bg-[#0d1218] px-2 py-2">
+            <MorphusTabButton active={mobileTab === "files"} icon={<Folder className="size-4" />} label="Files" onClick={() => setMobileTab("files")} />
+            <MorphusTabButton active={mobileTab === "code"} icon={<Code2 className="size-4" />} label="Code" onClick={() => setMobileTab("code")} />
+            <MorphusTabButton active={mobileTab === "chat"} icon={<MessageSquareText className="size-4" />} label="Chat" onClick={() => setMobileTab("chat")} />
+          </nav>
         </div>
       </section>
         </>
       )}
+    </div>
+  );
+}
+
+function MorphusTabButton({
+  active,
+  icon,
+  label,
+  onClick
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "mx-1 flex flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium transition-colors",
+        active
+          ? "border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d] shadow-[0_0_22px_rgba(246,208,125,0.08)]"
+          : "text-white/42 hover:bg-white/[0.04] hover:text-white/76"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function AudioApprovalTray({
+  available,
+  error,
+  generatingPaths,
+  onApprove,
+  onReject,
+  requests
+}: {
+  available: boolean;
+  error: string;
+  generatingPaths: string[];
+  onApprove: (request: MorphusAudioRequest) => void;
+  onReject: (request: MorphusAudioRequest) => void;
+  requests: MorphusAudioRequest[];
+}) {
+  return (
+    <div className="shrink-0 rounded-2xl border border-[#f6d07d]/16 bg-[#f6d07d]/[0.055] p-3 shadow-[0_18px_42px_rgba(0,0,0,0.2)]">
+      <div className="flex items-start gap-2">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d]">
+          <Music2 className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-[#f6d07d]/88 uppercase">
+            Audio approval
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/48">
+            Morphus requested ElevenLabs audio. Approve only the clips you want generated and saved into the file explorer.
+          </p>
+          {!available && (
+            <p className="mt-2 rounded-xl border border-amber-300/15 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-100/80">
+              Add an ElevenLabs API key in settings before approving audio.
+            </p>
+          )}
+          {error && (
+            <p className="mt-2 rounded-xl border border-rose-300/15 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-100/80">
+              {error}
+            </p>
+          )}
+          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1">
+            {requests.map((request) => {
+              const generating = generatingPaths.includes(request.path);
+
+              return (
+                <div
+                  className="rounded-xl border border-white/10 bg-black/15 px-3 py-2"
+                  key={request.path}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-white/78">
+                        {request.kind === "music" ? <Music2 className="size-3 text-cyan-200/70" /> : <Volume2 className="size-3 text-cyan-200/70" />}
+                        <span className="truncate">{request.path}</span>
+                      </div>
+                      <p className="mt-1 text-[10px] leading-relaxed text-white/42">
+                        {request.description}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        className="rounded-lg px-2 py-1 text-[10px] font-medium text-white/38 transition-colors hover:bg-white/[0.05] hover:text-white/72"
+                        disabled={generating}
+                        onClick={() => onReject(request)}
+                        type="button"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        className="flex items-center gap-1 rounded-lg border border-emerald-300/18 bg-emerald-500/16 px-2 py-1 text-[10px] font-medium text-emerald-100 transition-colors hover:bg-emerald-500/24 disabled:pointer-events-none disabled:opacity-45"
+                        disabled={!available || generating}
+                        onClick={() => onApprove(request)}
+                        type="button"
+                      >
+                        {generating ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />}
+                        Approve
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
