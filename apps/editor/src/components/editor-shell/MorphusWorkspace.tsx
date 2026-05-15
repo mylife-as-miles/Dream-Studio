@@ -8,6 +8,7 @@ import { extractMorphusAudioRequests, type MorphusAudioRequest, type MorphusFile
 import { CopilotPanel } from "@/components/editor-shell/CopilotPanel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { RagIngestionUI } from "@/components/morphus-rag/RagIngestionUI";
 
 type MorphusWorkspaceProps = {
   files: MorphusFileRecord[];
@@ -641,15 +642,19 @@ function MorphusStart({
             <div className="text-[10px] text-white/38">HTML game maker</div>
           </div>
         </div>
-        <Button
-          aria-label="Close Morphus"
-          className="editor-toolbar-button size-8 rounded-[10px]"
-          onClick={onClose}
-          size="icon-sm"
-          variant="ghost"
-        >
-          <X className="size-3.5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* TODO: Remove or secure before production */}
+          <RagIngestionUI />
+          <Button
+            aria-label="Close Morphus"
+            className="editor-toolbar-button size-8 rounded-[10px]"
+            onClick={onClose}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
       </header>
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(52,211,153,0.16),transparent_28%),radial-gradient(circle_at_72%_70%,rgba(56,189,248,0.1),transparent_26%),linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:auto,auto,72px_72px,72px_72px]" />
