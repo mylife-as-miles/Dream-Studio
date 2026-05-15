@@ -5,7 +5,10 @@ import { isCopilotConfigured, loadCopilotSettings } from "@/lib/copilot/settings
 import type { CopilotToolExecutionContext } from "@/lib/copilot/tool-executor";
 import { appendSkillContextToPrompt, discoverCopilotSkills } from "@/lib/copilot/skills";
 import {
+  buildMorphusPreviewHtml,
+  createMorphusFilesFromAssistantContent,
   createMorphusFilesFromGame,
+  inferMorphusFileLanguage,
   loadMorphusMemory,
   saveMorphusMemory,
   type MorphusFileRecord
@@ -169,12 +172,20 @@ export function useCopilot(
     const title = pendingGameTitleRef.current;
     pendingGameTitleRef.current = null;
 
-    const html = extractHtmlFromMessages(session.messages);
+    const latestAssistantMessage = findLatestAssistantContent(session.messages);
+    const morphusFiles =
+      mode === "morphus" && latestAssistantMessage
+        ? createMorphusFilesFromAssistantContent(latestAssistantMessage)
+        : [];
+    const html = mode === "morphus"
+      ? buildMorphusPreviewHtml(morphusFiles)
+      : extractHtmlFromMessages(session.messages);
+
     if (html) {
       const game = { title, html };
       setLatestGame(game);
       if (mode === "morphus") {
-        setFiles(createMorphusFilesFromGame(game));
+        setFiles(morphusFiles.length > 0 ? morphusFiles : createMorphusFilesFromGame(game));
       }
     }
   }, [mode, session.status, session.messages]);
@@ -314,12 +325,15 @@ export function useCopilot(
             }
           ];
 
+      const html = buildMorphusPreviewHtml(nextFiles);
+      if (html) {
+        setLatestGame((previousGame) =>
+          previousGame ? { ...previousGame, html } : { title: "Edited Game", html }
+        );
+      }
+
       return nextFiles;
     });
-
-    if (path.toLowerCase().endsWith(".html")) {
-      setLatestGame((previous) => previous ? { ...previous, html: content } : { title: "Edited Game", html: content });
-    }
   }, []);
 
   return {
@@ -336,10 +350,13 @@ export function useCopilot(
   };
 }
 
-function inferMorphusFileLanguage(path: string): MorphusFileRecord["language"] {
-  const lower = path.toLowerCase();
-  if (lower.endsWith(".html")) return "html";
-  if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".ts")) return "javascript";
-  if (lower.endsWith(".css")) return "css";
-  return "text";
+function findLatestAssistantContent(messages: CopilotSession["messages"]) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role === "assistant" && message.content.trim()) {
+      return message.content;
+    }
+  }
+
+  return "";
 }
