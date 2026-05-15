@@ -447,6 +447,7 @@ export function EditorShell({
     selectedNode?.kind === "brush" || selectedNode?.kind === "mesh" || selectedNode?.kind === "primitive";
   const selectedIsMesh = selectedNode?.kind === "mesh";
   const activeViewport = viewports[activeViewportId];
+  const morphusActive = copilotPanelOpen && aiAssistantMode === "morphus";
 
   const renderViewportPane = (viewportId: ViewportPaneId) => {
     const definition = viewportPaneDefinitions[viewportId];
@@ -527,6 +528,7 @@ export function EditorShell({
 
   return (
     <div className="editor-shell flex flex-col text-foreground" style={{ height: "100dvh" }}>
+      {!morphusActive && (
       <header className="relative z-20 shrink-0 px-2 pt-2 sm:px-3 sm:pt-3">
         <div className="editor-toolbar-shell rounded-[20px] sm:rounded-[22px]">
           <EditorMenuBar
@@ -580,8 +582,33 @@ export function EditorShell({
           />
         </div>
       </header>
+      )}
 
-      <main className="relative flex min-h-0 flex-1 gap-2 px-2 pb-2 pt-1.5 sm:gap-3 sm:px-3 sm:pb-3 sm:pt-2">
+      <main className={cn(
+        "relative flex min-h-0 flex-1 gap-2 px-2 pb-2 sm:gap-3 sm:px-3 sm:pb-3",
+        morphusActive ? "pt-2 sm:pt-3" : "pt-1.5 sm:pt-2"
+      )}>
+        {morphusActive ? (
+          <div className="relative min-h-0 flex-1">
+            <Suspense fallback={<CopilotPanelFallback label="Loading Morphus" />}>
+              <MorphusWorkspace
+                files={morphus.files}
+                isConfigured={morphus.isConfigured}
+                latestGame={morphus.latestGame}
+                onAbort={morphus.abort}
+                onClearGame={morphus.clearLatestGame}
+                onClearHistory={morphus.clearHistory}
+                onClose={onToggleCopilot}
+                onPlayInViewport={handlePlayInViewport}
+                onSaveFile={morphus.saveFile}
+                onSendMessage={morphus.sendMessage}
+                onSettingsChanged={morphus.refreshConfigured}
+                session={morphus.session}
+              />
+            </Suspense>
+          </div>
+        ) : (
+        <>
         {toolsPanelOpen && (
           <div className="w-64 shrink-0 sm:w-80 lg:w-[22rem]">
             <ToolsPanel
@@ -678,25 +705,6 @@ export function EditorShell({
                 <GameBridgePanel iframeRef={iframeRef} />
               </Suspense>
             </div>
-          )}
-
-          {copilotPanelOpen && aiAssistantMode === "morphus" && (
-            <Suspense fallback={<CopilotPanelFallback label="Loading Morphus" />}>
-              <MorphusWorkspace
-                files={morphus.files}
-                isConfigured={morphus.isConfigured}
-                latestGame={morphus.latestGame}
-                onAbort={morphus.abort}
-                onClearGame={morphus.clearLatestGame}
-                onClearHistory={morphus.clearHistory}
-                onClose={onToggleCopilot}
-                onPlayInViewport={handlePlayInViewport}
-                onSaveFile={morphus.saveFile}
-                onSendMessage={morphus.sendMessage}
-                onSettingsChanged={morphus.refreshConfigured}
-                session={morphus.session}
-              />
-            </Suspense>
           )}
 
         <AiModelPromptBar
@@ -821,6 +829,8 @@ export function EditorShell({
               />
             </Suspense>
           </div>
+        )}
+        </>
         )}
       </main>
 
