@@ -29,7 +29,7 @@ export function createGeminiProvider(): CopilotProvider {
         signal
       });
 
-      const payload = (await response.json()) as CopilotResponse | { error?: string };
+      const payload = await readJsonOrError(response);
 
       if (!response.ok) {
         throw new Error(
@@ -44,4 +44,20 @@ export function createGeminiProvider(): CopilotProvider {
       return payload;
     }
   };
+}
+
+async function readJsonOrError(response: Response): Promise<CopilotResponse | { error?: string }> {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text) as CopilotResponse | { error?: string };
+  } catch {
+    return {
+      error: text.replace(/\s+/g, " ").trim() || `HTTP ${response.status}`
+    };
+  }
 }
