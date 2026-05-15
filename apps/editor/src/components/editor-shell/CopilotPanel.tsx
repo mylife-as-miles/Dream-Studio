@@ -47,6 +47,9 @@ type CopilotPanelProps = {
   session: CopilotSession;
   isConfigured: boolean;
   latestGame?: GeneratedGame | null;
+  title?: string;
+  emptyText?: string;
+  placeholder?: string;
 };
 
 export function CopilotPanel({
@@ -59,7 +62,10 @@ export function CopilotPanel({
   onSettingsChanged,
   session,
   isConfigured,
-  latestGame
+  latestGame,
+  title = "Copilot",
+  emptyText = "Describe what you want to build.",
+  placeholder = "Describe what to build..."
 }: CopilotPanelProps) {
   const [input, setInput] = useState("");
   const [attachedImages, setAttachedImages] = useState<CopilotImageAttachment[]>([]);
@@ -163,7 +169,7 @@ export function CopilotPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[11px] font-medium tracking-[0.18em] text-foreground/52 uppercase">
             <Bot className="size-3.5 text-emerald-400" />
-            Copilot
+            {title}
           </div>
           {(session.modeLabel || session.modelId || session.iterationCount > 0) && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -206,7 +212,7 @@ export function CopilotPanel({
               <Bot className="mx-auto size-8 text-foreground/20" />
               <p className="text-xs text-foreground/40">
                 {isConfigured
-                  ? "Describe what you want to build."
+                  ? emptyText
                   : "Configure your API key in settings to get started."}
               </p>
             </div>
@@ -309,7 +315,7 @@ export function CopilotPanel({
               }
             }}
             onPaste={handlePaste}
-            placeholder={isConfigured ? "Describe what to build..." : "Set up API key first"}
+            placeholder={isConfigured ? placeholder : "Set up API key first"}
             ref={inputRef}
             rows={1}
             value={input}

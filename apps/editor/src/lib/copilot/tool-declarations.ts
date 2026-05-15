@@ -1387,6 +1387,10 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   }
 ];
 
+/** Viewport-editor Copilot tools only. Standalone HTML generation belongs to Morphus. */
+export const EDITOR_COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] =
+  COPILOT_TOOL_DECLARATIONS.filter((tool) => tool.name !== "generate_game_html");
+
 /** Only `generate_game_html` — used when the model's task is a standalone game or browser-based interactive experience */
 export const GAME_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   COPILOT_TOOL_DECLARATIONS.find((t) => t.name === "generate_game_html")!

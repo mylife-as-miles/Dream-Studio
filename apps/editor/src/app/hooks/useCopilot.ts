@@ -1,9 +1,15 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorCore } from "@blud/editor-core";
-import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
+import type { AiAssistantMode, CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
 import { isCopilotConfigured, loadCopilotSettings } from "@/lib/copilot/settings";
 import type { CopilotToolExecutionContext } from "@/lib/copilot/tool-executor";
 import { appendSkillContextToPrompt, discoverCopilotSkills } from "@/lib/copilot/skills";
+import {
+  createMorphusFilesFromGame,
+  loadMorphusMemory,
+  saveMorphusMemory,
+  type MorphusFileRecord
+} from "@/lib/copilot/morphus-memory";
 
 export type GeneratedGame = { title: string; html: string };
 
@@ -17,10 +23,10 @@ const EMPTY_SESSION: CopilotSession = {
 type CopilotRuntime = {
   runAgenticLoop: typeof import("@/lib/copilot/agentic-loop").runAgenticLoop;
   createCopilotProvider: typeof import("@/lib/copilot/provider").createCopilotProvider;
-  buildSystemPrompt: typeof import("@/lib/copilot/system-prompt").buildSystemPrompt;
-  COPILOT_TOOL_DECLARATIONS: typeof import("@/lib/copilot/tool-declarations").COPILOT_TOOL_DECLARATIONS;
+  buildEditorSystemPrompt: typeof import("@/lib/copilot/system-prompt").buildEditorSystemPrompt;
+  buildMorphusSystemPrompt: typeof import("@/lib/copilot/system-prompt").buildMorphusSystemPrompt;
+  EDITOR_COPILOT_TOOL_DECLARATIONS: typeof import("@/lib/copilot/tool-declarations").EDITOR_COPILOT_TOOL_DECLARATIONS;
   GAME_TOOL_DECLARATIONS: typeof import("@/lib/copilot/tool-declarations").GAME_TOOL_DECLARATIONS;
-  isGameGenerationPrompt: typeof import("@/lib/copilot/tool-declarations").isGameGenerationPrompt;
   executeTool: typeof import("@/lib/copilot/tool-executor").executeTool;
 };
 
@@ -37,10 +43,10 @@ function loadCopilotRuntime(): Promise<CopilotRuntime> {
     ]).then(([agenticLoop, provider, systemPrompt, toolDeclarations, toolExecutor]) => ({
       runAgenticLoop: agenticLoop.runAgenticLoop,
       createCopilotProvider: provider.createCopilotProvider,
-      buildSystemPrompt: systemPrompt.buildSystemPrompt,
-      COPILOT_TOOL_DECLARATIONS: toolDeclarations.COPILOT_TOOL_DECLARATIONS,
+      buildEditorSystemPrompt: systemPrompt.buildEditorSystemPrompt,
+      buildMorphusSystemPrompt: systemPrompt.buildMorphusSystemPrompt,
+      EDITOR_COPILOT_TOOL_DECLARATIONS: toolDeclarations.EDITOR_COPILOT_TOOL_DECLARATIONS,
       GAME_TOOL_DECLARATIONS: toolDeclarations.GAME_TOOL_DECLARATIONS,
-      isGameGenerationPrompt: toolDeclarations.isGameGenerationPrompt,
       executeTool: toolExecutor.executeTool
     }));
   }
@@ -72,13 +78,19 @@ function cloneSession(updated: CopilotSession): CopilotSession {
   };
 }
 
-export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecutionContext = {}) {
+export function useCopilot(
+  editor: EditorCore,
+  toolContext: CopilotToolExecutionContext = {},
+  mode: AiAssistantMode = "copilot"
+) {
   const [session, setSession] = useState<CopilotSession>(EMPTY_SESSION);
   const [configured, setConfigured] = useState(() => isCopilotConfigured());
   const [latestGame, setLatestGame] = useState<GeneratedGame | null>(null);
+  const [files, setFiles] = useState<MorphusFileRecord[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const codexThreadIdRef = useRef<string | undefined>(undefined);
   const pendingGameTitleRef = useRef<string | null>(null);
+  const memoryLoadedRef = useRef(mode !== "morphus");
 
   const publishSession = useCallback((updated: CopilotSession) => {
     const nextSession = cloneSession(updated);
@@ -111,6 +123,45 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
   }, []);
 
   useEffect(() => {
+    if (mode !== "morphus") {
+      return;
+    }
+
+    let cancelled = false;
+    void loadMorphusMemory().then((memory) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (memory.session) {
+        setSession(memory.session);
+      }
+      if (memory.latestGame) {
+        setLatestGame(memory.latestGame);
+      }
+      setFiles(memory.files);
+      memoryLoadedRef.current = true;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "morphus" || !memoryLoadedRef.current) {
+      return;
+    }
+
+    void saveMorphusMemory({
+      files,
+      latestGame,
+      session,
+      updatedAt: Date.now()
+    });
+  }, [files, latestGame, mode, session]);
+
+  useEffect(() => {
     if (session.status !== "idle" || !pendingGameTitleRef.current) {
       return;
     }
@@ -120,9 +171,13 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
 
     const html = extractHtmlFromMessages(session.messages);
     if (html) {
-      setLatestGame({ title, html });
+      const game = { title, html };
+      setLatestGame(game);
+      if (mode === "morphus") {
+        setFiles(createMorphusFilesFromGame(game));
+      }
     }
-  }, [session.status, session.messages]);
+  }, [mode, session.status, session.messages]);
 
   const sendMessage = useCallback(
     async (prompt: string, images?: CopilotImageAttachment[]) => {
@@ -147,23 +202,24 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
         {
           runAgenticLoop,
           createCopilotProvider,
-          buildSystemPrompt,
-          COPILOT_TOOL_DECLARATIONS,
+          buildEditorSystemPrompt,
+          buildMorphusSystemPrompt,
+          EDITOR_COPILOT_TOOL_DECLARATIONS,
           GAME_TOOL_DECLARATIONS,
-          isGameGenerationPrompt,
           executeTool
         },
         skillContext
       ] = await Promise.all([loadCopilotRuntime(), discoverCopilotSkills(prompt)]);
 
       const copilotProvider = createCopilotProvider(settings.provider);
-      const systemPrompt = appendSkillContextToPrompt(buildSystemPrompt(editor), skillContext);
-      const gameMode = isGameGenerationPrompt(prompt);
-      const modeLabel = gameMode ? "game-generation" : "editor";
-      const tools = gameMode ? GAME_TOOL_DECLARATIONS : COPILOT_TOOL_DECLARATIONS;
+      const baseSystemPrompt =
+        mode === "morphus" ? buildMorphusSystemPrompt() : buildEditorSystemPrompt(editor);
+      const systemPrompt = appendSkillContextToPrompt(baseSystemPrompt, skillContext);
+      const modeLabel = mode === "morphus" ? "morphus" : "editor";
+      const tools = mode === "morphus" ? GAME_TOOL_DECLARATIONS : EDITOR_COPILOT_TOOL_DECLARATIONS;
 
       console.log(
-        `[COPILOT] Mode: ${gameMode ? "game-generation (1 tool)" : `editor (${tools.length} tools)`}`
+        `[COPILOT] Mode: ${mode === "morphus" ? "morphus (1 tool)" : `editor (${tools.length} tools)`}`
       );
 
       const providerConfig = {
@@ -215,7 +271,7 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
 
       abortRef.current = null;
     },
-    [editor, mergedToolContext, publishSession, session.activity, session.messages]
+    [editor, mergedToolContext, mode, publishSession, session.activity, session.messages]
   );
 
   const abort = useCallback(() => {
@@ -229,7 +285,17 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
     codexThreadIdRef.current = undefined;
     pendingGameTitleRef.current = null;
     setSession(EMPTY_SESSION);
-  }, []);
+    if (mode === "morphus") {
+      setFiles([]);
+      setLatestGame(null);
+      void saveMorphusMemory({
+        files: [],
+        latestGame: null,
+        session: EMPTY_SESSION,
+        updatedAt: Date.now()
+      });
+    }
+  }, [mode]);
 
   const clearLatestGame = useCallback(() => setLatestGame(null), []);
 
@@ -241,6 +307,7 @@ export function useCopilot(editor: EditorCore, toolContext: CopilotToolExecution
     isConfigured: configured,
     refreshConfigured: () => setConfigured(isCopilotConfigured()),
     latestGame,
-    clearLatestGame
+    clearLatestGame,
+    files
   };
 }

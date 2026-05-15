@@ -35,6 +35,7 @@ type EditorMenuBarProps = {
   onImportHtmlJs: () => void;
   onLoadWhmap: () => void;
   onNewFile: () => void;
+  onOpenAiLauncher: () => void;
   onPausePreview: () => void;
   onPlayPreview: () => void;
   onRedo: () => void;
@@ -43,7 +44,6 @@ type EditorMenuBarProps = {
   onSimulatePreview: () => void;
   onStepPreview: () => void;
   onStopPreview: () => void;
-  onToggleCopilot: () => void;
   onToggleBtEditor: () => void;
   onToggleLogicViewer: () => void;
   onToggleNodeMaterialEditor: () => void;
@@ -81,6 +81,7 @@ export function EditorMenuBar({
   onImportHtmlJs,
   onLoadWhmap,
   onNewFile,
+  onOpenAiLauncher,
   onPausePreview,
   onPlayPreview,
   onRedo,
@@ -90,7 +91,6 @@ export function EditorMenuBar({
   onStepPreview,
   onStopPreview,
   onToggleBtEditor,
-  onToggleCopilot,
   onToggleLogicViewer,
   onToggleNodeMaterialEditor,
   onTogglePhysicsDebug,
@@ -286,8 +286,8 @@ export function EditorMenuBar({
                       {logicViewerOpen ? "Hide" : "Show"} Logic Graph
                       <MenubarShortcut>Cmd+Shift+L</MenubarShortcut>
                     </MenubarItem>
-                    <MenubarItem className="rounded-lg text-xs" onClick={onToggleCopilot}>
-                      {copilotOpen ? "Hide" : "Show"} AI Vibe
+                    <MenubarItem className="rounded-lg text-xs" onClick={onOpenAiLauncher}>
+                      Open AI Launcher
                       <MenubarShortcut>Cmd+L</MenubarShortcut>
                     </MenubarItem>
                     <MenubarItem className="rounded-lg text-xs" onClick={onToggleStats}>
@@ -455,8 +455,8 @@ export function EditorMenuBar({
           <Button
             aria-label="AI Vibe"
             className={copilotOpen ? "editor-toolbar-button editor-toolbar-button-active size-8 rounded-[10px] hover:translate-y-0 active:scale-100" : "editor-toolbar-button size-8 rounded-[10px] hover:translate-y-0 active:scale-100"}
-            onClick={onToggleCopilot}
-            title="AI Vibe (Cmd+L)"
+            onClick={onOpenAiLauncher}
+            title="AI Launcher (Cmd+L)"
             size="icon-sm"
             variant="ghost"
           >
