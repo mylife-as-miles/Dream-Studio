@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type ChangeEvent } from "react";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   applyEditableMeshModeling,
   captureEditableMeshModelingBase,
@@ -785,47 +785,25 @@ export function InspectorSidebar({
     );
   };
 
-  const collapsed = activeRightPanel === null;
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 640) {
-      setSidebarOpen(false);
-    }
-  }, []);
-  useEffect(() => {
-    if (activeRightPanel) {
-      setSidebarOpen(true);
-    }
-  }, [activeRightPanel]);
+  if (!activeRightPanel) {
+    return null;
+  }
 
   return (
     <div className={cn(
       "pointer-events-none absolute z-40 flex flex-col gap-2 overflow-visible",
       /* Always a left sidebar — from just below menu bar to near bottom */
       "right-2 top-16 items-end",
-      sidebarOpen ? "bottom-2 w-56 sm:w-72 md:w-80 lg:w-[23rem]" : "w-auto",
+      "bottom-2 w-56 sm:w-72 md:w-80 lg:w-[23rem]",
     )}>
-      {/* Collapse toggle — always visible at all screen sizes */}
-      <div className="flex w-full justify-end">
-        <button
-          className="editor-toolbar-shell pointer-events-auto flex size-8 items-center justify-center rounded-[12px] text-foreground/60 transition-colors duration-150 hover:text-foreground"
-          onClick={() => setSidebarOpen((v) => !v)}
-          title={sidebarOpen ? "Collapse inspector" : "Expand inspector"}
-          type="button"
-        >
-          {sidebarOpen ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-        </button>
-      </div>
-
       {/* Panel body */}
-      {sidebarOpen && (
-        <div className="editor-dock-panel pointer-events-auto relative z-10 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[20px]">
+      <div className="editor-dock-panel pointer-events-auto relative z-10 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[20px]">
         <Tabs
           className="flex min-h-0 flex-1 flex-col gap-0"
           onValueChange={(value) => onChangeRightPanel(value as RightPanelId)}
-          value={activeRightPanel ?? ""}
+          value={activeRightPanel}
         >
-          <div className={cn("editor-dock-header px-3 pt-3", collapsed ? "pb-3" : "pb-3")}>
+          <div className="editor-dock-header px-3 pb-3 pt-3">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="editor-toolbar-label">Details</div>
@@ -838,14 +816,6 @@ export function InspectorSidebar({
               </span>
             </div>
           </div>
-
-          {collapsed ? (
-            <div className="px-3 pb-3 pt-2">
-              <div className="editor-dock-note rounded-xl px-3 py-3 text-[11px]">
-                Open a details panel from Tools to inspect scene, world, player, or material data.
-              </div>
-            </div>
-          ) : null}
 
           <TabsContent className="min-h-0 flex-1 px-3 pb-3 pt-2" value="scene">
             <div className="flex h-full min-h-0 flex-col gap-3">
@@ -1819,7 +1789,6 @@ export function InspectorSidebar({
           </TabsContent>
         </Tabs>
       </div>
-      )}
     </div>
   );
 }

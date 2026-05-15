@@ -1,5 +1,5 @@
 import { Code2, ExternalLink, FileCode2, Folder, Gamepad2, LayoutPanelLeft, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
 import type { MorphusFileRecord } from "@/lib/copilot/morphus-memory";
@@ -34,30 +34,22 @@ export function MorphusWorkspace({
   onSettingsChanged,
   session
 }: MorphusWorkspaceProps) {
-  const fallbackFiles = useMemo<MorphusFileRecord[]>(
-    () =>
-      files.length > 0
-        ? files
-        : [
-            {
-              content:
-                "<!-- Morphus will generate your playable HTML game here. -->\n<div id=\"game\"></div>",
-              language: "html",
-              path: "index.html",
-              updatedAt: Date.now()
-            },
-            {
-              content:
-                "// Ask Morphus for a browser game and the generated code will be saved in IndexedDB.",
-              language: "javascript",
-              path: "index.js",
-              updatedAt: Date.now()
-            }
-          ],
-    [files]
-  );
-  const [activePath, setActivePath] = useState(fallbackFiles[0]?.path ?? "index.html");
-  const activeFile = fallbackFiles.find((file) => file.path === activePath) ?? fallbackFiles[0];
+  const [activePath, setActivePath] = useState("");
+  const [requestStarted, setRequestStarted] = useState(false);
+  const hasConversation = session.messages.length > 0 || session.activity.length > 0;
+  const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
+  const activeFile = files.find((file) => file.path === activePath) ?? files[0];
+
+  useEffect(() => {
+    if (files.length === 0) {
+      setActivePath("");
+      return;
+    }
+
+    if (!files.some((file) => file.path === activePath)) {
+      setActivePath(files[0].path);
+    }
+  }, [activePath, files]);
 
   const openGame = () => {
     if (!latestGame) {
@@ -67,9 +59,35 @@ export function MorphusWorkspace({
     window.open(buildGameBlobUrl(latestGame.html), "_blank");
   };
 
+  const sendMorphusMessage = (prompt: string, images?: CopilotImageAttachment[]) => {
+    setRequestStarted(true);
+    onSendMessage(prompt, images);
+  };
+
+  const clearMorphusHistory = () => {
+    setRequestStarted(false);
+    setActivePath("");
+    onClearHistory();
+  };
+
   return (
     <div className="absolute inset-0 z-40 flex overflow-hidden rounded-[32px] border border-white/10 bg-[#0b0f14] shadow-[0_30px_90px_rgba(0,0,0,0.48)]">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-white/8 bg-[#11161d]">
+      {!workspaceActive ? (
+        <MorphusStart
+          isConfigured={isConfigured}
+          latestGame={latestGame}
+          onAbort={onAbort}
+          onClearGame={onClearGame}
+          onClearHistory={clearMorphusHistory}
+          onClose={onClose}
+          onPlayInViewport={onPlayInViewport}
+          onSendMessage={sendMorphusMessage}
+          onSettingsChanged={onSettingsChanged}
+          session={session}
+        />
+      ) : (
+        <>
+          <aside className="flex w-56 shrink-0 flex-col border-r border-white/8 bg-[#11161d]">
         <div className="flex h-12 items-center justify-between border-b border-white/8 px-3">
           <div className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] text-white/44 uppercase">
             <Folder className="size-3.5" />
@@ -78,11 +96,16 @@ export function MorphusWorkspace({
           <LayoutPanelLeft className="size-3.5 text-white/28" />
         </div>
         <div className="flex-1 overflow-y-auto py-2">
-          {fallbackFiles.map((file) => (
+          {files.length === 0 ? (
+            <div className="px-3 py-4 text-[11px] leading-relaxed text-white/34">
+              Files will appear here after Morphus generates a game.
+            </div>
+          ) : null}
+          {files.map((file) => (
             <button
               className={cn(
                 "flex w-full items-center gap-2 border-l-2 px-3 py-2 text-left text-[12px] transition-colors",
-                activeFile.path === file.path
+                activeFile?.path === file.path
                   ? "border-[#f6d07d] bg-white/[0.06] text-white"
                   : "border-transparent text-white/58 hover:bg-white/[0.035] hover:text-white/82"
               )}
@@ -156,11 +179,27 @@ export function MorphusWorkspace({
           <div className="min-w-0 overflow-hidden border-r border-white/8">
             <div className="flex h-9 items-center gap-2 border-b border-white/8 bg-[#191e25] px-3 text-[11px] text-white/52">
               <FileCode2 className="size-3.5 text-cyan-300/70" />
-              {activeFile.path}
+              {activeFile?.path ?? "No file selected"}
             </div>
-            <pre className="h-full overflow-auto bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-200">
-              <code>{activeFile.content}</code>
-            </pre>
+            {activeFile ? (
+              <pre className="h-full overflow-auto bg-[#171a1f] px-6 py-5 font-mono text-[12px] leading-6 text-slate-200">
+                <code>{activeFile.content}</code>
+              </pre>
+            ) : (
+              <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
+                <div className="max-w-xs">
+                  <div className="mx-auto flex size-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-cyan-200/70">
+                    <FileCode2 className="size-4" />
+                  </div>
+                  <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/62 uppercase">
+                    Waiting for files
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-white/36">
+                    Morphus will place generated HTML and JavaScript here once the first response completes.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="min-h-0 bg-[#0f151a] p-3">
@@ -170,10 +209,10 @@ export function MorphusWorkspace({
               latestGame={latestGame}
               onAbort={onAbort}
               onClearGame={onClearGame}
-              onClearHistory={onClearHistory}
+              onClearHistory={clearMorphusHistory}
               onClose={onClose}
               onPlayInViewport={onPlayInViewport}
-              onSendMessage={onSendMessage}
+              onSendMessage={sendMorphusMessage}
               onSettingsChanged={onSettingsChanged}
               placeholder="Create a playable HTML game..."
               session={session}
@@ -182,6 +221,76 @@ export function MorphusWorkspace({
           </div>
         </div>
       </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MorphusStart({
+  isConfigured,
+  latestGame,
+  onAbort,
+  onClearGame,
+  onClearHistory,
+  onClose,
+  onPlayInViewport,
+  onSendMessage,
+  onSettingsChanged,
+  session
+}: Omit<MorphusWorkspaceProps, "files">) {
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#0b0f14]">
+      <header className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between px-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-8 items-center justify-center rounded-xl border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d]">
+            <Code2 className="size-4" />
+          </span>
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.22em] text-white/86 uppercase">
+              Morphus
+            </div>
+            <div className="text-[10px] text-white/38">HTML game maker</div>
+          </div>
+        </div>
+        <Button
+          aria-label="Close Morphus"
+          className="editor-toolbar-button size-8 rounded-[10px]"
+          onClick={onClose}
+          size="icon-sm"
+          variant="ghost"
+        >
+          <X className="size-3.5" />
+        </Button>
+      </header>
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(52,211,153,0.16),transparent_28%),radial-gradient(circle_at_72%_70%,rgba(56,189,248,0.1),transparent_26%),linear-gradient(rgba(255,255,255,0.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[length:auto,auto,72px_72px,72px_72px]" />
+
+      <div className="relative z-0 flex min-h-0 flex-1 items-center justify-center px-6 py-16">
+        <div className="w-full max-w-2xl">
+          <div className="mb-5 text-center">
+            <h2 className="text-3xl font-semibold tracking-normal text-white">Create Anything</h2>
+            <p className="mt-2 text-sm text-white/42">Describe the playable HTML game you want to build.</p>
+          </div>
+          <div className="mx-auto h-[28rem] max-w-xl">
+            <CopilotPanel
+              emptyText="Tell Morphus what to make."
+              isConfigured={isConfigured}
+              latestGame={latestGame}
+              onAbort={onAbort}
+              onClearGame={onClearGame}
+              onClearHistory={onClearHistory}
+              onClose={onClose}
+              onPlayInViewport={onPlayInViewport}
+              onSendMessage={onSendMessage}
+              onSettingsChanged={onSettingsChanged}
+              placeholder="What do you want to create?"
+              session={session}
+              title="Morphus"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -9,7 +9,6 @@ import {
   ExternalLink,
   Gamepad2,
   Loader2,
-  Maximize2,
   MessageSquareText,
   Paperclip,
   Send,
@@ -58,7 +57,6 @@ export function CopilotPanel({
   onAbort,
   onClearHistory,
   onClearGame,
-  onPlayInViewport,
   onSettingsChanged,
   session,
   isConfigured,
@@ -251,7 +249,6 @@ export function CopilotPanel({
           <GameCard
             game={latestGame}
             onDismiss={onClearGame}
-            onPlayInViewport={onPlayInViewport}
           />
         </div>
       )}
@@ -696,12 +693,10 @@ function ThinkingIndicator({ session }: { session: CopilotSession }) {
 
 function GameCard({
   game,
-  onDismiss,
-  onPlayInViewport
+  onDismiss
 }: {
   game: GeneratedGame;
   onDismiss?: () => void;
-  onPlayInViewport?: () => void;
 }) {
   const openGame = () => {
     const url = buildGameBlobUrl(game.html);
@@ -736,23 +731,14 @@ function GameCard({
         )}
       </div>
       <div className="flex gap-1.5">
-        {onPlayInViewport && (
-          <button
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-400/20 bg-emerald-500/20 px-2.5 py-1.5 text-[10px] font-medium text-emerald-300 transition-colors hover:bg-emerald-500/30"
-            onClick={onPlayInViewport}
-            type="button"
-          >
-            <Maximize2 className="size-3" />
-            Play in viewport
-          </button>
-        )}
         <button
-          className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-foreground/52 transition-colors hover:bg-white/[0.07] hover:text-foreground/72"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-400/20 bg-emerald-500/20 px-2.5 py-1.5 text-[10px] font-medium text-emerald-300 transition-colors hover:bg-emerald-500/30"
           onClick={openGame}
           title="Open in new tab"
           type="button"
         >
           <ExternalLink className="size-3" />
+          Open game
         </button>
         <button
           className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-medium text-foreground/52 transition-colors hover:bg-white/[0.07] hover:text-foreground/72"
