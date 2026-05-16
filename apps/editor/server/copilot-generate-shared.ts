@@ -9,6 +9,8 @@ import type {
 export const SERVER_GEMMA_MODEL = "gemma-4-31b-it";
 const LIGHTNING_MODEL = "lightning-ai/gemma-4-31B-it";
 const LIGHTNING_API_URL = "https://lightning.ai/api/v1/chat/completions";
+const NVIDIA_MODEL = "minimaxai/minimax-m2.7";
+const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 export type CopilotGenerateRequest = {
   messages: CopilotMessage[];
@@ -357,7 +359,72 @@ function readLightningError(payload: LightningPayload, rawBody: string) {
 
 function formatFallbackError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
-  return `Gemini quota was reached, and the Lightning fallback failed: ${message || "unknown error"}`;
+  return message || "unknown error";
+}
+
+async function generateViaNvidia(request: CopilotGenerateRequest): Promise<CopilotResponse> {
+  const apiKey = process.env.NVIDIA_API_KEY?.trim() || process.env.NVAPI_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error("Missing NVIDIA_API_KEY in the server environment.");
+  }
+
+  const response = await fetch(NVIDIA_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: NVIDIA_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `${request.systemPrompt}\n\nYou are running as the final NVIDIA fallback after Gemini and Lightning failed. Respond with clear text instructions or code-oriented guidance.`
+        },
+        ...convertMessagesForLightningTextOnly(request.messages)
+      ],
+      temperature: request.temperature,
+      top_p: 0.95,
+      max_tokens: 1024,
+      stream: false
+    })
+  });
+
+  const rawBody = await response.text();
+  const payload = parseLightningPayload(rawBody);
+
+  if (!response.ok) {
+    throw new Error(readLightningError(payload, rawBody) || `NVIDIA fallback failed with status ${response.status}.`);
+  }
+
+  const choice = payload?.choices?.[0]?.message;
+  const content = choice?.content;
+  const text = Array.isArray(content)
+    ? content.map((part) => part.text ?? "").join("")
+    : typeof content === "string"
+      ? content
+      : "";
+
+  return {
+    text,
+    toolCalls: [],
+    rawParts: text ? [{ text }] : []
+  };
+}
+
+async function generateViaProviderFallbacks(request: CopilotGenerateRequest): Promise<CopilotResponse> {
+  try {
+    return await generateViaLightning(request);
+  } catch (lightningError) {
+    try {
+      return await generateViaNvidia(request);
+    } catch (nvidiaError) {
+      throw new Error(
+        `Lightning fallback failed: ${formatFallbackError(lightningError)} NVIDIA fallback failed: ${formatFallbackError(nvidiaError)}`
+      );
+    }
+  }
 }
 
 function safeParseToolArguments(value: string | undefined): Record<string, unknown> {
@@ -381,8 +448,8 @@ export async function generateCopilotContent(
   const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
 
   if (!apiKey) {
-    return generateViaLightning(request).catch((error: unknown) => {
-      throw new Error(`Missing GEMINI_API_KEY in the server environment, and Lightning fallback failed: ${
+    return generateViaProviderFallbacks(request).catch((error: unknown) => {
+      throw new Error(`Missing GEMINI_API_KEY in the server environment, and all fallbacks failed: ${
         error instanceof Error ? error.message : String(error ?? "unknown error")
       }`);
     });
@@ -432,8 +499,8 @@ export async function generateCopilotContent(
       throw error;
     }
 
-    return generateViaLightning(request).catch((fallbackError: unknown) => {
-      throw new Error(formatFallbackError(fallbackError));
+    return generateViaProviderFallbacks(request).catch((fallbackError: unknown) => {
+      throw new Error(`Gemini quota was reached, and all fallbacks failed: ${formatFallbackError(fallbackError)}`);
     });
   }
 }
