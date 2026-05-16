@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export const config = {
@@ -38,7 +38,7 @@ const EMBEDDING_MODEL = "models/gemini-embedding-2";
 const DEFAULT_EMBEDDING_DIMENSIONS = 1536;
 const MAX_CHUNK_LENGTH = 4_000;
 const EMBEDDING_RETRY_DELAYS_MS = [1500, 3000, 6000];
-const SNAPSHOT_ROOT = resolve(process.cwd(), "generated", "rag-snapshots");
+const SNAPSHOT_ROOT = resolveSnapshotRoot();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -91,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       chunks.map((chunk) => `title: ${chunk.path} | text: ${chunk.text}`),
       geminiApiKey
     );
-    const snapshotInfo = await writeProjectSnapshot({
+    const snapshotInfo = await writeProjectSnapshotSafe({
       contentHash,
       entries,
       gameId: payload.gameId ?? "",
@@ -124,6 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       namespace,
       projectId,
       recordsUpserted: vectors.length,
+      snapshotError: snapshotInfo.snapshotError ?? "",
       snapshotPath: snapshotInfo.manifestPath,
       upserted: vectors.length,
       versionId
@@ -496,6 +497,26 @@ async function upsertPineconeVectors(
   }
 }
 
+async function writeProjectSnapshotSafe(input: {
+  contentHash: string;
+  entries: Array<{ content: string; path: string }>;
+  gameId: string;
+  projectId: string;
+  title: string;
+  versionId: string;
+}) {
+  try {
+    return await writeProjectSnapshot(input);
+  } catch (error) {
+    console.warn("[rag/upsert-game-code] snapshot write skipped", error);
+    return {
+      manifestPath: "",
+      snapshotError: error instanceof Error ? error.message : String(error ?? "snapshot write failed"),
+      versionDir: ""
+    };
+  }
+}
+
 async function writeProjectSnapshot(input: {
   contentHash: string;
   entries: Array<{ content: string; path: string }>;
@@ -587,4 +608,22 @@ function normalizeSnapshotFilePath(value: string) {
     .join("/");
 
   return normalized || "index.txt";
+}
+
+function resolveSnapshotRoot() {
+  const configured = process.env.RAG_SNAPSHOT_ROOT?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  const tmpDir = process.env.TMPDIR?.trim()
+    || process.env.TEMP?.trim()
+    || process.env.TMP?.trim()
+    || "/tmp";
+
+  if (process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return join(tmpDir, "rag-snapshots");
+  }
+
+  return resolve(process.cwd(), "generated", "rag-snapshots");
 }

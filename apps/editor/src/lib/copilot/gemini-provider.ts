@@ -47,6 +47,10 @@ export function createGeminiProvider(): CopilotProvider {
 function normalizeGeminiError(error: unknown, status: number) {
   const raw = typeof error === "string" ? error : "";
 
+  if (/all fallbacks failed|gemini flash fallback failed|nvidia fallback failed|lightning fallback failed/i.test(raw)) {
+    return raw;
+  }
+
   if (status === 429 || /resource_exhausted|quota|rate-limit|rate limit/i.test(raw)) {
     const retryMatch = raw.match(/Please retry in\s+([0-9.]+)s/i);
     const retryText = retryMatch ? ` Try again in about ${Math.ceil(Number(retryMatch[1]))} seconds.` : "";
