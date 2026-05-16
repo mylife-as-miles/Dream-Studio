@@ -35,7 +35,7 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
 
 async function readElevenLabsError(
   response: Response,
-  kind: "SFX" | "TTS" | "voices" | "voice clone" | "voice delete",
+  kind: "music" | "SFX" | "TTS" | "voices" | "voice clone" | "voice delete",
 ): Promise<string> {
   const payload = await response.json().catch(() => null) as ElevenLabsErrorPayload | null;
   const error = payload?.error?.trim();
@@ -131,7 +131,7 @@ export async function generateSoundEffect(
   });
 
   if (!response.ok) {
-    throw new Error(await readElevenLabsError(response, "SFX"));
+    throw new Error(await readElevenLabsError(response, "music"));
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -193,6 +193,24 @@ export async function generateSoundEffectDataUrl(
   durationSeconds?: number,
 ): Promise<string> {
   const response = await fetch("/api/elevenlabs/sfx", {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ description, durationSeconds }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readElevenLabsError(response, "SFX"));
+  }
+
+  const blob = await response.blob();
+  return blobToDataUrl(blob);
+}
+
+export async function generateMusicDataUrl(
+  description: string,
+  durationSeconds?: number,
+): Promise<string> {
+  const response = await fetch("/api/elevenlabs/music", {
     method: "POST",
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ description, durationSeconds }),

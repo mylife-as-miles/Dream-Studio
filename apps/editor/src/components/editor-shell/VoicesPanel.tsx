@@ -312,7 +312,7 @@ function ElevenLabsVoiceLibrary({ savedVoiceIds }: { savedVoiceIds: Set<string> 
     setLoadError(null);
     fetchVoices()
       .then(setVoices)
-      .catch(() => setLoadError("Could not load ElevenLabs voices. Check your connector / API setup."))
+      .catch((error) => setLoadError(error instanceof Error ? error.message : "Could not load ElevenLabs voices."))
       .finally(() => setLoading(false));
   }, []);
 

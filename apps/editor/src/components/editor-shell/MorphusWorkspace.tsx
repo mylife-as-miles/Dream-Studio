@@ -2,7 +2,7 @@ import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, FolderUp, LayoutP
 import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
-import { generateSoundEffectDataUrl } from "@/lib/elevenlabs-client";
+import { generateMusicDataUrl, generateSoundEffectDataUrl } from "@/lib/elevenlabs-client";
 import { loadCopilotSettings } from "@/lib/copilot/settings";
 import { extractMorphusAudioRequests, type MorphusAudioRequest, type MorphusFileRecord } from "@/lib/copilot/morphus-memory";
 import { CopilotPanel } from "@/components/editor-shell/CopilotPanel";
@@ -151,7 +151,9 @@ export function MorphusWorkspace({
     setGeneratingAudioPaths((previous) => [...previous, request.path]);
 
     try {
-      const dataUrl = await generateSoundEffectDataUrl(request.description, request.durationSeconds);
+      const dataUrl = request.kind === "music"
+        ? await generateMusicDataUrl(request.description, request.durationSeconds)
+        : await generateSoundEffectDataUrl(request.description, request.durationSeconds);
       onSaveFile(request.path, dataUrl);
       setActivePath(request.path);
       setMobileTab("code");
