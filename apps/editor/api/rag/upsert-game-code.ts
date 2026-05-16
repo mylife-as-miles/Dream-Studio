@@ -1,15 +1,26 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 type UpsertFile = {
+  code?: string;
   content?: string;
+  data?: string;
+  html?: string;
+  name?: string;
   path?: string;
+  text?: string;
 };
 
 type UpsertGameCodeRequest = {
   code?: string;
+  content?: string;
   files?: UpsertFile[];
+  gameCode?: string;
   gameId?: string;
+  html?: string;
+  pastedCode?: string;
   projectId?: string;
+  source?: string;
+  text?: string;
   title?: string;
 };
 
@@ -31,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const payload = (req.body ?? {}) as UpsertGameCodeRequest;
+    const payload = normalizePayload(req.body);
     const entries = normalizeCodeEntries(payload);
 
     if (entries.length === 0) {
@@ -82,25 +93,154 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+function normalizePayload(body: unknown): UpsertGameCodeRequest {
+  if (isByteLikeBody(body)) {
+    return normalizePayload(Buffer.from(body as ArrayBufferView).toString("utf8"));
+  }
+
+  if (typeof body === "string") {
+    const trimmed = body.trim();
+
+    if (!trimmed) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (isRecord(parsed)) {
+        return parsed as UpsertGameCodeRequest;
+      }
+    } catch {
+      const formPayload = parseUrlEncodedPayload(trimmed);
+      if (formPayload) {
+        return formPayload;
+      }
+
+      return { code: trimmed };
+    }
+
+    return { code: trimmed };
+  }
+
+  return isRecord(body) ? body as UpsertGameCodeRequest : {};
+}
+
 function normalizeCodeEntries(payload: UpsertGameCodeRequest) {
   const entries: Array<{ content: string; path: string }> = [];
+  const directCode = firstNonEmptyString(
+    payload.code,
+    payload.gameCode,
+    payload.pastedCode,
+    payload.html,
+    payload.content,
+    payload.source,
+    payload.text
+  );
 
-  if (typeof payload.code === "string" && payload.code.trim()) {
-    entries.push({ content: payload.code, path: "index.html" });
+  if (directCode) {
+    entries.push({ content: directCode, path: inferPathForContent(directCode, "index.html") });
   }
 
   for (const file of payload.files ?? []) {
-    if (typeof file.content !== "string" || !file.content.trim()) {
+    const content = firstNonEmptyString(file.content, file.code, file.html, file.text, file.data);
+    if (!content) {
       continue;
     }
 
     entries.push({
-      content: file.content,
-      path: typeof file.path === "string" && file.path.trim() ? file.path.trim() : `file-${entries.length + 1}.txt`
+      content,
+      path: firstNonEmptyString(file.path, file.name) ?? inferPathForContent(content, `file-${entries.length + 1}.txt`)
     });
   }
 
+  if (entries.length === 0) {
+    const fallback = findCodeLikeString(payload);
+    if (fallback) {
+      entries.push({ content: fallback, path: inferPathForContent(fallback, "index.html") });
+    }
+  }
+
   return entries;
+}
+
+function firstNonEmptyString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+}
+
+function findCodeLikeString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return looksLikeCode(trimmed) ? trimmed : undefined;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = findCodeLikeString(entry);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  for (const entry of Object.values(value)) {
+    const found = findCodeLikeString(entry);
+    if (found) return found;
+  }
+
+  return undefined;
+}
+
+function looksLikeCode(value: string) {
+  return (
+    value.length > 40 &&
+    /<\/?(html|script|style|canvas|body)\b|function\s+\w+|const\s+\w+\s*=|import\s+.+from\s+["']/.test(value)
+  );
+}
+
+function inferPathForContent(content: string, fallback: string) {
+  if (/^\s*</.test(content) || /<\/html>|<script\b|<canvas\b/i.test(content)) {
+    return "index.html";
+  }
+
+  if (/\bfunction\b|\bconst\b|\blet\b|\bimport\b/.test(content)) {
+    return "index.js";
+  }
+
+  return fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isByteLikeBody(value: unknown): value is ArrayBufferView {
+  return ArrayBuffer.isView(value);
+}
+
+function parseUrlEncodedPayload(value: string): UpsertGameCodeRequest | undefined {
+  if (!value.includes("=")) {
+    return undefined;
+  }
+
+  try {
+    const params = new URLSearchParams(value);
+    const payload: UpsertGameCodeRequest = {};
+    for (const [key, paramValue] of params.entries()) {
+      (payload as Record<string, string>)[key] = paramValue;
+    }
+    return payload;
+  } catch {
+    return undefined;
+  }
 }
 
 function chunkCode(path: string, content: string) {
