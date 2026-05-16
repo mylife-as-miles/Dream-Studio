@@ -15,20 +15,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const client = new ElevenLabsClient({ apiKey });
-    const audio = await client.textToSoundEffects.convert({
-      durationSeconds: typeof durationSeconds === "number"
-        ? Math.max(0.5, Math.min(30, durationSeconds))
-        : undefined,
+    const musicLengthMs = typeof durationSeconds === "number"
+      ? Math.max(3000, Math.min(600000, Math.round(durationSeconds * 1000)))
+      : 10000;
+
+    const audio = await client.music.compose({
+      forceInstrumental: true,
+      musicLengthMs,
       outputFormat: "mp3_44100_128",
-      promptInfluence: 0.3,
-      text: description,
+      prompt: description,
     });
 
     await pipeAudioStream(res, audio);
   } catch (error) {
     const detail = readSdkErrorDetail(error);
-    console.error("[elevenlabs/sfx] error", detail);
-    return res.status(readSdkStatus(error)).json({ error: "ElevenLabs SFX failed.", detail });
+    console.error("[elevenlabs/music] error", detail);
+    return res.status(readSdkStatus(error)).json({ error: "ElevenLabs music failed.", detail });
   }
 }
 

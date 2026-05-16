@@ -181,7 +181,7 @@ export async function generateSoundEffectUrl(
   });
 
   if (!response.ok) {
-    throw new Error(await readElevenLabsError(response, "music"));
+    throw new Error(await readElevenLabsError(response, "SFX"));
   }
 
   const blob = await response.blob();
@@ -217,7 +217,7 @@ export async function generateMusicDataUrl(
   });
 
   if (!response.ok) {
-    throw new Error(await readElevenLabsError(response, "SFX"));
+    throw new Error(await readElevenLabsError(response, "music"));
   }
 
   const blob = await response.blob();
