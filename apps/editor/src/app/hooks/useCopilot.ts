@@ -408,4 +408,31 @@ export function useCopilot(
         );
       }
 
-   
+      return nextFiles;
+    });
+  }, []);
+
+  return {
+    session,
+    sendMessage,
+    abort,
+    clearHistory,
+    isConfigured: configured,
+    refreshConfigured: () => setConfigured(isCopilotConfigured()),
+    latestGame,
+    clearLatestGame,
+    files,
+    saveFile
+  };
+}
+
+function findLatestAssistantContent(messages: CopilotSession["messages"]) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
+    if (message.role === "assistant" && message.content.trim()) {
+      return message.content;
+    }
+  }
+
+  return "";
+}

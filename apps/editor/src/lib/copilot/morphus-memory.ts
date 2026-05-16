@@ -214,7 +214,20 @@ export function buildMorphusPreviewHtml(files: MorphusFileRecord[]): string | nu
 
   let html = htmlFile.content;
   const byPath = new Map(files.map((file) => [file.path.toLowerCase(), file]));
+  const moduleUrls = new Map<string, string>();
   const assetFiles = files.filter((file) => file.language === "asset");
+  const getModuleUrl = (file: MorphusFileRecord): string => {
+    const existing = moduleUrls.get(file.path.toLowerCase());
+    if (existing) {
+      return existing;
+    }
+
+    const source = rewriteModuleImports(rewriteAssetReferences(file.content, assetFiles), file.path, byPath, getModuleUrl);
+    const blob = new Blob([source], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    moduleUrls.set(file.path.toLowerCase(), url);
+    return url;
+  };
 
   html = html.replace(
     /<link\b([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi,
@@ -237,6 +250,10 @@ export function buildMorphusPreviewHtml(files: MorphusFileRecord[]): string | nu
       }
 
       const attrs = `${before} ${after}`.replace(/\s*src=["'][^"']+["']/i, "").trim();
+      if (/\btype\s*=\s*["']module["']/i.test(attrs) || /\bimport\s+/.test(file.content)) {
+        return `<script ${attrs} src="${getModuleUrl(file)}" data-morphus-source="${escapeAttribute(file.path)}"></script>`;
+      }
+
       const script = rewriteAssetReferences(file.content, assetFiles).replace(/<\/script/gi, "<\\/script");
       return `<script ${attrs} data-morphus-source="${escapeAttribute(file.path)}">\n${script}\n</script>`;
     }
@@ -319,6 +336,51 @@ function uniquePath(path: string, usedPaths: Set<string>) {
 
 function stripRelativePrefix(path: string) {
   return path.replace(/\\/g, "/").replace(/^\.?\//, "").toLowerCase();
+}
+
+function resolveRelativeImport(fromPath: string, specifier: string) {
+  const normalized = specifier.replace(/\\/g, "/");
+  if (!normalized.startsWith(".")) {
+    return normalized.toLowerCase();
+  }
+
+  const fromParts = fromPath.split("/");
+  fromParts.pop();
+  for (const part of normalized.split("/")) {
+    if (!part || part === ".") {
+      continue;
+    }
+    if (part === "..") {
+      fromParts.pop();
+      continue;
+    }
+    fromParts.push(part);
+  }
+
+  return fromParts.join("/").toLowerCase();
+}
+
+function rewriteModuleImports(
+  source: string,
+  fromPath: string,
+  files: Map<string, MorphusFileRecord>,
+  getModuleUrl: (file: MorphusFileRecord) => string,
+) {
+  return source
+    .replace(
+      /(\bimport\s+(?:(?:[\s\S]*?\s+from\s+)?|))["']([^"']+)["']/g,
+      (statement, prefix, specifier) => {
+        const file = files.get(resolveRelativeImport(fromPath, specifier)) ?? files.get(stripRelativePrefix(specifier));
+        return file?.language === "javascript" ? `${prefix}"${getModuleUrl(file)}"` : statement;
+      }
+    )
+    .replace(
+      /(\bimport\s*\(\s*)["']([^"']+)["'](\s*\))/g,
+      (statement, prefix, specifier, suffix) => {
+        const file = files.get(resolveRelativeImport(fromPath, specifier)) ?? files.get(stripRelativePrefix(specifier));
+        return file?.language === "javascript" ? `${prefix}"${getModuleUrl(file)}"${suffix}` : statement;
+      }
+    );
 }
 
 function rewriteAssetReferences(source: string, assetFiles: MorphusFileRecord[]) {

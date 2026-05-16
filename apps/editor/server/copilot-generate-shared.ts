@@ -141,7 +141,7 @@ function ensureFallbackKeepsWorking(
           name: "generate_game_html",
           args: {
             title,
-            html: buildEmergencyMorphusHtml(title, request, response.text)
+            files: buildEmergencyMorphusFiles(title, request, response.text)
           }
         }
       ]
@@ -279,6 +279,120 @@ function buildEmergencyMorphusHtml(
   </script>
 </body>
 </html>`;
+}
+
+function buildEmergencyMorphusFiles(
+  title: string,
+  request: CopilotGenerateRequest,
+  responseText: string,
+) {
+  const prompt = latestUserText(request) || responseText || title;
+  const safeTitle = escapeHtml(title);
+  const safePrompt = escapeHtml(prompt);
+  const lower = `${title} ${prompt}`.toLowerCase();
+  const smartHome = lower.includes("digital twin") || lower.includes("smart home");
+  const rooms = smartHome
+    ? [
+        { name: "Living Room", metric: "22.4 C", statA: "Humidity 46%", statB: "CO2 610ppm" },
+        { name: "Kitchen", metric: "24.1 C", statA: "Power 1.8kW", statB: "Air quality good" },
+        { name: "Garage", metric: "19.7 C", statA: "Door closed", statB: "Motion idle" }
+      ]
+    : [
+        { name: "Zone A", metric: "Ready", statA: "Interactive", statB: "Click to focus" },
+        { name: "Zone B", metric: "Active", statA: "Responsive", statB: "Status nominal" },
+        { name: "Zone C", metric: "Online", statA: "Animated", statB: "Controls enabled" }
+      ];
+
+  return [
+    {
+      path: "index.html",
+      content: `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${safeTitle}</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="app">
+    <aside class="side">
+      <div class="brand">Morphus Project</div>
+      <h1>${safeTitle}</h1>
+      <p>${safePrompt}</p>
+      <div class="rooms" id="rooms"></div>
+    </aside>
+    <section class="stage">
+      <div class="home" aria-label="${safeTitle} interactive preview">
+        <div class="grid">
+          <div class="tile hero"><b id="selected">Select a room</b></div>
+          <div class="tile"><b>Live Sensors</b></div>
+          <div class="tile"><b>Energy Flow</b></div>
+        </div>
+        <div class="device d1">AI</div>
+        <div class="device d2">IoT</div>
+        <div class="device d3">3D</div>
+        <div class="hud">
+          <span class="pill" id="status">System online</span>
+          <button class="pill cta" id="simulate">Simulate Event</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>`
+    },
+    {
+      path: "style.css",
+      content: `:root{color-scheme:dark;--bg:#07110f;--panel:#101b1a;--line:rgba(255,255,255,.12);--mint:#62f4bd;--gold:#f6d07d;--cyan:#7dd3fc}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 10%,rgba(98,244,189,.22),transparent 28%),radial-gradient(circle at 80% 70%,rgba(125,211,252,.16),transparent 26%),linear-gradient(135deg,#070b10,#0b1714 55%,#11150d);font-family:ui-sans-serif,system-ui,Segoe UI,sans-serif;color:#eefcf8;overflow:hidden}
+.app{display:grid;grid-template-columns:320px 1fr;min-height:100vh}.side{padding:28px;border-right:1px solid var(--line);background:rgba(8,18,18,.78);backdrop-filter:blur(18px)}.brand{letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-size:12px;font-weight:800}.side h1{font-size:34px;line-height:1;margin:18px 0 12px}.side p{color:rgba(238,252,248,.68);line-height:1.6}.rooms{display:grid;gap:12px;margin-top:24px}.room{border:1px solid var(--line);background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.025));border-radius:18px;padding:16px;color:inherit;text-align:left;cursor:pointer;transition:.2s transform,.2s border-color}.room:hover,.room.active{transform:translateY(-2px);border-color:rgba(98,244,189,.55)}.room span,.room small{display:block;color:rgba(238,252,248,.58)}.room strong{display:block;margin:8px 0;color:var(--mint);font-size:24px}.stage{position:relative;display:grid;place-items:center;padding:32px}.home{position:relative;width:min(780px,82vw);aspect-ratio:1.45;border:1px solid var(--line);border-radius:34px;background:linear-gradient(145deg,rgba(255,255,255,.11),rgba(255,255,255,.03));box-shadow:0 40px 120px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.18);overflow:hidden}.grid{position:absolute;inset:46px;display:grid;grid-template-columns:1.2fr .9fr;grid-template-rows:1fr .85fr;gap:14px}.tile{border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:18px;background:rgba(7,17,15,.62);position:relative;overflow:hidden}.tile:before{content:"";position:absolute;inset:auto -20% -45% -20%;height:70%;background:radial-gradient(circle,rgba(98,244,189,.18),transparent 65%);animation:pulse 3s ease-in-out infinite}.tile b{position:relative;z-index:1}.hero{grid-row:span 2}.device{position:absolute;width:74px;height:74px;border-radius:24px;background:linear-gradient(145deg,var(--mint),#1aa37b);box-shadow:0 0 42px rgba(98,244,189,.32);display:grid;place-items:center;color:#03231b;font-weight:900}.d1{left:14%;top:18%}.d2{right:18%;top:24%;animation:float 4s ease-in-out infinite}.d3{left:49%;bottom:16%;animation:float 4s ease-in-out infinite reverse}.hud{position:absolute;left:32px;right:32px;bottom:28px;display:flex;justify-content:space-between;gap:14px}.pill{border:1px solid var(--line);border-radius:999px;background:rgba(0,0,0,.28);padding:10px 14px;color:rgba(238,252,248,.75)}.cta{color:#031b15;background:linear-gradient(135deg,var(--mint),var(--gold));font-weight:800}@keyframes float{50%{transform:translateY(-14px)}}@keyframes pulse{50%{opacity:.45;transform:scale(1.08)}}@media(max-width:800px){.app{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--line)}.stage{padding:18px}.home{width:94vw}}`
+    },
+    {
+      path: "data.js",
+      content: `export const rooms = ${JSON.stringify(rooms, null, 2)};`
+    },
+    {
+      path: "effects.js",
+      content: `export function pulseStatus(status, message) {
+  status.textContent = message;
+  status.animate([
+    { transform: "scale(1)", filter: "brightness(1)" },
+    { transform: "scale(1.04)", filter: "brightness(1.35)" },
+    { transform: "scale(1)", filter: "brightness(1)" }
+  ], { duration: 420, easing: "ease-out" });
+}`
+    },
+    {
+      path: "main.js",
+      content: `import { rooms } from "./data.js";
+import { pulseStatus } from "./effects.js";
+
+const roomList = document.getElementById("rooms");
+const selected = document.getElementById("selected");
+const status = document.getElementById("status");
+const simulate = document.getElementById("simulate");
+
+for (const room of rooms) {
+  const button = document.createElement("button");
+  button.className = "room";
+  button.innerHTML = \`<span>\${room.name}</span><strong>\${room.metric}</strong><small>\${room.statA} · \${room.statB}</small>\`;
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".room").forEach((node) => node.classList.remove("active"));
+    button.classList.add("active");
+    selected.textContent = \`\${room.name} digital twin focused\`;
+    pulseStatus(status, \`Streaming \${room.name} telemetry\`);
+  });
+  roomList.append(button);
+}
+
+simulate.addEventListener("click", () => {
+  const temperature = Math.round(18 + Math.random() * 9);
+  pulseStatus(status, \`Scenario pulse: temperature adjusted to \${temperature} C\`);
+});`
+    }
+  ];
 }
 
 function escapeHtml(value: string) {
