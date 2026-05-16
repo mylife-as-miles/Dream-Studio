@@ -49,6 +49,7 @@ function RagIngestionForm() {
   const [code, setCode] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [metadata, setMetadata] = useState({
+    projectId: "dream-studio-games",
     title: "",
     sourceGame: "",
     genre: "",
@@ -112,6 +113,14 @@ function RagIngestionForm() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
+        <input
+          type="text"
+          name="projectId"
+          placeholder="Project ID / Namespace"
+          value={metadata.projectId}
+          onChange={handleMetadataChange}
+          className="bg-black/50 border border-white/10 rounded px-3 py-1.5 text-xs text-white"
+        />
         <input
           type="text"
           name="title"
@@ -196,9 +205,17 @@ function RagIngestionForm() {
             <div className="text-emerald-400 flex flex-col gap-1">
               <span>{message}</span>
               {result && (
-                <span className="text-emerald-400/70 text-[10px]">
-                  Files: {result.filesProcessed} | Chunks: {result.chunksCreated} | Upserted: {result.recordsUpserted}
-                </span>
+                <>
+                  <span className="text-emerald-400/70 text-[10px]">
+                    Project: {result.projectId} | Version: {result.versionId}
+                  </span>
+                  <span className="text-emerald-400/70 text-[10px]">
+                    Files: {result.filesProcessed} | Chunks: {result.chunksCreated} | Upserted: {result.recordsUpserted}
+                  </span>
+                  <span className="text-emerald-400/70 text-[10px] break-all">
+                    Snapshot: {result.snapshotPath}
+                  </span>
+                </>
               )}
             </div>
           )}

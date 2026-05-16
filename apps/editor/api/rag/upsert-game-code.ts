@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export const config = {
@@ -28,12 +31,14 @@ type UpsertGameCodeRequest = {
   source?: string;
   text?: string;
   title?: string;
+  versionId?: string;
 };
 
 const EMBEDDING_MODEL = "models/gemini-embedding-2";
 const DEFAULT_EMBEDDING_DIMENSIONS = 1536;
 const MAX_CHUNK_LENGTH = 4_000;
 const EMBEDDING_RETRY_DELAYS_MS = [1500, 3000, 6000];
+const SNAPSHOT_ROOT = resolve(process.cwd(), "generated", "rag-snapshots");
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -78,29 +83,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    const projectId = sanitizeNamespace(payload.projectId || payload.gameId || "dream-studio-games");
+    const versionId = sanitizeVersionId(payload.versionId) || createVersionId(entries);
+    const contentHash = createContentHash(entries);
     const chunks = entries.flatMap((entry) => chunkCode(entry.path, entry.content));
     const embeddings = await embedTexts(
       chunks.map((chunk) => `title: ${chunk.path} | text: ${chunk.text}`),
       geminiApiKey
     );
-    const namespace = sanitizeNamespace(payload.projectId || payload.gameId || "dream-studio-games");
+    const snapshotInfo = await writeProjectSnapshot({
+      contentHash,
+      entries,
+      gameId: payload.gameId ?? "",
+      projectId,
+      title: payload.title ?? "",
+      versionId
+    });
+    const namespace = projectId;
     const vectors = chunks.map((chunk, index) => ({
-      id: `${namespace}:${chunk.path}:${chunk.index}`,
+      id: `${namespace}:${versionId}:${chunk.path}:${chunk.index}`,
       values: embeddings[index],
       metadata: {
         content: chunk.text,
+        contentHash,
         gameId: payload.gameId ?? "",
         path: chunk.path,
-        projectId: payload.projectId ?? "",
-        title: payload.title ?? ""
+        projectId,
+        snapshotPath: snapshotInfo.manifestPath,
+        title: payload.title ?? "",
+        versionId
       }
     }));
 
     await upsertPineconeVectors(pineconeHost, pineconeApiKey, namespace, vectors);
 
     return res.status(200).json({
+      chunksCreated: chunks.length,
+      contentHash,
+      filesProcessed: entries.length,
       namespace,
-      upserted: vectors.length
+      projectId,
+      recordsUpserted: vectors.length,
+      snapshotPath: snapshotInfo.manifestPath,
+      upserted: vectors.length,
+      versionId
     });
   } catch (error) {
     console.error("[rag/upsert-game-code] error", error);
@@ -260,6 +286,32 @@ function normalizeCodeEntries(payload: UpsertGameCodeRequest) {
   }
 
   return entries;
+}
+
+function createContentHash(entries: Array<{ content: string; path: string }>) {
+  const hash = createHash("sha256");
+
+  for (const entry of entries) {
+    hash.update(entry.path);
+    hash.update("\n");
+    hash.update(entry.content);
+    hash.update("\n---\n");
+  }
+
+  return hash.digest("hex");
+}
+
+function createVersionId(entries: Array<{ content: string; path: string }>) {
+  const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+  return `${timestamp}-${createContentHash(entries).slice(0, 12)}`;
+}
+
+function sanitizeVersionId(value: string | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
 }
 
 function firstNonEmptyString(...values: unknown[]) {
@@ -444,6 +496,57 @@ async function upsertPineconeVectors(
   }
 }
 
+async function writeProjectSnapshot(input: {
+  contentHash: string;
+  entries: Array<{ content: string; path: string }>;
+  gameId: string;
+  projectId: string;
+  title: string;
+  versionId: string;
+}) {
+  const versionDir = resolve(SNAPSHOT_ROOT, input.projectId, input.versionId);
+  const filesDir = resolve(versionDir, "files");
+  await mkdir(filesDir, { recursive: true });
+
+  const files = [];
+
+  for (const entry of input.entries) {
+    const relativePath = normalizeSnapshotFilePath(entry.path || "index.txt");
+    const absolutePath = resolve(filesDir, relativePath);
+
+    if (!absolutePath.startsWith(filesDir)) {
+      throw new Error(`Invalid snapshot file path: ${entry.path}`);
+    }
+
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, entry.content, "utf8");
+
+    files.push({
+      bytes: Buffer.byteLength(entry.content, "utf8"),
+      contentHash: createHash("sha256").update(entry.content).digest("hex"),
+      path: relativePath
+    });
+  }
+
+  const manifest = {
+    contentHash: input.contentHash,
+    createdAt: new Date().toISOString(),
+    files,
+    gameId: input.gameId,
+    projectId: input.projectId,
+    title: input.title,
+    versionId: input.versionId
+  };
+
+  const manifestPath = resolve(versionDir, "manifest.json");
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+
+  return {
+    manifestPath,
+    versionDir
+  };
+}
+
 function getPineconeHost() {
   const value =
     process.env.PINECONE_INDEX_HOST?.trim() ||
@@ -473,4 +576,15 @@ function sleep(ms: number) {
 
 function sanitizeNamespace(value: string) {
   return value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64) || "dream-studio-games";
+}
+
+function normalizeSnapshotFilePath(value: string) {
+  const normalized = value
+    .replace(/\\/g, "/")
+    .replace(/^([A-Za-z]:)?\/+/, "")
+    .split("/")
+    .filter((segment) => segment && segment !== "." && segment !== "..")
+    .join("/");
+
+  return normalized || "index.txt";
 }
