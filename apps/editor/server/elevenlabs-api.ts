@@ -182,6 +182,23 @@ function readSdkErrorDetail(error: unknown) {
   return "ElevenLabs request failed.";
 }
 
+function readSdkStatus(error: unknown) {
+  if (typeof error === "object" && error) {
+    const maybeError = error as { statusCode?: unknown; status?: unknown };
+    const status = typeof maybeError.statusCode === "number"
+      ? maybeError.statusCode
+      : typeof maybeError.status === "number"
+        ? maybeError.status
+        : undefined;
+
+    if (status && status >= 400 && status < 600) {
+      return status;
+    }
+  }
+
+  return 500;
+}
+
 async function pipeAudioStream(
   res: import("node:http").ServerResponse,
   stream: ReadableStream<Uint8Array>,
@@ -310,12 +327,7 @@ async function handleSfx(
       ? Math.max(0.5, Math.min(30, body.durationSeconds))
       : undefined;
 
-    const audio = await client.textToSoundEffects.convert({
-      durationSeconds,
-      outputFormat: "mp3_44100_128",
-      promptInfluence: 0.3,
-      text: body.description,
-    });
+    const audio = await generateSfxWithMusicFallback(client, body.description, durationSeconds);
 
     await pipeAudioStream(res, audio);
   } catch (error) {
@@ -323,6 +335,35 @@ async function handleSfx(
     sendJson(res, 500, {
       error: "ElevenLabs SFX failed.",
       detail: readSdkErrorDetail(error),
+    });
+  }
+}
+
+async function generateSfxWithMusicFallback(
+  client: ElevenLabsClient,
+  description: string,
+  durationSeconds?: number,
+) {
+  try {
+    return await client.textToSoundEffects.convert({
+      durationSeconds,
+      modelId: "eleven_text_to_sound_v2",
+      outputFormat: "mp3_44100_128",
+      promptInfluence: 0.3,
+      text: description,
+    });
+  } catch (error) {
+    const status = readSdkStatus(error);
+    if (status !== 401 && status !== 403) {
+      throw error;
+    }
+
+    console.warn("[elevenlabs-api] SFX endpoint unavailable; falling back to Eleven Music.", readSdkErrorDetail(error));
+    return client.music.compose({
+      forceInstrumental: true,
+      musicLengthMs: Math.max(3000, Math.min(12000, Math.round((durationSeconds ?? 3) * 1000))),
+      outputFormat: "mp3_44100_128",
+      prompt: `Create a short sound effect, not a song: ${description}`,
     });
   }
 }

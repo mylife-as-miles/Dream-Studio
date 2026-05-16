@@ -12,8 +12,9 @@ const LIGHTNING_MODEL = "lightning-ai/gemma-4-31B-it";
 const LIGHTNING_API_URL = "https://lightning.ai/api/v1/chat/completions";
 const NVIDIA_MODEL = "minimaxai/minimax-m2.7";
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-const PRIMARY_TIMEOUT_MS = 14_000;
-const FALLBACK_TIMEOUT_MS = 8_000;
+const PRIMARY_TIMEOUT_MS = 8_000;
+const FALLBACK_TIMEOUT_MS = 10_000;
+const GEMINI_FLASH_TIMEOUT_MS = 18_000;
 
 export type CopilotGenerateRequest = {
   messages: CopilotMessage[];
@@ -818,7 +819,7 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
         }
       }
     }),
-    FALLBACK_TIMEOUT_MS,
+    GEMINI_FLASH_TIMEOUT_MS,
     "Gemini Flash fallback",
   );
 
@@ -827,16 +828,16 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
 
 async function generateViaProviderFallbacks(request: CopilotGenerateRequest): Promise<CopilotResponse> {
   try {
-    return ensureFallbackKeepsWorking(await generateViaLightning(request), request);
-  } catch (lightningError) {
+    return ensureFallbackKeepsWorking(await generateViaGeminiFlash(request), request);
+  } catch (geminiFlashError) {
     try {
       return ensureFallbackKeepsWorking(await generateViaNvidia(request), request);
     } catch (nvidiaError) {
       try {
-        return ensureFallbackKeepsWorking(await generateViaGeminiFlash(request), request);
-      } catch (geminiFlashError) {
+        return ensureFallbackKeepsWorking(await generateViaLightning(request), request);
+      } catch (lightningError) {
         throw new Error(
-          `Lightning fallback failed: ${formatFallbackError(lightningError)} NVIDIA fallback failed: ${formatFallbackError(nvidiaError)} Gemini Flash fallback failed: ${formatFallbackError(geminiFlashError)}`
+          `Gemini Flash fallback failed: ${formatFallbackError(geminiFlashError)} NVIDIA fallback failed: ${formatFallbackError(nvidiaError)} Lightning fallback failed: ${formatFallbackError(lightningError)}`
         );
       }
     }

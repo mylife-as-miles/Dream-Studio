@@ -15,20 +15,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const client = new ElevenLabsClient({ apiKey });
-    const audio = await client.textToSoundEffects.convert({
-      durationSeconds: typeof durationSeconds === "number"
-        ? Math.max(0.5, Math.min(30, durationSeconds))
-        : undefined,
-      outputFormat: "mp3_44100_128",
-      promptInfluence: 0.3,
-      text: description,
-    });
+    const audio = await generateSfxWithMusicFallback(client, description, durationSeconds);
 
     await pipeAudioStream(res, audio);
   } catch (error) {
     const detail = readSdkErrorDetail(error);
     console.error("[elevenlabs/sfx] error", detail);
     return res.status(readSdkStatus(error)).json({ error: "ElevenLabs SFX failed.", detail });
+  }
+}
+
+async function generateSfxWithMusicFallback(
+  client: ElevenLabsClient,
+  description: string,
+  durationSeconds?: number,
+) {
+  try {
+    return await client.textToSoundEffects.convert({
+      durationSeconds: typeof durationSeconds === "number"
+        ? Math.max(0.5, Math.min(30, durationSeconds))
+        : undefined,
+      modelId: "eleven_text_to_sound_v2",
+      outputFormat: "mp3_44100_128",
+      promptInfluence: 0.3,
+      text: description,
+    });
+  } catch (error) {
+    const status = readSdkStatus(error);
+    if (status !== 401 && status !== 403) {
+      throw error;
+    }
+
+    console.warn("[elevenlabs/sfx] SFX endpoint unavailable; falling back to Eleven Music.", readSdkErrorDetail(error));
+    return client.music.compose({
+      forceInstrumental: true,
+      musicLengthMs: Math.max(3000, Math.min(12000, Math.round((durationSeconds ?? 3) * 1000))),
+      outputFormat: "mp3_44100_128",
+      prompt: `Create a short sound effect, not a song: ${description}`,
+    });
   }
 }
 

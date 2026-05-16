@@ -42,7 +42,9 @@ async function readElevenLabsError(
   const detail = payload?.detail?.trim();
 
   if (response.status === 401) {
-    return "ElevenLabs API key is missing, invalid, or expired. Open Vibe Settings and update the key.";
+    return detail || error
+      ? `ElevenLabs ${kind} authorization failed: ${detail || error}`
+      : "ElevenLabs API key is missing, invalid, or expired. Open Vibe Settings and update the key.";
   }
 
   if (response.status === 403) {
