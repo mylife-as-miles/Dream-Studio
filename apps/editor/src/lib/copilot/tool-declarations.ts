@@ -524,6 +524,114 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
 
   // ── Read-only queries ───────────────────────────────────────
   {
+    name: "create_articulated_asset",
+    description:
+      "Creates a structured articulated 3D asset in the editor viewport. Use this for objects with semantic parts and joints such as robot arms, desk lamps, cabinets with drawers, vehicles with wheels, doors, lids, sliders, hinges, levers, grippers, and mechanisms. It creates a real scene hierarchy plus Articraft-style part/joint metadata.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Asset display name, e.g. 'Articulated Desk Lamp'" },
+        x: { type: "number", description: "Root world X position" },
+        y: { type: "number", description: "Root world Y position" },
+        z: { type: "number", description: "Root world Z position" },
+        showJointGuides: {
+          type: "boolean",
+          description: "Whether to add visible pivot/axis guide primitives for each joint. Default true."
+        },
+        parts: {
+          type: "array",
+          description:
+            "Semantic parts. Each part becomes a viewport node. Positions are local to parentPartId when provided, otherwise local to the asset root.",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Stable part id such as 'base', 'upper_arm', 'drawer'" },
+              name: { type: "string", description: "Part display name" },
+              parentPartId: { type: "string", description: "Optional parent part id. Use 'root' or omit for root-level parts." },
+              semanticRole: {
+                type: "string",
+                description: "Semantic role such as base, housing, hinge, arm, wheel, drawer, lid, handle, bracket, knob"
+              },
+              shape: {
+                type: "string",
+                enum: ["cube", "box", "sphere", "cylinder", "cone"],
+                description: "Simple viewport primitive shape"
+              },
+              x: { type: "number", description: "Local X position" },
+              y: { type: "number", description: "Local Y position" },
+              z: { type: "number", description: "Local Z position" },
+              sizeX: { type: "number", description: "Part size along X" },
+              sizeY: { type: "number", description: "Part size along Y" },
+              sizeZ: { type: "number", description: "Part size along Z" },
+              rotationX: { type: "number", description: "Local X rotation in radians" },
+              rotationY: { type: "number", description: "Local Y rotation in radians" },
+              rotationZ: { type: "number", description: "Local Z rotation in radians" },
+              pivotX: { type: "number", description: "Optional local pivot X for hinge/slider previews" },
+              pivotY: { type: "number", description: "Optional local pivot Y for hinge/slider previews" },
+              pivotZ: { type: "number", description: "Optional local pivot Z for hinge/slider previews" },
+              materialId: { type: "string", description: "Existing material id to use" },
+              color: { type: "string", description: "Hex color if a new material should be created for this part" },
+              metalness: { type: "number", description: "Optional material metalness 0-1" },
+              roughness: { type: "number", description: "Optional material roughness 0-1" },
+              mass: { type: "number", description: "Optional physical mass metadata" }
+            },
+            required: ["id", "name", "shape", "x", "y", "z", "sizeX", "sizeY", "sizeZ"]
+          }
+        },
+        joints: {
+          type: "array",
+          description:
+            "Articulations between parts, using Articraft/URDF-style conventions: origin is in the parent part frame; axis is in the joint frame; revolute values are radians and prismatic values are meters.",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", description: "Stable joint id, e.g. 'base_to_arm'" },
+              name: { type: "string", description: "Joint display name" },
+              type: {
+                type: "string",
+                enum: ["fixed", "revolute", "continuous", "prismatic", "ball"],
+                description: "Joint/articulation type"
+              },
+              parentPartId: { type: "string", description: "Parent part id" },
+              childPartId: { type: "string", description: "Child part id" },
+              originX: { type: "number", description: "Joint origin X in parent part frame" },
+              originY: { type: "number", description: "Joint origin Y in parent part frame" },
+              originZ: { type: "number", description: "Joint origin Z in parent part frame" },
+              axisX: { type: "number", description: "Joint axis X" },
+              axisY: { type: "number", description: "Joint axis Y" },
+              axisZ: { type: "number", description: "Joint axis Z" },
+              lower: { type: "number", description: "Lower motion limit; radians for revolute, meters for prismatic" },
+              upper: { type: "number", description: "Upper motion limit; radians for revolute, meters for prismatic" },
+              defaultValue: { type: "number", description: "Optional default preview value" },
+              effort: { type: "number", description: "Optional effort limit metadata" },
+              velocity: { type: "number", description: "Optional velocity limit metadata" },
+              mimicJointId: { type: "string", description: "Optional source joint id this joint mimics" },
+              mimicMultiplier: { type: "number", description: "Optional mimic multiplier" },
+              mimicOffset: { type: "number", description: "Optional mimic offset" }
+            },
+            required: ["id", "type", "parentPartId", "childPartId"]
+          }
+        }
+      },
+      required: ["name", "parts", "joints"]
+    }
+  },
+  {
+    name: "pose_articulated_joint",
+    description:
+      "Sets a preview pose for one articulated asset joint in the viewport. Revolute/continuous values are radians; prismatic values are meters. The pose is stored on the asset metadata and applied from the child part's saved base transform.",
+    parameters: {
+      type: "object",
+      properties: {
+        assetNodeId: { type: "string", description: "Root articulated asset group node id" },
+        jointId: { type: "string", description: "Joint id or joint name to pose" },
+        value: { type: "number", description: "Joint value in radians or meters" },
+        clampToLimits: { type: "boolean", description: "Clamp value to lower/upper limits when present. Default true." }
+      },
+      required: ["assetNodeId", "jointId", "value"]
+    }
+  },
+  {
     name: "list_nodes",
     description: "Lists the scene node outline as a lightweight hierarchy. Returns IDs, names, kinds, child nodes, and attached entities, but not full node data.",
     parameters: { type: "object", properties: {} }
@@ -552,6 +660,24 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     name: "list_hook_types",
     description: "Lists all supported gameplay hook types, including field paths, defaults, emitted events, and listened events.",
     parameters: { type: "object", properties: {} }
+  },
+  {
+    name: "list_articulated_assets",
+    description:
+      "Lists articulated asset roots created in the viewport, including part/joint counts and current pose metadata.",
+    parameters: { type: "object", properties: {} }
+  },
+  {
+    name: "get_articulated_asset_details",
+    description:
+      "Gets full structured part, joint, pose, and node details for one articulated asset root.",
+    parameters: {
+      type: "object",
+      properties: {
+        assetNodeId: { type: "string", description: "Root articulated asset group node id" }
+      },
+      required: ["assetNodeId"]
+    }
   },
   {
     name: "get_node_details",

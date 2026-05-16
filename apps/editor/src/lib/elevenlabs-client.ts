@@ -20,12 +20,44 @@ export interface TtsOptions {
   modelId?: string;
 }
 
+type ElevenLabsErrorPayload = {
+  detail?: string;
+  error?: string;
+};
+
 /** Build common headers that include the API key when available. */
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   const key = loadCopilotSettings().elevenlabsApiKey;
   if (key) headers["x-elevenlabs-api-key"] = key;
   return headers;
+}
+
+async function readElevenLabsError(
+  response: Response,
+  kind: "SFX" | "TTS" | "voices" | "voice clone" | "voice delete",
+): Promise<string> {
+  const payload = await response.json().catch(() => null) as ElevenLabsErrorPayload | null;
+  const error = payload?.error?.trim();
+  const detail = payload?.detail?.trim();
+
+  if (response.status === 401) {
+    return "ElevenLabs API key is missing, invalid, or expired. Open Vibe Settings and update the key.";
+  }
+
+  if (response.status === 403) {
+    return "Your ElevenLabs account does not have permission to use this feature.";
+  }
+
+  if (response.status === 429) {
+    return "ElevenLabs rate limit or credits limit reached. Try again shortly.";
+  }
+
+  if (detail || error) {
+    return `ElevenLabs ${kind} failed: ${detail || error}`;
+  }
+
+  return `ElevenLabs ${kind} failed with status ${response.status}.`;
 }
 
 /**
@@ -40,8 +72,7 @@ export async function textToSpeech(text: string, opts: TtsOptions = {}): Promise
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
-    throw new Error(`ElevenLabs TTS failed: ${err.error}`);
+    throw new Error(await readElevenLabsError(response, "TTS"));
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -78,7 +109,9 @@ export async function fetchVoices(): Promise<ElevenLabsVoice[]> {
   const response = await fetch("/api/elevenlabs/voices", {
     headers: authHeaders(),
   });
-  if (!response.ok) throw new Error("Failed to fetch ElevenLabs voices");
+  if (!response.ok) {
+    throw new Error(await readElevenLabsError(response, "voices"));
+  }
   const data = await response.json() as { voices: ElevenLabsVoice[] };
   return data.voices ?? [];
 }
@@ -98,8 +131,7 @@ export async function generateSoundEffect(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
-    throw new Error(`ElevenLabs SFX failed: ${err.error}`);
+    throw new Error(await readElevenLabsError(response, "SFX"));
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -127,8 +159,7 @@ export async function cloneVoice(name: string, audioFile: File): Promise<string>
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
-    throw new Error(`Voice clone failed: ${err.error}`);
+    throw new Error(await readElevenLabsError(response, "voice clone"));
   }
 
   const data = await response.json() as { voice_id: string };
@@ -150,8 +181,7 @@ export async function generateSoundEffectUrl(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
-    throw new Error(`ElevenLabs SFX failed: ${err.error}`);
+    throw new Error(await readElevenLabsError(response, "SFX"));
   }
 
   const blob = await response.blob();
@@ -169,8 +199,7 @@ export async function generateSoundEffectDataUrl(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: "Unknown error" })) as { error: string };
-    throw new Error(`ElevenLabs SFX failed: ${err.error}`);
+    throw new Error(await readElevenLabsError(response, "SFX"));
   }
 
   const blob = await response.blob();
@@ -186,7 +215,7 @@ export async function deleteVoice(voiceId: string): Promise<void> {
     headers: authHeaders(),
   });
   if (!response.ok) {
-    throw new Error(`Failed to delete voice ${voiceId}`);
+    throw new Error(await readElevenLabsError(response, "voice delete"));
   }
 }
 

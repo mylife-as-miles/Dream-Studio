@@ -1,4 +1,4 @@
-import type { EditorCore } from "@blud/editor-core";
+import type { Command, EditorCore, SceneDocument } from "@blud/editor-core";
 import {
   buildQuarterPipe,
   buildHalfPipe,
@@ -100,9 +100,13 @@ import { isBrushNode, isMeshNode, makeTransform, resolveSceneGraph, vec2, vec3 }
 import type {
   EditableMesh,
   ColorRGBA,
+  GeometryNode,
   GameplayObject,
   GameplayValue,
+  GroupNode,
   Material,
+  PrimitiveNode,
+  PrimitiveShape,
   MeshBakeMapKind,
   MeshLodProfile,
   MeshModelingModifier,
@@ -111,9 +115,11 @@ import type {
   SceneHook,
   ScenePathDefinition,
   SceneSettings,
+  Transform,
   Vec3,
   SkateparkElementType
 } from "@blud/shared";
+import { Euler, Quaternion, Vector3 } from "three";
 import {
   createDefaultEntity,
   createDefaultLightData,
@@ -177,6 +183,61 @@ function recordArray(args: Args, key: string): Record<string, unknown>[] {
 
 const MODELING_GROUP_COLORS = ["#f59e0b", "#10b981", "#38bdf8", "#f472b6", "#a78bfa", "#fb7185"];
 const BAKE_MAP_KINDS: MeshBakeMapKind[] = ["normals", "ao", "curvature", "id-mask", "vertex-colors"];
+const ARTICULATED_ASSET_SCHEMA_VERSION = 1;
+const ARTICULATED_METADATA = {
+  asset: "articraft.asset",
+  baseTransform: "articraft.baseTransform",
+  joint: "articraft.joint",
+  joints: "articraft.joints",
+  part: "articraft.part",
+  partId: "articraft.partId",
+  parts: "articraft.parts",
+  pose: "articraft.pose",
+  rootId: "articraft.assetRootId",
+  schemaVersion: "articraft.schemaVersion",
+  source: "articraft.source"
+} as const;
+
+type ArticulatedJointType = "ball" | "continuous" | "fixed" | "prismatic" | "revolute";
+
+type ArticulatedPartRecord = {
+  id: string;
+  materialId: string;
+  mass?: number;
+  name: string;
+  nodeId: string;
+  parentPartId?: string;
+  semanticRole?: string;
+  shape: PrimitiveShape;
+  size: Vec3;
+};
+
+type ArticulatedJointRecord = {
+  axis: Vec3;
+  childNodeId?: string;
+  childPartId: string;
+  defaultValue?: number;
+  effort?: number;
+  id: string;
+  lower?: number;
+  mimicJointId?: string;
+  mimicMultiplier?: number;
+  mimicOffset?: number;
+  name: string;
+  origin: Vec3;
+  parentPartId: string;
+  type: ArticulatedJointType;
+  upper?: number;
+  velocity?: number;
+};
+
+type ArticulatedBuildResult = {
+  jointRecords: ArticulatedJointRecord[];
+  materials: Material[];
+  nodes: GeometryNode[];
+  partRecords: ArticulatedPartRecord[];
+  rootId: string;
+};
 
 function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
@@ -413,6 +474,417 @@ function colorFromArgs(args: Args): ColorRGBA {
 
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
+}
+
+function slugifyId(value: string, fallback: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || fallback;
+}
+
+function numFromRecord(record: Record<string, unknown>, key: string, fallback = 0): number {
+  const value = record[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function strFromRecord(record: Record<string, unknown>, key: string, fallback = ""): string {
+  const value = record[key];
+  return typeof value === "string" ? value : fallback;
+}
+
+function boolFromRecord(record: Record<string, unknown>, key: string): boolean | undefined {
+  const value = record[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function vec3FromRecord(record: Record<string, unknown>, prefix = "", fallback = vec3(0, 0, 0)): Vec3 {
+  const xKey = prefix ? `${prefix}X` : "x";
+  const yKey = prefix ? `${prefix}Y` : "y";
+  const zKey = prefix ? `${prefix}Z` : "z";
+
+  return vec3(
+    numFromRecord(record, xKey, fallback.x),
+    numFromRecord(record, yKey, fallback.y),
+    numFromRecord(record, zKey, fallback.z)
+  );
+}
+
+function normalizeAxis(axis: Vec3, fallback = vec3(0, 1, 0)): Vec3 {
+  const length = Math.hypot(axis.x, axis.y, axis.z);
+  if (!Number.isFinite(length) || length < 0.0001) {
+    return fallback;
+  }
+
+  return vec3(axis.x / length, axis.y / length, axis.z / length);
+}
+
+function uniqueSceneNodeId(scene: SceneDocument, base: string, reserved: Set<string>) {
+  const safeBase = base.replace(/[^a-zA-Z0-9:._-]+/g, "-") || "node:generated";
+  let candidate = safeBase;
+  let attempt = 1;
+
+  while (scene.getNode(candidate) || reserved.has(candidate)) {
+    candidate = `${safeBase}:copy:${attempt++}`;
+  }
+
+  reserved.add(candidate);
+  return candidate;
+}
+
+function normalizePrimitiveShape(value: string): PrimitiveShape {
+  if (value === "box") {
+    return "cube";
+  }
+
+  return ["cube", "sphere", "cylinder", "cone"].includes(value)
+    ? value as PrimitiveShape
+    : "cube";
+}
+
+function createArticulatedMaterial(assetSlug: string, partSlug: string, part: Record<string, unknown>, fallbackColor: string): Material {
+  const explicitColor = strFromRecord(part, "color");
+  return {
+    id: `material:articraft:${assetSlug}:${partSlug}`,
+    name: strFromRecord(part, "materialName", strFromRecord(part, "name", partSlug)),
+    category: "custom",
+    color: /^#[0-9a-f]{6}$/i.test(explicitColor) ? explicitColor : fallbackColor,
+    metalness: clamp01(numFromRecord(part, "metalness", 0.05)),
+    roughness: clamp01(numFromRecord(part, "roughness", 0.72))
+  };
+}
+
+function jsonMetadata(value: unknown) {
+  return JSON.stringify(value);
+}
+
+function parseMetadataJson<T>(value: unknown, fallback: T): T {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function isArticulatedAssetNode(node: GeometryNode | undefined): node is GroupNode {
+  return Boolean(node && node.kind === "group" && node.metadata?.[ARTICULATED_METADATA.asset] === true);
+}
+
+function axisQuaternion(axis: Vec3, value: number) {
+  return new Quaternion().setFromAxisAngle(new Vector3(axis.x, axis.y, axis.z).normalize(), value);
+}
+
+function eulerVecFromQuaternion(quaternion: Quaternion): Vec3 {
+  const euler = new Euler().setFromQuaternion(quaternion, "XYZ");
+  return vec3(euler.x, euler.y, euler.z);
+}
+
+function rotationWithAxisOffset(base: Vec3, axis: Vec3, value: number): Vec3 {
+  const baseQuaternion = new Quaternion().setFromEuler(new Euler(base.x, base.y, base.z, "XYZ"));
+  return eulerVecFromQuaternion(baseQuaternion.multiply(axisQuaternion(axis, value)));
+}
+
+function createArticulatedAssetCommand(scene: SceneDocument, build: ArticulatedBuildResult): Command {
+  const materialSnapshots = build.materials.map((material) => ({
+    before: scene.materials.get(material.id) ? structuredClone(scene.materials.get(material.id)!) : undefined,
+    next: structuredClone(material)
+  }));
+  const nodes = build.nodes.map((node) => structuredClone(node));
+
+  return {
+    label: "create articulated asset",
+    execute(nextScene) {
+      materialSnapshots.forEach(({ next }) => nextScene.setMaterial(structuredClone(next)));
+      nodes.forEach((node) => nextScene.addNode(structuredClone(node)));
+    },
+    undo(nextScene) {
+      nodes.slice().reverse().forEach((node) => {
+        nextScene.removeNode(node.id);
+      });
+      materialSnapshots.forEach(({ before, next }) => {
+        if (before) {
+          nextScene.setMaterial(structuredClone(before));
+          return;
+        }
+
+        nextScene.removeMaterial(next.id);
+      });
+    }
+  };
+}
+
+function buildArticulatedAsset(scene: SceneDocument, args: Args): ArticulatedBuildResult | string {
+  const partInputs = recordArray(args, "parts");
+  const jointInputs = recordArray(args, "joints");
+
+  if (partInputs.length === 0) {
+    return "At least one articulated part is required.";
+  }
+
+  const name = str(args, "name", "Articulated Asset");
+  const assetSlug = slugifyId(name, "asset");
+  const rootIdReserved = new Set<string>();
+  const rootId = uniqueSceneNodeId(scene, `node:articulated:${assetSlug}`, rootIdReserved);
+  const showJointGuides = bool(args, "showJointGuides") ?? true;
+  const materialPalette = ["#d7c27a", "#69d6c2", "#8aa2bd", "#d86f5d", "#a98de8", "#f1f5f9"];
+  const materialsById = new Map<string, Material>();
+  const partNodeIds = new Map<string, string>();
+  const partRecords: ArticulatedPartRecord[] = [];
+  const nodeIds = new Set<string>(rootIdReserved);
+
+  const normalizedJoints: ArticulatedJointRecord[] = jointInputs.map((joint, index) => {
+    const id = slugifyId(strFromRecord(joint, "id", strFromRecord(joint, "name", `joint-${index + 1}`)), `joint-${index + 1}`);
+    const typeInput = strFromRecord(joint, "type", "fixed");
+    const type: ArticulatedJointType = ["fixed", "revolute", "continuous", "prismatic", "ball"].includes(typeInput)
+      ? typeInput as ArticulatedJointType
+      : "fixed";
+
+    return {
+      axis: normalizeAxis(vec3FromRecord(joint, "axis", vec3(0, 1, 0))),
+      childPartId: slugifyId(strFromRecord(joint, "childPartId"), `child-${index + 1}`),
+      defaultValue: typeof joint.defaultValue === "number" ? joint.defaultValue : undefined,
+      effort: typeof joint.effort === "number" ? joint.effort : undefined,
+      id,
+      lower: typeof joint.lower === "number" ? joint.lower : undefined,
+      mimicJointId: strFromRecord(joint, "mimicJointId") || undefined,
+      mimicMultiplier: typeof joint.mimicMultiplier === "number" ? joint.mimicMultiplier : undefined,
+      mimicOffset: typeof joint.mimicOffset === "number" ? joint.mimicOffset : undefined,
+      name: strFromRecord(joint, "name", id),
+      origin: vec3FromRecord(joint, "origin", vec3(0, 0, 0)),
+      parentPartId: slugifyId(strFromRecord(joint, "parentPartId"), "root"),
+      type,
+      upper: typeof joint.upper === "number" ? joint.upper : undefined,
+      velocity: typeof joint.velocity === "number" ? joint.velocity : undefined
+    };
+  });
+
+  const parentByChildPartId = new Map(normalizedJoints.map((joint) => [joint.childPartId, joint.parentPartId]));
+
+  const nodes: GeometryNode[] = [];
+  const rootTransform = makeTransform(vec3(num(args, "x"), num(args, "y"), num(args, "z")));
+  const rootNode: GroupNode = {
+    data: {},
+    id: rootId,
+    kind: "group",
+    metadata: {
+      [ARTICULATED_METADATA.asset]: true,
+      [ARTICULATED_METADATA.schemaVersion]: ARTICULATED_ASSET_SCHEMA_VERSION,
+      [ARTICULATED_METADATA.source]: "dream-studio-copilot"
+    },
+    name,
+    tags: ["articulated-asset", "articraft"],
+    transform: rootTransform
+  };
+  nodes.push(rootNode);
+
+  partInputs.forEach((part, index) => {
+    const partId = slugifyId(strFromRecord(part, "id", strFromRecord(part, "name", `part-${index + 1}`)), `part-${index + 1}`);
+    const partSlug = slugifyId(partId, `part-${index + 1}`);
+    const shape = normalizePrimitiveShape(strFromRecord(part, "shape", "cube"));
+    const materialId = strFromRecord(part, "materialId") || `material:articraft:${assetSlug}:${partSlug}`;
+
+    if (!strFromRecord(part, "materialId") && !scene.materials.get(materialId)) {
+      materialsById.set(materialId, createArticulatedMaterial(assetSlug, partSlug, part, materialPalette[index % materialPalette.length]!));
+    }
+
+    const data = createPrimitiveNodeData("prop", shape, vec3(
+      Math.max(0.01, numFromRecord(part, "sizeX", 1)),
+      Math.max(0.01, numFromRecord(part, "sizeY", 1)),
+      Math.max(0.01, numFromRecord(part, "sizeZ", 1))
+    ));
+    data.materialId = materialId;
+    if (typeof part.mass === "number" && data.physics) {
+      data.physics.mass = part.mass;
+    }
+
+    const transform = makeTransform(vec3FromRecord(part, "", vec3(0, 0, 0)));
+    transform.rotation = vec3FromRecord(part, "rotation", vec3(0, 0, 0));
+    if (["pivotX", "pivotY", "pivotZ"].some((key) => typeof part[key] === "number")) {
+      transform.pivot = vec3FromRecord(part, "pivot", vec3(0, 0, 0));
+    }
+
+    const requestedParentPartId = slugifyId(strFromRecord(part, "parentPartId"), "");
+    const parentPartId = requestedParentPartId && requestedParentPartId !== "root"
+      ? requestedParentPartId
+      : parentByChildPartId.get(partId);
+    const nodeId = uniqueSceneNodeId(scene, `node:articulated:${assetSlug}:part:${partSlug}`, nodeIds);
+    partNodeIds.set(partId, nodeId);
+    const parentNodeId = parentPartId ? partNodeIds.get(parentPartId) : undefined;
+    const partRecord: ArticulatedPartRecord = {
+      id: partId,
+      materialId,
+      mass: typeof part.mass === "number" ? part.mass : undefined,
+      name: strFromRecord(part, "name", partId),
+      nodeId,
+      parentPartId,
+      semanticRole: strFromRecord(part, "semanticRole") || undefined,
+      shape,
+      size: structuredClone(data.size)
+    };
+    partRecords.push(partRecord);
+
+    const node: PrimitiveNode = {
+      data,
+      id: nodeId,
+      kind: "primitive",
+      metadata: {
+        [ARTICULATED_METADATA.baseTransform]: jsonMetadata(transform),
+        [ARTICULATED_METADATA.part]: true,
+        [ARTICULATED_METADATA.partId]: partId,
+        [ARTICULATED_METADATA.rootId]: rootId,
+        "articraft.semanticRole": partRecord.semanticRole ?? "",
+        "articraft.mass": partRecord.mass ?? 0
+      },
+      name: partRecord.name,
+      parentId: parentNodeId ?? rootId,
+      tags: ["articulated-part", `part:${partId}`],
+      transform
+    };
+
+    nodes.push(node);
+  });
+
+  partRecords.forEach((partRecord) => {
+    const node = nodes.find((candidate) => candidate.id === partRecord.nodeId);
+    if (!node) {
+      return;
+    }
+
+    node.parentId = partRecord.parentPartId
+      ? partNodeIds.get(partRecord.parentPartId) ?? rootId
+      : rootId;
+  });
+
+  normalizedJoints.forEach((joint) => {
+    joint.childNodeId = partNodeIds.get(joint.childPartId);
+  });
+
+  if (showJointGuides && normalizedJoints.length > 0) {
+    const guideMaterials: Material[] = [
+      {
+        id: "material:articraft:joint-pivot",
+        name: "Articraft Joint Pivot",
+        category: "custom",
+        color: "#3ee6d1",
+        emissiveColor: "#1ecfc1",
+        emissiveIntensity: 0.35,
+        metalness: 0.1,
+        roughness: 0.35
+      },
+      {
+        id: "material:articraft:joint-axis",
+        name: "Articraft Joint Axis",
+        category: "custom",
+        color: "#d9bd73",
+        emissiveColor: "#d9bd73",
+        emissiveIntensity: 0.25,
+        metalness: 0.2,
+        roughness: 0.42
+      }
+    ];
+    guideMaterials.forEach((material) => {
+      if (!scene.materials.get(material.id)) {
+        materialsById.set(material.id, material);
+      }
+    });
+
+    normalizedJoints.forEach((joint) => {
+      const parentNodeId = partNodeIds.get(joint.parentPartId) ?? rootId;
+      const pivotTransform = makeTransform(structuredClone(joint.origin));
+      const pivotData = createPrimitiveNodeData("prop", "sphere", vec3(0.16, 0.16, 0.16));
+      pivotData.materialId = "material:articraft:joint-pivot";
+      if (pivotData.physics) {
+        pivotData.physics.enabled = false;
+      }
+      const pivotNode: PrimitiveNode = {
+        data: pivotData,
+        id: uniqueSceneNodeId(scene, `node:articulated:${assetSlug}:joint:${joint.id}:pivot`, nodeIds),
+        kind: "primitive",
+        metadata: {
+          [ARTICULATED_METADATA.joint]: joint.id,
+          [ARTICULATED_METADATA.rootId]: rootId,
+          "articraft.guide": "pivot"
+        },
+        name: `${joint.name} Pivot`,
+        parentId: parentNodeId,
+        tags: ["articulated-guide", "joint-pivot"],
+        transform: pivotTransform
+      };
+      nodes.push(pivotNode);
+
+      if (joint.type === "fixed" || joint.type === "ball") {
+        return;
+      }
+
+      const axis = normalizeAxis(joint.axis);
+      const axisTransform = makeTransform(vec3(
+        joint.origin.x + axis.x * 0.32,
+        joint.origin.y + axis.y * 0.32,
+        joint.origin.z + axis.z * 0.32
+      ));
+      const axisQuaternionValue = new Quaternion().setFromUnitVectors(
+        new Vector3(0, 1, 0),
+        new Vector3(axis.x, axis.y, axis.z).normalize()
+      );
+      axisTransform.rotation = eulerVecFromQuaternion(axisQuaternionValue);
+      const axisData = createPrimitiveNodeData("prop", "cylinder", vec3(0.05, 0.64, 0.05));
+      axisData.materialId = "material:articraft:joint-axis";
+      if (axisData.physics) {
+        axisData.physics.enabled = false;
+      }
+      const axisNode: PrimitiveNode = {
+        data: axisData,
+        id: uniqueSceneNodeId(scene, `node:articulated:${assetSlug}:joint:${joint.id}:axis`, nodeIds),
+        kind: "primitive",
+        metadata: {
+          [ARTICULATED_METADATA.joint]: joint.id,
+          [ARTICULATED_METADATA.rootId]: rootId,
+          "articraft.guide": "axis"
+        },
+        name: `${joint.name} Axis`,
+        parentId: parentNodeId,
+        tags: ["articulated-guide", "joint-axis"],
+        transform: axisTransform
+      };
+      nodes.push(axisNode);
+    });
+  }
+
+  rootNode.metadata = {
+    ...rootNode.metadata,
+    [ARTICULATED_METADATA.parts]: jsonMetadata(partRecords),
+    [ARTICULATED_METADATA.joints]: jsonMetadata(normalizedJoints),
+    [ARTICULATED_METADATA.pose]: jsonMetadata({})
+  };
+
+  return {
+    jointRecords: normalizedJoints,
+    materials: Array.from(materialsById.values()),
+    nodes,
+    partRecords,
+    rootId
+  };
+}
+
+function getArticulatedAssetPayload(scene: SceneDocument, assetNodeId: string) {
+  const root = scene.getNode(assetNodeId);
+
+  if (!isArticulatedAssetNode(root)) {
+    return undefined;
+  }
+
+  const parts = parseMetadataJson<ArticulatedPartRecord[]>(root.metadata?.[ARTICULATED_METADATA.parts], []);
+  const joints = parseMetadataJson<ArticulatedJointRecord[]>(root.metadata?.[ARTICULATED_METADATA.joints], []);
+  const pose = parseMetadataJson<Record<string, number>>(root.metadata?.[ARTICULATED_METADATA.pose], {});
+
+  return { root, parts, joints, pose };
 }
 
 function ok(data: Record<string, unknown>): string {
@@ -1046,6 +1518,101 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
     }
 
     // ── Read-only queries ─────────────────────────────────────
+    case "create_articulated_asset": {
+      const build = buildArticulatedAsset(scene, args);
+      if (typeof build === "string") {
+        return fail(build);
+      }
+
+      editor.execute(createArticulatedAssetCommand(scene, build));
+      return ok({
+        assetNodeId: build.rootId,
+        jointCount: build.jointRecords.length,
+        materialIds: build.materials.map((material) => material.id),
+        nodeIds: build.nodes.map((node) => node.id),
+        partCount: build.partRecords.length,
+        partNodeIds: build.partRecords.map((part) => ({ nodeId: part.nodeId, partId: part.id }))
+      });
+    }
+
+    case "pose_articulated_joint": {
+      const payload = getArticulatedAssetPayload(scene, str(args, "assetNodeId"));
+      if (!payload) {
+        return fail("Articulated asset root not found.");
+      }
+
+      const requestedJointId = str(args, "jointId");
+      const joint = payload.joints.find((candidate) => candidate.id === requestedJointId || candidate.name === requestedJointId);
+      if (!joint) {
+        return fail("Joint not found on articulated asset.");
+      }
+
+      const childNodeId = joint.childNodeId ?? payload.parts.find((part) => part.id === joint.childPartId)?.nodeId;
+      const childNode = childNodeId ? scene.getNode(childNodeId) : undefined;
+      if (!childNode) {
+        return fail("Joint child part node not found.");
+      }
+
+      const baseTransform = parseMetadataJson<Transform>(
+        childNode.metadata?.[ARTICULATED_METADATA.baseTransform],
+        structuredClone(childNode.transform)
+      );
+      const unclampedValue = num(args, "value");
+      const shouldClamp = bool(args, "clampToLimits") ?? true;
+      const value = shouldClamp && joint.type !== "continuous"
+        ? Math.min(joint.upper ?? unclampedValue, Math.max(joint.lower ?? unclampedValue, unclampedValue))
+        : unclampedValue;
+      const nextTransform = structuredClone(baseTransform);
+
+      if (joint.type === "revolute" || joint.type === "continuous") {
+        nextTransform.rotation = rotationWithAxisOffset(baseTransform.rotation, normalizeAxis(joint.axis), value);
+      } else if (joint.type === "prismatic") {
+        const axis = normalizeAxis(joint.axis);
+        nextTransform.position = vec3(
+          baseTransform.position.x + axis.x * value,
+          baseTransform.position.y + axis.y * value,
+          baseTransform.position.z + axis.z * value
+        );
+      }
+
+      const nextPose = {
+        ...payload.pose,
+        [joint.id]: value
+      };
+      const beforeRoot = structuredClone(payload.root);
+      const beforeChild = structuredClone(childNode);
+      const nextRoot: GroupNode = {
+        ...structuredClone(payload.root),
+        metadata: {
+          ...(payload.root.metadata ?? {}),
+          [ARTICULATED_METADATA.pose]: jsonMetadata(nextPose)
+        }
+      };
+      const nextChild: GeometryNode = {
+        ...structuredClone(childNode),
+        transform: nextTransform
+      };
+
+      editor.execute({
+        label: "pose articulated joint",
+        execute(nextScene) {
+          nextScene.addNode(structuredClone(nextRoot));
+          nextScene.addNode(structuredClone(nextChild));
+        },
+        undo(nextScene) {
+          nextScene.addNode(structuredClone(beforeRoot));
+          nextScene.addNode(structuredClone(beforeChild));
+        }
+      });
+
+      return ok({
+        assetNodeId: payload.root.id,
+        childNodeId: childNode.id,
+        jointId: joint.id,
+        value
+      });
+    }
+
     case "list_nodes": {
       return JSON.stringify(buildSceneOutline(editor).outline);
     }
@@ -1080,6 +1647,52 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
 
     case "list_hook_types": {
       return JSON.stringify({ hookTypes: buildHookCatalog() });
+    }
+
+    case "list_articulated_assets": {
+      const assets = Array.from(scene.nodes.values())
+        .filter(isArticulatedAssetNode)
+        .map((root) => {
+          const payload = getArticulatedAssetPayload(scene, root.id);
+          return {
+            id: root.id,
+            jointCount: payload?.joints.length ?? 0,
+            name: root.name,
+            partCount: payload?.parts.length ?? 0,
+            pose: payload?.pose ?? {},
+            transform: root.transform
+          };
+        });
+      return JSON.stringify({ assets });
+    }
+
+    case "get_articulated_asset_details": {
+      const payload = getArticulatedAssetPayload(scene, str(args, "assetNodeId"));
+      if (!payload) {
+        return fail("Articulated asset root not found.");
+      }
+
+      return JSON.stringify({
+        id: payload.root.id,
+        joints: payload.joints,
+        name: payload.root.name,
+        nodes: payload.parts.map((part) => {
+          const node = scene.getNode(part.nodeId);
+          return {
+            data: node?.data,
+            id: part.nodeId,
+            metadata: node?.metadata,
+            name: node?.name,
+            parentId: node?.parentId ?? null,
+            partId: part.id,
+            transform: node?.transform
+          };
+        }),
+        parts: payload.parts,
+        pose: payload.pose,
+        rootMetadata: payload.root.metadata,
+        transform: payload.root.transform
+      });
     }
 
     case "get_node_details": {

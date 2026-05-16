@@ -8,6 +8,7 @@ import { createCodexBridgePlugin } from "./server/codex-bridge-plugin";
 import { createCopilotGenerateApiPlugin } from "./server/copilot-generate-api";
 import { createEditorGameSyncPlugin } from "./server/editor-game-sync-plugin";
 import { createElevenLabsApiPlugin } from "./server/elevenlabs-api";
+import { createMorphusExportApiPlugin } from "./server/morphus-export-api";
 import { createObjectGenerationApiPlugin } from "./server/object-generation-api";
 import { createNpcChatApiPlugin } from "./server/npc-chat-api";
 import { createTextureGenerationApiPlugin } from "./server/texture-generation-api";
@@ -188,6 +189,7 @@ export default defineConfig(({ mode }) => {
       createCodexBridgePlugin(),
       createEditorGameSyncPlugin(),
       createElevenLabsApiPlugin(),
+      createMorphusExportApiPlugin(),
       createNpcChatApiPlugin(),
       createObjectGenerationApiPlugin(),
       createTextureGenerationApiPlugin()

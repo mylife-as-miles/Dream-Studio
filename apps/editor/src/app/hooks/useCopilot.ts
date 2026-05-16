@@ -81,6 +81,27 @@ function cloneSession(updated: CopilotSession): CopilotSession {
   };
 }
 
+async function exportMorphusFilesToWorkspace(files: MorphusFileRecord[]) {
+  const response = await fetch("/api/morphus/export", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      files: files.map((file) => ({
+        content: file.content,
+        language: file.language,
+        path: file.path
+      }))
+    })
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || `Morphus export failed with status ${response.status}.`);
+  }
+}
+
 export function useCopilot(
   editor: EditorCore,
   toolContext: CopilotToolExecutionContext = {},
@@ -162,6 +183,16 @@ export function useCopilot(
       updatedAt: Date.now()
     }, memoryKey);
   }, [files, latestGame, memoryKey, mode, session]);
+
+  useEffect(() => {
+    if (mode !== "morphus" || files.length === 0) {
+      return;
+    }
+
+    void exportMorphusFilesToWorkspace(files).catch((error) => {
+      console.error("[MORPHUS] Workspace export failed:", error);
+    });
+  }, [files, mode]);
 
   useEffect(() => {
     if (session.status !== "idle" || !pendingGameTitleRef.current) {
