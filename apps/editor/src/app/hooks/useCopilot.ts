@@ -23,6 +23,9 @@ const EMPTY_SESSION: CopilotSession = {
   iterationCount: 0
 };
 
+const COPILOT_MAX_ITERATIONS = 16;
+const MORPHUS_MAX_ITERATIONS = 12;
+
 type CopilotRuntime = {
   runAgenticLoop: typeof import("@/lib/copilot/agentic-loop").runAgenticLoop;
   createCopilotProvider: typeof import("@/lib/copilot/provider").createCopilotProvider;
@@ -339,7 +342,7 @@ export function useCopilot(
           prompt,
           session.messages,
           {
-            maxIterations: mode === "morphus" ? 6 : 8,
+            maxIterations: mode === "morphus" ? MORPHUS_MAX_ITERATIONS : COPILOT_MAX_ITERATIONS,
             provider: copilotProvider.provider,
             providerConfig,
             providerId: settings.provider,
