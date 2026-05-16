@@ -30,7 +30,8 @@ type UpsertGameCodeRequest = {
   title?: string;
 };
 
-const EMBEDDING_MODEL = "models/text-embedding-004";
+const EMBEDDING_MODEL = "models/gemini-embedding-2";
+const DEFAULT_EMBEDDING_DIMENSIONS = 1536;
 const MAX_CHUNK_LENGTH = 4_000;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -77,7 +78,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const chunks = entries.flatMap((entry) => chunkCode(entry.path, entry.content));
-    const embeddings = await embedTexts(chunks.map((chunk) => chunk.text), geminiApiKey);
+    const embeddings = await embedTexts(
+      chunks.map((chunk) => `title: ${chunk.path} | text: ${chunk.text}`),
+      geminiApiKey
+    );
     const namespace = sanitizeNamespace(payload.projectId || payload.gameId || "dream-studio-games");
     const vectors = chunks.map((chunk, index) => ({
       id: `${namespace}:${chunk.path}:${chunk.index}`,
@@ -358,30 +362,37 @@ function chunkCode(path: string, content: string) {
 }
 
 async function embedTexts(texts: string[], apiKey: string) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/${EMBEDDING_MODEL}:batchEmbedContents?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        requests: texts.map((text) => ({
+  const embeddings: number[][] = [];
+
+  for (const text of texts) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${EMBEDDING_MODEL}:embedContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           content: { parts: [{ text }] },
-          model: EMBEDDING_MODEL
-        }))
-      })
+          output_dimensionality: getEmbeddingDimensions()
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`Gemini embedding failed: ${detail}`);
     }
-  );
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Gemini embedding failed: ${detail}`);
-  }
+    const data = await response.json() as {
+      embedding?: { values?: number[] };
+      embeddings?: Array<{ values?: number[] }>;
+    };
+    const values = data.embeddings?.[0]?.values ?? data.embedding?.values ?? [];
 
-  const data = await response.json() as { embeddings?: Array<{ values?: number[] }> };
-  const embeddings = data.embeddings?.map((embedding) => embedding.values ?? []) ?? [];
+    if (values.length === 0) {
+      throw new Error("Gemini embedding response was incomplete.");
+    }
 
-  if (embeddings.length !== texts.length || embeddings.some((embedding) => embedding.length === 0)) {
-    throw new Error("Gemini embedding response was incomplete.");
+    embeddings.push(values);
   }
 
   return embeddings;
@@ -420,6 +431,11 @@ function getPineconeHost() {
   }
 
   return value.startsWith("http") ? value : `https://${value}`;
+}
+
+function getEmbeddingDimensions() {
+  const parsed = Number(process.env.GEMINI_EMBEDDING_DIMENSIONS ?? "");
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : DEFAULT_EMBEDDING_DIMENSIONS;
 }
 
 function sanitizeNamespace(value: string) {
