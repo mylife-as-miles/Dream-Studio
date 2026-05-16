@@ -1,4 +1,4 @@
-import { FunctionCallingConfigMode, GoogleGenAI } from "@google/genai";
+import { FunctionCallingConfigMode, GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 import type {
   CopilotMessage,
   CopilotResponse,
@@ -7,10 +7,13 @@ import type {
 } from "../src/lib/copilot/types.js";
 
 export const SERVER_GEMMA_MODEL = "gemma-4-31b-it";
+const GEMINI_FLASH_FALLBACK_MODEL = "gemini-3-flash-preview";
 const LIGHTNING_MODEL = "lightning-ai/gemma-4-31B-it";
 const LIGHTNING_API_URL = "https://lightning.ai/api/v1/chat/completions";
 const NVIDIA_MODEL = "minimaxai/minimax-m2.7";
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const PRIMARY_TIMEOUT_MS = 14_000;
+const FALLBACK_TIMEOUT_MS = 8_000;
 
 export type CopilotGenerateRequest = {
   messages: CopilotMessage[];
@@ -81,6 +84,30 @@ function convertToolDeclarations(tools: CopilotToolDeclaration[]) {
 function isGeminiQuotaError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /resource_exhausted|quota|rate[- ]limit|429/i.test(message);
+}
+
+function isTimeoutError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /timed out|timeout|aborted|aborterror/i.test(message);
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
 }
 
 type LightningContentPart =
@@ -271,23 +298,31 @@ async function generateViaLightning(request: CopilotGenerateRequest): Promise<Co
   }
 
   try {
-    return await requestLightningCompletion(apiKey, toolPayload);
+    return await withTimeout(
+      requestLightningCompletion(apiKey, toolPayload),
+      FALLBACK_TIMEOUT_MS,
+      "Lightning fallback",
+    );
   } catch (error) {
     if (!(error instanceof LightningRequestError) || ![400, 422].includes(error.status)) {
       throw error;
     }
 
-    return requestLightningCompletion(apiKey, {
-      model: LIGHTNING_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `${request.systemPrompt}\n\nLightning fallback is running in text-only mode because the provider rejected the tool-call request. If you need an action, describe the exact next step clearly.`
-        },
-        ...convertMessagesForLightningTextOnly(request.messages)
-      ],
-      temperature: request.temperature
-    });
+    return withTimeout(
+      requestLightningCompletion(apiKey, {
+        model: LIGHTNING_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: `${request.systemPrompt}\n\nLightning fallback is running in text-only mode because the provider rejected the tool-call request. If you need an action, describe the exact next step clearly.`
+          },
+          ...convertMessagesForLightningTextOnly(request.messages)
+        ],
+        temperature: request.temperature
+      }),
+      FALLBACK_TIMEOUT_MS,
+      "Lightning text-only fallback",
+    );
   }
 }
 
@@ -369,27 +404,36 @@ async function generateViaNvidia(request: CopilotGenerateRequest): Promise<Copil
     throw new Error("Missing NVIDIA_API_KEY in the server environment.");
   }
 
-  const response = await fetch(NVIDIA_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: NVIDIA_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `${request.systemPrompt}\n\nYou are running as the final NVIDIA fallback after Gemini and Lightning failed. Respond with clear text instructions or code-oriented guidance.`
-        },
-        ...convertMessagesForLightningTextOnly(request.messages)
-      ],
-      temperature: request.temperature,
-      top_p: 0.95,
-      max_tokens: 1024,
-      stream: false
-    })
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FALLBACK_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(NVIDIA_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: NVIDIA_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: `${request.systemPrompt}\n\nYou are running as the final NVIDIA fallback after Gemini and Lightning failed. Respond with clear text instructions or code-oriented guidance.`
+          },
+          ...convertMessagesForLightningTextOnly(request.messages)
+        ],
+        temperature: request.temperature,
+        top_p: 0.95,
+        max_tokens: 1024,
+        stream: false
+      })
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const rawBody = await response.text();
   const payload = parseLightningPayload(rawBody);
@@ -413,6 +457,71 @@ async function generateViaNvidia(request: CopilotGenerateRequest): Promise<Copil
   };
 }
 
+async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<CopilotResponse> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error("Missing GEMINI_API_KEY in the server environment.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const textOnlyMessages = convertMessagesForLightningTextOnly(request.messages)
+    .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+    .join("\n\n");
+
+  const response = await withTimeout(
+    ai.models.generateContent({
+      model: GEMINI_FLASH_FALLBACK_MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: textOnlyMessages || "Continue the current editor task."
+            }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction: `${request.systemPrompt}\n\nYou are running as the final fast Gemini Flash fallback after Gemini primary, Lightning, and NVIDIA failed or timed out. Return JSON with a single string field named response. Keep the response concise and actionable.`,
+        temperature: request.temperature,
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.HIGH
+        },
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            response: {
+              type: Type.STRING
+            }
+          },
+          required: ["response"]
+        }
+      }
+    }),
+    FALLBACK_TIMEOUT_MS,
+    "Gemini Flash fallback",
+  );
+
+  const text = readGeminiFlashText(response.text ?? "");
+
+  return {
+    text,
+    toolCalls: [],
+    rawParts: text ? [{ text }] : []
+  };
+}
+
+function readGeminiFlashText(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as { response?: unknown };
+    return typeof parsed.response === "string" ? parsed.response : raw;
+  } catch {
+    return raw;
+  }
+}
+
 async function generateViaProviderFallbacks(request: CopilotGenerateRequest): Promise<CopilotResponse> {
   try {
     return await generateViaLightning(request);
@@ -420,9 +529,13 @@ async function generateViaProviderFallbacks(request: CopilotGenerateRequest): Pr
     try {
       return await generateViaNvidia(request);
     } catch (nvidiaError) {
-      throw new Error(
-        `Lightning fallback failed: ${formatFallbackError(lightningError)} NVIDIA fallback failed: ${formatFallbackError(nvidiaError)}`
-      );
+      try {
+        return await generateViaGeminiFlash(request);
+      } catch (geminiFlashError) {
+        throw new Error(
+          `Lightning fallback failed: ${formatFallbackError(lightningError)} NVIDIA fallback failed: ${formatFallbackError(nvidiaError)} Gemini Flash fallback failed: ${formatFallbackError(geminiFlashError)}`
+        );
+      }
     }
   }
 }
@@ -458,20 +571,24 @@ export async function generateCopilotContent(
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    const response = await ai.models.generateContent({
-      model: SERVER_GEMMA_MODEL,
-      contents: convertMessages(request.messages),
-      config: {
-        systemInstruction: request.systemPrompt,
-        temperature: request.temperature,
-        tools: [{ functionDeclarations: convertToolDeclarations(request.tools) }],
-        toolConfig: {
-          functionCallingConfig: {
-            mode: FunctionCallingConfigMode.AUTO
+    const response = await withTimeout(
+      ai.models.generateContent({
+        model: SERVER_GEMMA_MODEL,
+        contents: convertMessages(request.messages),
+        config: {
+          systemInstruction: request.systemPrompt,
+          temperature: request.temperature,
+          tools: [{ functionDeclarations: convertToolDeclarations(request.tools) }],
+          toolConfig: {
+            functionCallingConfig: {
+              mode: FunctionCallingConfigMode.AUTO
+            }
           }
         }
-      }
-    });
+      }),
+      PRIMARY_TIMEOUT_MS,
+      "Primary Gemini generation",
+    );
 
     const rawParts: unknown[] =
       (response.candidates?.[0]?.content?.parts as unknown[]) ?? [];
@@ -495,12 +612,13 @@ export async function generateCopilotContent(
       rawParts
     };
   } catch (error) {
-    if (!isGeminiQuotaError(error)) {
+    if (!isGeminiQuotaError(error) && !isTimeoutError(error)) {
       throw error;
     }
 
     return generateViaProviderFallbacks(request).catch((fallbackError: unknown) => {
-      throw new Error(`Gemini quota was reached, and all fallbacks failed: ${formatFallbackError(fallbackError)}`);
+      const reason = isTimeoutError(error) ? "Gemini timed out" : "Gemini quota was reached";
+      throw new Error(`${reason}, and all fallbacks failed: ${formatFallbackError(fallbackError)}`);
     });
   }
 }
