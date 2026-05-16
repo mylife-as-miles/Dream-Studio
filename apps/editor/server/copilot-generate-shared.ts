@@ -4,7 +4,7 @@ import type {
   CopilotResponse,
   CopilotToolCall,
   CopilotToolDeclaration
-} from "../src/lib/copilot/types";
+} from "../src/lib/copilot/types.js";
 
 export const SERVER_GEMMA_MODEL = "gemma-4-31b-it";
 const LIGHTNING_MODEL = "lightning-ai/gemma-4-31B-it";
