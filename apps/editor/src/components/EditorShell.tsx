@@ -611,7 +611,7 @@ export function EditorShell({
           </div>
         ) : (
         <>
-        {(toolsPanelOpen || mobileEditorTab === "tools") && (
+        {toolsPanelOpen && (
           <div className={cn(
             "w-64 shrink-0 sm:w-80 lg:w-[22rem]",
             mobileEditorTab === "tools" ? "block" : "hidden lg:block"
@@ -820,7 +820,7 @@ export function EditorShell({
         )}
         </div>
 
-        {(copilotPanelOpen || mobileEditorTab === "chat") && aiAssistantMode === "copilot" && (
+        {copilotPanelOpen && aiAssistantMode === "copilot" && (
           <div className={cn(
             "w-64 shrink-0 sm:w-80 lg:w-[22rem]",
             mobileEditorTab === "chat" ? "block" : "hidden lg:block"
