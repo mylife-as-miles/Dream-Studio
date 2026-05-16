@@ -105,6 +105,42 @@ type LightningMessage =
       content: string;
     };
 
+type LightningPayload = {
+  choices?: Array<{
+    message?: {
+      content?: Array<{ text?: string; type?: string }> | string | null;
+      tool_calls?: Array<{
+        id?: string;
+        function?: {
+          arguments?: string;
+          name?: string;
+        };
+      }>;
+    };
+  }>;
+  error?: { message?: string } | string;
+  message?: string;
+  detail?: string;
+} | null;
+
+type LightningChatPayload = {
+  model: string;
+  messages: Array<LightningMessage | { role: "system"; content: string } | { role: "assistant" | "user"; content: string }>;
+  temperature: number;
+  tools?: ReturnType<typeof convertToolsForLightning>;
+  tool_choice?: "auto";
+};
+
+class LightningRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "LightningRequestError";
+  }
+}
+
 function convertMessagesForLightning(messages: CopilotMessage[]) {
   const converted: LightningMessage[] = [];
 
@@ -163,6 +199,39 @@ function convertMessagesForLightning(messages: CopilotMessage[]) {
   return converted;
 }
 
+function convertMessagesForLightningTextOnly(messages: CopilotMessage[]) {
+  const converted: Array<{ role: "assistant" | "user"; content: string }> = [];
+
+  for (const message of messages) {
+    if (message.role === "tool" && message.toolResults) {
+      for (const toolResult of message.toolResults) {
+        converted.push({
+          role: "user",
+          content: `Tool result from ${toolResult.name}: ${toolResult.result}`
+        });
+      }
+      continue;
+    }
+
+    const imageNotice = message.images?.length
+      ? `\n[${message.images.length} attached image${message.images.length === 1 ? "" : "s"} omitted in fallback mode]`
+      : "";
+    const toolCallNotice = message.toolCalls?.length
+      ? `\n[Previous tool calls: ${message.toolCalls.map((toolCall) => toolCall.name).join(", ")}]`
+      : "";
+    const content = `${message.content ?? ""}${imageNotice}${toolCallNotice}`.trim();
+
+    if (content) {
+      converted.push({
+        role: message.role === "assistant" ? "assistant" : "user",
+        content
+      });
+    }
+  }
+
+  return converted;
+}
+
 function convertToolsForLightning(tools: CopilotToolDeclaration[]) {
   return tools.map((tool) => ({
     type: "function",
@@ -181,47 +250,65 @@ async function generateViaLightning(request: CopilotGenerateRequest): Promise<Co
     throw new Error("Missing LIGHTNING_API_KEY in the server environment.");
   }
 
+  const tools = convertToolsForLightning(request.tools);
+  const toolPayload: LightningChatPayload = {
+    model: LIGHTNING_MODEL,
+    messages: [
+      {
+        role: "system",
+        content: request.systemPrompt
+      },
+      ...convertMessagesForLightning(request.messages)
+    ],
+    temperature: request.temperature
+  };
+
+  if (tools.length > 0) {
+    toolPayload.tools = tools;
+    toolPayload.tool_choice = "auto";
+  }
+
+  try {
+    return await requestLightningCompletion(apiKey, toolPayload);
+  } catch (error) {
+    if (!(error instanceof LightningRequestError) || ![400, 422].includes(error.status)) {
+      throw error;
+    }
+
+    return requestLightningCompletion(apiKey, {
+      model: LIGHTNING_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `${request.systemPrompt}\n\nLightning fallback is running in text-only mode because the provider rejected the tool-call request. If you need an action, describe the exact next step clearly.`
+        },
+        ...convertMessagesForLightningTextOnly(request.messages)
+      ],
+      temperature: request.temperature
+    });
+  }
+}
+
+async function requestLightningCompletion(
+  apiKey: string,
+  body: LightningChatPayload
+): Promise<CopilotResponse> {
   const response = await fetch(LIGHTNING_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      model: LIGHTNING_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: [{ type: "text", text: request.systemPrompt }]
-        },
-        ...convertMessagesForLightning(request.messages)
-      ],
-      tools: convertToolsForLightning(request.tools),
-      tool_choice: "auto",
-      temperature: request.temperature
-    })
+    body: JSON.stringify(body)
   });
 
-  const payload = await response.json().catch(() => null) as {
-    choices?: Array<{
-      message?: {
-        content?: Array<{ text?: string; type?: string }> | string | null;
-        tool_calls?: Array<{
-          id?: string;
-          function?: {
-            arguments?: string;
-            name?: string;
-          };
-        }>;
-      };
-    }>;
-    error?: {
-      message?: string;
-    };
-  } | null;
+  const rawBody = await response.text();
+  const payload = parseLightningPayload(rawBody);
 
   if (!response.ok) {
-    throw new Error(payload?.error?.message || `Lightning fallback failed with status ${response.status}.`);
+    const message = readLightningError(payload, rawBody)
+      || `Lightning fallback failed with status ${response.status}.`;
+    throw new LightningRequestError(message, response.status);
   }
 
   const choice = payload?.choices?.[0]?.message;
@@ -245,6 +332,34 @@ async function generateViaLightning(request: CopilotGenerateRequest): Promise<Co
   };
 }
 
+function parseLightningPayload(rawBody: string): LightningPayload {
+  if (!rawBody) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawBody) as LightningPayload;
+  } catch {
+    return null;
+  }
+}
+
+function readLightningError(payload: LightningPayload, rawBody: string) {
+  if (typeof payload?.error === "string") {
+    return payload.error;
+  }
+
+  return payload?.error?.message
+    || payload?.message
+    || payload?.detail
+    || rawBody.replace(/\s+/g, " ").trim();
+}
+
+function formatFallbackError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return `Gemini quota was reached, and the Lightning fallback failed: ${message || "unknown error"}`;
+}
+
 function safeParseToolArguments(value: string | undefined): Record<string, unknown> {
   if (!value) {
     return {};
@@ -266,7 +381,11 @@ export async function generateCopilotContent(
   const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
 
   if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY in the server environment.");
+    return generateViaLightning(request).catch((error: unknown) => {
+      throw new Error(`Missing GEMINI_API_KEY in the server environment, and Lightning fallback failed: ${
+        error instanceof Error ? error.message : String(error ?? "unknown error")
+      }`);
+    });
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -313,6 +432,8 @@ export async function generateCopilotContent(
       throw error;
     }
 
-    return generateViaLightning(request);
+    return generateViaLightning(request).catch((fallbackError: unknown) => {
+      throw new Error(formatFallbackError(fallbackError));
+    });
   }
 }

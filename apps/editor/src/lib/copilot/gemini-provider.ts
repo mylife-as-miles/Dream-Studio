@@ -55,7 +55,7 @@ function normalizeGeminiError(error: unknown, status: number) {
   }
 
   if (status >= 500) {
-    return "Gemini is temporarily unavailable. Try again in a moment.";
+    return raw || "Gemini is temporarily unavailable. Try again in a moment.";
   }
 
   return raw || "Copilot generation failed.";
