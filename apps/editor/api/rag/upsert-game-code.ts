@@ -1,5 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+export const config = {
+  api: {
+    bodyParser: false
+  }
+};
+
 type UpsertFile = {
   code?: string;
   content?: string;
@@ -42,11 +48,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const payload = normalizePayload(req.body);
+    const payload = await readRequestPayload(req);
     const entries = normalizeCodeEntries(payload);
 
     if (entries.length === 0) {
-      return res.status(400).json({ error: "No game code was provided." });
+      return res.status(400).json({
+        error: "No game code was provided.",
+        received: {
+          contentType: req.headers["content-type"] ?? "",
+          keys: Object.keys(payload)
+        }
+      });
     }
 
     const pineconeApiKey = process.env.PINECONE_API_KEY?.trim();
@@ -93,6 +105,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
+async function readRequestPayload(req: VercelRequest): Promise<UpsertGameCodeRequest> {
+  const rawBody = await readRawBody(req);
+  const contentType = String(req.headers["content-type"] ?? "").toLowerCase();
+
+  if (rawBody.length === 0) {
+    return normalizePayload(req.body);
+  }
+
+  if (contentType.includes("multipart/form-data")) {
+    return parseMultipartPayload(rawBody, contentType);
+  }
+
+  return normalizePayload(rawBody.toString("utf8"));
+}
+
+function readRawBody(req: VercelRequest): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+
+    req.on("data", (chunk: Buffer | string) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function normalizePayload(body: unknown): UpsertGameCodeRequest {
   if (isByteLikeBody(body)) {
     return normalizePayload(Buffer.from(body as ArrayBufferView).toString("utf8"));
@@ -123,6 +162,61 @@ function normalizePayload(body: unknown): UpsertGameCodeRequest {
   }
 
   return isRecord(body) ? body as UpsertGameCodeRequest : {};
+}
+
+function parseMultipartPayload(body: Buffer, contentType: string): UpsertGameCodeRequest {
+  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.[1] ??
+    contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i)?.[2];
+
+  if (!boundary) {
+    return {};
+  }
+
+  const payload: UpsertGameCodeRequest = { files: [] };
+  const text = body.toString("utf8");
+  const parts = text.split(`--${boundary}`);
+
+  for (const part of parts) {
+    if (!part || part === "--\r\n" || part === "--") {
+      continue;
+    }
+
+    const separatorIndex = part.indexOf("\r\n\r\n");
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const rawHeaders = part.slice(0, separatorIndex);
+    const rawValue = part.slice(separatorIndex + 4).replace(/\r\n--$/, "").replace(/\r\n$/, "");
+    const disposition = rawHeaders.match(/content-disposition:\s*form-data;([^\r\n]+)/i)?.[1] ?? "";
+    const name = disposition.match(/name="([^"]+)"/i)?.[1] ?? "";
+    const filename = disposition.match(/filename="([^"]*)"/i)?.[1] ?? "";
+
+    if (!name) {
+      continue;
+    }
+
+    if (filename) {
+      payload.files?.push({
+        content: rawValue,
+        path: filename
+      });
+      continue;
+    }
+
+    if (name === "metadata") {
+      try {
+        Object.assign(payload, JSON.parse(rawValue) as Partial<UpsertGameCodeRequest>);
+      } catch {
+        payload.source = rawValue;
+      }
+      continue;
+    }
+
+    (payload as Record<string, string | UpsertFile[] | undefined>)[name] = rawValue;
+  }
+
+  return payload;
 }
 
 function normalizeCodeEntries(payload: UpsertGameCodeRequest) {
