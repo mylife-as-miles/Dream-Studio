@@ -23,8 +23,8 @@ const EMPTY_SESSION: CopilotSession = {
   iterationCount: 0
 };
 
-const COPILOT_MAX_ITERATIONS = 16;
-const MORPHUS_MAX_ITERATIONS = 12;
+const COPILOT_MAX_ITERATIONS = 32;
+const MORPHUS_MAX_ITERATIONS = 20;
 
 type CopilotRuntime = {
   runAgenticLoop: typeof import("@/lib/copilot/agentic-loop").runAgenticLoop;

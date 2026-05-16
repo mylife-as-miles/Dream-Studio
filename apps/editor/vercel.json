@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "api/articraft/materialize.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",
