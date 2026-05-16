@@ -1,4 +1,4 @@
-import { FunctionCallingConfigMode, GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { FunctionCallingConfigMode, GoogleGenAI, ThinkingLevel } from "@google/genai";
 import type {
   CopilotMessage,
   CopilotResponse,
@@ -79,6 +79,79 @@ function convertToolDeclarations(tools: CopilotToolDeclaration[]) {
     description: tool.description,
     parameters: tool.parameters
   }));
+}
+
+function readGeminiResponse(response: {
+  text?: string;
+  functionCalls?: Array<{
+    args?: unknown;
+    name?: string;
+  }>;
+  candidates?: Array<{
+    content?: {
+      parts?: unknown[];
+    };
+  }>;
+}): CopilotResponse {
+  const rawParts: unknown[] =
+    (response.candidates?.[0]?.content?.parts as unknown[]) ?? [];
+
+  const toolCalls: CopilotToolCall[] = [];
+  const functionCalls = response.functionCalls;
+
+  if (functionCalls) {
+    for (const fc of functionCalls) {
+      toolCalls.push({
+        id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: fc.name ?? "",
+        args: (fc.args as Record<string, unknown>) ?? {}
+      });
+    }
+  }
+
+  return {
+    text: response.text ?? "",
+    toolCalls,
+    rawParts
+  };
+}
+
+function ensureFallbackKeepsWorking(
+  response: CopilotResponse,
+  request: CopilotGenerateRequest,
+): CopilotResponse {
+  if (response.toolCalls.length > 0) {
+    return response;
+  }
+
+  if (!/\b(i will|i'll|let me|inspect|modify|add|create|build|continue)\b/i.test(response.text)) {
+    return response;
+  }
+
+  const names = new Set(request.tools.map((tool) => tool.name));
+  const name = names.has("get_scene_settings")
+    ? "get_scene_settings"
+    : names.has("list_nodes")
+      ? "list_nodes"
+      : names.has("list_materials")
+        ? "list_materials"
+        : undefined;
+
+  if (!name) {
+    return response;
+  }
+
+  return {
+    ...response,
+    text: response.text || "Inspecting the scene before making changes.",
+    toolCalls: [
+      {
+        id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        args: {}
+      }
+    ]
+  };
 }
 
 function isGeminiQuotaError(error: unknown) {
@@ -483,20 +556,16 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
         }
       ],
       config: {
-        systemInstruction: `${request.systemPrompt}\n\nYou are running as the final fast Gemini Flash fallback after Gemini primary, Lightning, and NVIDIA failed or timed out. Return JSON with a single string field named response. Keep the response concise and actionable.`,
+        systemInstruction: `${request.systemPrompt}\n\nYou are running as the final fast Gemini Flash fallback after Gemini primary, Lightning, and NVIDIA failed or timed out. You must keep working through tools. If the user asks to modify, build, add, continue, or inspect the editor scene, call the appropriate tool instead of replying with future-tense planning text. Use text only when the task is complete or you need a brief clarification.`,
         temperature: request.temperature,
+        tools: [{ functionDeclarations: convertToolDeclarations(request.tools) }],
+        toolConfig: {
+          functionCallingConfig: {
+            mode: FunctionCallingConfigMode.AUTO
+          }
+        },
         thinkingConfig: {
           thinkingLevel: ThinkingLevel.HIGH
-        },
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            response: {
-              type: Type.STRING
-            }
-          },
-          required: ["response"]
         }
       }
     }),
@@ -504,33 +573,18 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
     "Gemini Flash fallback",
   );
 
-  const text = readGeminiFlashText(response.text ?? "");
-
-  return {
-    text,
-    toolCalls: [],
-    rawParts: text ? [{ text }] : []
-  };
-}
-
-function readGeminiFlashText(raw: string) {
-  try {
-    const parsed = JSON.parse(raw) as { response?: unknown };
-    return typeof parsed.response === "string" ? parsed.response : raw;
-  } catch {
-    return raw;
-  }
+  return readGeminiResponse(response);
 }
 
 async function generateViaProviderFallbacks(request: CopilotGenerateRequest): Promise<CopilotResponse> {
   try {
-    return await generateViaLightning(request);
+    return ensureFallbackKeepsWorking(await generateViaLightning(request), request);
   } catch (lightningError) {
     try {
-      return await generateViaNvidia(request);
+      return ensureFallbackKeepsWorking(await generateViaNvidia(request), request);
     } catch (nvidiaError) {
       try {
-        return await generateViaGeminiFlash(request);
+        return ensureFallbackKeepsWorking(await generateViaGeminiFlash(request), request);
       } catch (geminiFlashError) {
         throw new Error(
           `Lightning fallback failed: ${formatFallbackError(lightningError)} NVIDIA fallback failed: ${formatFallbackError(nvidiaError)} Gemini Flash fallback failed: ${formatFallbackError(geminiFlashError)}`
@@ -590,27 +644,7 @@ export async function generateCopilotContent(
       "Primary Gemini generation",
     );
 
-    const rawParts: unknown[] =
-      (response.candidates?.[0]?.content?.parts as unknown[]) ?? [];
-
-    const toolCalls: CopilotToolCall[] = [];
-    const functionCalls = response.functionCalls;
-
-    if (functionCalls) {
-      for (const fc of functionCalls) {
-        toolCalls.push({
-          id: `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: fc.name ?? "",
-          args: (fc.args as Record<string, unknown>) ?? {}
-        });
-      }
-    }
-
-    return {
-      text: response.text ?? "",
-      toolCalls,
-      rawParts
-    };
+    return readGeminiResponse(response);
   } catch (error) {
     if (!isGeminiQuotaError(error) && !isTimeoutError(error)) {
       throw error;
