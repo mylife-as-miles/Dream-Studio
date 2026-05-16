@@ -58,35 +58,6 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type BtNodeType =
-  | "root"
-  | "selector"
-  | "sequence"
-  | "parallel"
-  | "inverter"
-  | "repeater"
-  | "condition"
-  | "action";
-
-type BtNodeData = {
-  btType: BtNodeType;
-  label: string;
-  event: string;
-  mode: "allOf" | "anyOf";
-  actionType: string;
-  actionTarget: string;
-  actionValue: string;
-  count: number;
-  [key: string]: unknown;
-};
-
-type BehaviorTree = {
-  id: string;
-  name: string;
-  nodes: Node<BtNodeData>[];
-  edges: Edge[];
-};
-
 // ─── Node Metadata ─────────────────────────────────────────────────────────
 
 const BT_META: Record<
