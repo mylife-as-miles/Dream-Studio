@@ -33,6 +33,7 @@ type UpsertGameCodeRequest = {
 const EMBEDDING_MODEL = "models/gemini-embedding-2";
 const DEFAULT_EMBEDDING_DIMENSIONS = 1536;
 const MAX_CHUNK_LENGTH = 4_000;
+const EMBEDDING_RETRY_DELAYS_MS = [1500, 3000, 6000];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -365,28 +366,7 @@ async function embedTexts(texts: string[], apiKey: string) {
   const embeddings: number[][] = [];
 
   for (const text of texts) {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${EMBEDDING_MODEL}:embedContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: { parts: [{ text }] },
-          output_dimensionality: getEmbeddingDimensions()
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(`Gemini embedding failed: ${detail}`);
-    }
-
-    const data = await response.json() as {
-      embedding?: { values?: number[] };
-      embeddings?: Array<{ values?: number[] }>;
-    };
-    const values = data.embeddings?.[0]?.values ?? data.embedding?.values ?? [];
+    const values = await embedTextWithRetry(text, apiKey);
 
     if (values.length === 0) {
       throw new Error("Gemini embedding response was incomplete.");
@@ -396,6 +376,50 @@ async function embedTexts(texts: string[], apiKey: string) {
   }
 
   return embeddings;
+}
+
+async function embedTextWithRetry(text: string, apiKey: string) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= EMBEDDING_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${EMBEDDING_MODEL}:embedContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: { parts: [{ text }] },
+            output_dimensionality: getEmbeddingDimensions()
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(`Gemini embedding failed: ${detail}`);
+      }
+
+      const data = await response.json() as {
+        embedding?: { values?: number[] };
+        embeddings?: Array<{ values?: number[] }>;
+      };
+
+      return data.embeddings?.[0]?.values ?? data.embedding?.values ?? [];
+    } catch (error) {
+      lastError = error;
+
+      if (!isQuotaError(error) || attempt === EMBEDDING_RETRY_DELAYS_MS.length) {
+        break;
+      }
+
+      await sleep(EMBEDDING_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? new Error(`Gemini embedding failed after retries: ${lastError.message}`)
+    : new Error("Gemini embedding failed after retries.");
 }
 
 async function upsertPineconeVectors(
@@ -436,6 +460,15 @@ function getPineconeHost() {
 function getEmbeddingDimensions() {
   const parsed = Number(process.env.GEMINI_EMBEDDING_DIMENSIONS ?? "");
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : DEFAULT_EMBEDDING_DIMENSIONS;
+}
+
+function isQuotaError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /resource_exhausted|quota|429|rate[- ]limit/i.test(message);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function sanitizeNamespace(value: string) {

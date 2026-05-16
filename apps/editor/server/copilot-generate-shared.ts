@@ -15,12 +15,21 @@ const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 const PRIMARY_TIMEOUT_MS = 8_000;
 const FALLBACK_TIMEOUT_MS = 10_000;
 const GEMINI_FLASH_TIMEOUT_MS = 18_000;
+const MORPHUS_PRIMARY_TIMEOUT_MS = 20_000;
+const MORPHUS_FALLBACK_TIMEOUT_MS = 22_000;
+const MORPHUS_GEMINI_FLASH_TIMEOUT_MS = 35_000;
 
 export type CopilotGenerateRequest = {
   messages: CopilotMessage[];
   tools: CopilotToolDeclaration[];
   systemPrompt: string;
   temperature: number;
+};
+
+type TimeoutPolicy = {
+  primaryMs: number;
+  fallbackMs: number;
+  geminiFlashMs: number;
 };
 
 function convertMessages(messages: CopilotMessage[]) {
@@ -602,6 +611,7 @@ async function generateViaLightning(request: CopilotGenerateRequest): Promise<Co
     throw new Error("Missing LIGHTNING_API_KEY in the server environment.");
   }
 
+  const timeoutPolicy = getTimeoutPolicy(request);
   const tools = convertToolsForLightning(request.tools);
   const toolPayload: LightningChatPayload = {
     model: LIGHTNING_MODEL,
@@ -623,7 +633,7 @@ async function generateViaLightning(request: CopilotGenerateRequest): Promise<Co
   try {
     return await withTimeout(
       requestLightningCompletion(apiKey, toolPayload),
-      FALLBACK_TIMEOUT_MS,
+      timeoutPolicy.fallbackMs,
       "Lightning fallback",
     );
   } catch (error) {
@@ -643,7 +653,7 @@ async function generateViaLightning(request: CopilotGenerateRequest): Promise<Co
         ],
         temperature: request.temperature
       }),
-      FALLBACK_TIMEOUT_MS,
+      timeoutPolicy.fallbackMs,
       "Lightning text-only fallback",
     );
   }
@@ -720,6 +730,26 @@ function formatFallbackError(error: unknown) {
   return message || "unknown error";
 }
 
+function isMorphusRequest(request: CopilotGenerateRequest) {
+  return request.tools.length === 1 && request.tools[0]?.name === "generate_game_html";
+}
+
+function getTimeoutPolicy(request: CopilotGenerateRequest): TimeoutPolicy {
+  if (isMorphusRequest(request)) {
+    return {
+      primaryMs: MORPHUS_PRIMARY_TIMEOUT_MS,
+      fallbackMs: MORPHUS_FALLBACK_TIMEOUT_MS,
+      geminiFlashMs: MORPHUS_GEMINI_FLASH_TIMEOUT_MS
+    };
+  }
+
+  return {
+    primaryMs: PRIMARY_TIMEOUT_MS,
+    fallbackMs: FALLBACK_TIMEOUT_MS,
+    geminiFlashMs: GEMINI_FLASH_TIMEOUT_MS
+  };
+}
+
 async function generateViaNvidia(request: CopilotGenerateRequest): Promise<CopilotResponse> {
   const apiKey = process.env.NVIDIA_API_KEY?.trim() || process.env.NVAPI_KEY?.trim();
 
@@ -727,8 +757,9 @@ async function generateViaNvidia(request: CopilotGenerateRequest): Promise<Copil
     throw new Error("Missing NVIDIA_API_KEY in the server environment.");
   }
 
+  const timeoutPolicy = getTimeoutPolicy(request);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FALLBACK_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutPolicy.fallbackMs);
 
   let response: Response;
   try {
@@ -788,6 +819,7 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
   }
 
   const ai = new GoogleGenAI({ apiKey });
+  const timeoutPolicy = getTimeoutPolicy(request);
   const textOnlyMessages = convertMessagesForLightningTextOnly(request.messages)
     .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
     .join("\n\n");
@@ -819,7 +851,7 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
         }
       }
     }),
-    GEMINI_FLASH_TIMEOUT_MS,
+    timeoutPolicy.geminiFlashMs,
     "Gemini Flash fallback",
   );
 
@@ -863,6 +895,7 @@ export async function generateCopilotContent(
   request: CopilotGenerateRequest
 ): Promise<CopilotResponse> {
   const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+  const timeoutPolicy = getTimeoutPolicy(request);
 
   if (!apiKey) {
     return generateViaProviderFallbacks(request).catch((error: unknown) => {
@@ -890,7 +923,7 @@ export async function generateCopilotContent(
           }
         }
       }),
-      PRIMARY_TIMEOUT_MS,
+      timeoutPolicy.primaryMs,
       "Primary Gemini generation",
     );
 
