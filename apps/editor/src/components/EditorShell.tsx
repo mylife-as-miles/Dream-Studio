@@ -42,6 +42,7 @@ import {
   type ViewportPaneId
 } from "@/viewport/viewports";
 import { cn } from "@/lib/utils";
+import { MessageSquareText, PanelsTopLeft, Wrench } from "lucide-react";
 
 const CopilotPanel = lazy(() =>
   import("@/components/editor-shell/CopilotPanel").then((module) => ({ default: module.CopilotPanel }))
@@ -397,6 +398,7 @@ export function EditorShell({
   viewportQuality,
   viewports
 }: EditorShellProps) {
+  const [mobileEditorTab, setMobileEditorTab] = useState<"tools" | "viewport" | "chat">("viewport");
   const [gameViewUrl, setGameViewUrl] = useState<string | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [physicsDebugOpen, setPhysicsDebugOpen] = useState(false);
@@ -585,7 +587,7 @@ export function EditorShell({
       )}
 
       <main className={cn(
-        "relative flex min-h-0 flex-1 gap-2 px-2 pb-2 sm:gap-3 sm:px-3 sm:pb-3",
+        "relative flex min-h-0 flex-1 gap-2 px-2 pb-16 sm:gap-3 sm:px-3 sm:pb-3",
         morphusActive ? "pt-2 sm:pt-3" : "pt-1.5 sm:pt-2"
       )}>
         {morphusActive ? (
@@ -610,7 +612,10 @@ export function EditorShell({
         ) : (
         <>
         {toolsPanelOpen && (
-          <div className="w-64 shrink-0 sm:w-80 lg:w-[22rem]">
+          <div className={cn(
+            "w-64 shrink-0 sm:w-80 lg:w-[22rem]",
+            mobileEditorTab === "tools" ? "block" : "hidden lg:block"
+          )}>
             <ToolsPanel
               activeBrushShape={activeBrushShape}
               activeRightPanel={activeRightPanel}
@@ -676,7 +681,10 @@ export function EditorShell({
           </div>
         )}
 
-        <div className="editor-stage relative min-w-0 flex-1 rounded-[32px]">
+        <div className={cn(
+          "editor-stage relative min-w-0 flex-1 rounded-[32px]",
+          mobileEditorTab === "viewport" ? "block" : "hidden lg:block"
+        )}>
           <div className="absolute inset-0">
             <ViewportLayout
               activeViewportId={activeViewportId}
@@ -813,7 +821,10 @@ export function EditorShell({
         </div>
 
         {copilotPanelOpen && aiAssistantMode === "copilot" && (
-          <div className="w-64 shrink-0 sm:w-80 lg:w-[22rem]">
+          <div className={cn(
+            "w-64 shrink-0 sm:w-80 lg:w-[22rem]",
+            mobileEditorTab === "chat" ? "block" : "hidden lg:block"
+          )}>
             <Suspense fallback={<CopilotPanelFallback />}>
               <CopilotPanel
                 isConfigured={copilot.isConfigured}
@@ -834,6 +845,14 @@ export function EditorShell({
         )}
       </main>
 
+      {!morphusActive && (
+        <nav className="fixed inset-x-2 bottom-2 z-30 flex items-center justify-between rounded-2xl border border-white/10 bg-[#111722]/92 p-1.5 shadow-xl backdrop-blur-lg lg:hidden">
+          <MobileEditorTabButton active={mobileEditorTab === "tools"} icon={<Wrench className="size-4" />} label="Tools" onClick={() => setMobileEditorTab("tools")} />
+          <MobileEditorTabButton active={mobileEditorTab === "viewport"} icon={<PanelsTopLeft className="size-4" />} label="Viewport" onClick={() => setMobileEditorTab("viewport")} />
+          <MobileEditorTabButton active={mobileEditorTab === "chat"} icon={<MessageSquareText className="size-4" />} label="Chat" onClick={() => setMobileEditorTab("chat")} />
+        </nav>
+      )}
+
       {aiModePickerOpen && (
         <AiModePicker
           onClose={onCloseAiModePicker}
@@ -841,6 +860,32 @@ export function EditorShell({
         />
       )}
     </div>
+  );
+}
+
+function MobileEditorTabButton({
+  active,
+  icon,
+  label,
+  onClick
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition-colors",
+        active ? "bg-white/12 text-white" : "text-white/70 hover:text-white"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
