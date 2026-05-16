@@ -19,7 +19,7 @@ export async function materializeArticraftAsset(
 
   const hint = isLocalHost(location.hostname)
     ? "Make sure the local editor dev server is running."
-    : "Articraft runs in the local editor engine, not in Vercel. Start `npm.cmd run dev -w @blud/editor` locally, then retry from the deployed editor or open the local editor URL.";
+    : "Make sure the Vercel project has ARTICRAFT_ENGINE_URL pointing at the Cloud Run Articraft engine.";
 
   throw new Error(
     `Articraft materialization failed. ${hint} Tried ${errors.length} local endpoint(s). ${errors.join(" | ")}`
