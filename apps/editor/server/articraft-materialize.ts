@@ -90,14 +90,24 @@ function normalizeRequest(request: ArticraftMaterializeRequest): ArticraftMateri
       sizeY: positive(part.sizeY, 1),
       sizeZ: positive(part.sizeZ, 1)
     })),
-    joints: request.joints.map((joint) => ({
-      ...joint,
-      childPartId: slugify(joint.childPartId),
-      id: slugify(joint.id),
-      name: joint.name?.trim() || slugify(joint.id),
-      parentPartId: slugify(joint.parentPartId),
-      type: normalizeJointType(joint.type)
-    }))
+    joints: request.joints.map((joint) => {
+      const type = normalizeJointType(joint.type);
+      const limits = normalizeJointLimits(type, joint.lower, joint.upper);
+
+      return {
+        ...joint,
+        childPartId: slugify(joint.childPartId),
+        effort: positive(joint.effort, 1),
+        id: slugify(joint.id),
+        lower: limits.lower,
+        mimicJointId: joint.mimicJointId ? slugify(joint.mimicJointId) : undefined,
+        name: joint.name?.trim() || slugify(joint.id),
+        parentPartId: slugify(joint.parentPartId),
+        type,
+        upper: limits.upper,
+        velocity: positive(joint.velocity, 1)
+      };
+    })
   };
 }
 
@@ -412,8 +422,8 @@ urdf_path.write_text(report.urdf_xml, encoding="utf-8")
 print(json.dumps({"warnings": [str(item) for item in report.warnings]}))
 `;
 
-function positive(value: number, fallback: number) {
-  return Number.isFinite(value) && value > 0 ? value : fallback;
+function positive(value: number | undefined, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function normalizeShape(value: string) {
@@ -427,6 +437,27 @@ function normalizeJointType(value: string) {
     : "fixed";
 }
 
+function normalizeJointLimits(type: string, lower: number | undefined, upper: number | undefined) {
+  if (type === "revolute") {
+    return {
+      lower: lower ?? -1.0471975512,
+      upper: upper ?? 1.0471975512
+    };
+  }
+
+  if (type === "prismatic") {
+    return {
+      lower: lower ?? -0.5,
+      upper: upper ?? 0.5
+    };
+  }
+
+  return {
+    lower: undefined,
+    upper: undefined
+  };
+}
+
 function normalizeHexColor(value: string | undefined) {
   return value && /^#[0-9a-f]{6}$/i.test(value) ? value : undefined;
 }
@@ -438,5 +469,4 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return slug || "articraft-asset";
-}
+  return 
