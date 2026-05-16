@@ -9,6 +9,7 @@
  */
 
 import type { Plugin, PreviewServer, ViteDevServer } from "vite";
+import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 const ELEVENLABS_BASE = "https://api.elevenlabs.io";
 
@@ -117,6 +118,16 @@ async function elevenLabsFetch(
   return fetch(`${ELEVENLABS_BASE}${path}`, { ...init, headers });
 }
 
+function createElevenLabsClient(clientApiKey?: string) {
+  if (!clientApiKey) {
+    throw new Error(
+      "No ElevenLabs API key provided. Set it in Vibe Settings.",
+    );
+  }
+
+  return new ElevenLabsClient({ apiKey: clientApiKey });
+}
+
 async function readUpstreamErrorDetail(response: Response): Promise<string> {
   const raw = await response.text();
 
@@ -137,6 +148,61 @@ async function readUpstreamErrorDetail(response: Response): Promise<string> {
   } catch {
     return raw.trim() || `Upstream status ${response.status}`;
   }
+}
+
+function readSdkErrorDetail(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error) {
+    const maybeError = error as {
+      body?: unknown;
+      message?: unknown;
+      statusCode?: unknown;
+    };
+
+    if (typeof maybeError.body === "string") {
+      return maybeError.body;
+    }
+
+    if (maybeError.body) {
+      try {
+        return JSON.stringify(maybeError.body);
+      } catch {
+        return String(maybeError.body);
+      }
+    }
+
+    if (typeof maybeError.message === "string") {
+      return maybeError.message;
+    }
+  }
+
+  return "ElevenLabs request failed.";
+}
+
+async function pipeAudioStream(
+  res: import("node:http").ServerResponse,
+  stream: ReadableStream<Uint8Array>,
+) {
+  res.writeHead(200, {
+    ...CORS_HEADERS,
+    "Content-Type": "audio/mpeg",
+    "Cache-Control": "no-store",
+  });
+
+  const reader = stream.getReader();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    res.write(Buffer.from(value));
+  }
+
+  res.end();
 }
 
 async function handleVoices(
@@ -239,52 +305,24 @@ async function handleSfx(
       return;
     }
 
-    const response = await elevenLabsFetch(
-      "/v1/sound-generation?output_format=mp3_44100_128",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: body.description,
-          duration_seconds: body.durationSeconds ?? null,
-          prompt_influence: 0.3,
-        }),
-      },
-      getClientKey(req),
-    );
+    const client = createElevenLabsClient(getClientKey(req));
+    const durationSeconds = typeof body.durationSeconds === "number"
+      ? Math.max(0.5, Math.min(30, body.durationSeconds))
+      : undefined;
 
-    if (!response.ok) {
-      const detail = await readUpstreamErrorDetail(response);
-      console.error("[elevenlabs-api] SFX upstream error", response.status, detail);
-      sendJson(res, response.status, { error: "ElevenLabs SFX failed.", detail });
-      return;
-    }
-
-    res.writeHead(200, {
-      ...CORS_HEADERS,
-      "Content-Type": "audio/mpeg",
-      "Cache-Control": "no-store",
+    const audio = await client.textToSoundEffects.convert({
+      durationSeconds,
+      outputFormat: "mp3_44100_128",
+      promptInfluence: 0.3,
+      text: body.description,
     });
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      res.end();
-      return;
-    }
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      res.write(Buffer.from(value));
-    }
-
-    res.end();
+    await pipeAudioStream(res, audio);
   } catch (error) {
     console.error("[elevenlabs-api] SFX error", error);
     sendJson(res, 500, {
-      error: error instanceof Error ? error.message : "Internal server error.",
+      error: "ElevenLabs SFX failed.",
+      detail: readSdkErrorDetail(error),
     });
   }
 }
@@ -305,52 +343,20 @@ async function handleMusic(
       ? Math.max(3000, Math.min(600000, Math.round(body.durationSeconds * 1000)))
       : 10000;
 
-    const response = await elevenLabsFetch(
-      "/v1/music/stream?output_format=mp3_44100_128",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          force_instrumental: true,
-          music_length_ms: musicLengthMs,
-          prompt: body.description,
-        }),
-      },
-      getClientKey(req),
-    );
-
-    if (!response.ok) {
-      const detail = await readUpstreamErrorDetail(response);
-      console.error("[elevenlabs-api] music upstream error", response.status, detail);
-      sendJson(res, response.status, { error: "ElevenLabs music failed.", detail });
-      return;
-    }
-
-    res.writeHead(200, {
-      ...CORS_HEADERS,
-      "Content-Type": "audio/mpeg",
-      "Cache-Control": "no-store",
+    const client = createElevenLabsClient(getClientKey(req));
+    const audio = await client.music.compose({
+      forceInstrumental: true,
+      musicLengthMs,
+      outputFormat: "mp3_44100_128",
+      prompt: body.description,
     });
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      res.end();
-      return;
-    }
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      res.write(Buffer.from(value));
-    }
-
-    res.end();
+    await pipeAudioStream(res, audio);
   } catch (error) {
     console.error("[elevenlabs-api] music error", error);
     sendJson(res, 500, {
-      error: error instanceof Error ? error.message : "Internal server error.",
+      error: "ElevenLabs music failed.",
+      detail: readSdkErrorDetail(error),
     });
   }
 }
