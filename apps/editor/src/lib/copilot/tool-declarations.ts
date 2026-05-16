@@ -542,11 +542,15 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   {
     name: "create_articulated_asset",
     description:
-      "Creates a structured articulated 3D asset in the editor viewport. Use this for objects with semantic parts and joints such as robot arms, desk lamps, cabinets with drawers, vehicles with wheels, doors, lids, sliders, hinges, levers, grippers, and mechanisms. It creates a real scene hierarchy plus Articraft-style part/joint metadata.",
+      "Creates a true Articraft-generated articulated 3D asset in the editor viewport by calling the local Articraft Python SDK/compiler, compiling an Articraft model.py into URDF/mesh assets, and importing the result. Use this for objects with semantic parts and joints such as robot arms, desk lamps, cabinets with drawers, vehicles with wheels, doors, lids, sliders, hinges, levers, grippers, and mechanisms.",
     parameters: {
       type: "object",
       properties: {
         name: { type: "string", description: "Asset display name, e.g. 'Articulated Desk Lamp'" },
+        prompt: {
+          type: "string",
+          description: "The original natural-language asset request. Used as Articraft provenance metadata."
+        },
         x: { type: "number", description: "Root world X position" },
         y: { type: "number", description: "Root world Y position" },
         z: { type: "number", description: "Root world Z position" },

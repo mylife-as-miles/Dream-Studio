@@ -98,8 +98,9 @@ import {
 } from "@blud/geometry-kernel";
 import { isBrushNode, isMeshNode, makeTransform, resolveSceneGraph, vec2, vec3 } from "@blud/shared";
 import type {
-  EditableMesh,
+  Asset,
   ColorRGBA,
+  EditableMesh,
   GeometryNode,
   GameplayObject,
   GameplayValue,
@@ -112,6 +113,7 @@ import type {
   MeshModelingModifier,
   MeshPolyGroup,
   MeshSmoothingGroup,
+  ModelNode,
   SceneHook,
   ScenePathDefinition,
   SceneSettings,
@@ -141,6 +143,8 @@ import {
   type BtNodeData,
   type BtNodeType
 } from "@/lib/behavior-tree-storage";
+import type { ArticraftMaterializeRequest, ArticraftMaterializeResponse } from "@/lib/articraft-contract";
+import { materializeArticraftAsset } from "@/lib/articraft-client";
 import type { CopilotToolCall, CopilotToolResult } from "./types";
 
 type Args = Record<string, unknown>;
@@ -261,6 +265,7 @@ type ArticulatedJointRecord = {
 };
 
 type ArticulatedBuildResult = {
+  assets?: Asset[];
   jointRecords: ArticulatedJointRecord[];
   materials: Material[];
   nodes: GeometryNode[];
@@ -621,6 +626,10 @@ function rotationWithAxisOffset(base: Vec3, axis: Vec3, value: number): Vec3 {
 }
 
 function createArticulatedAssetCommand(scene: SceneDocument, build: ArticulatedBuildResult): Command {
+  const assetSnapshots = (build.assets ?? []).map((asset) => ({
+    before: scene.assets.get(asset.id) ? structuredClone(scene.assets.get(asset.id)!) : undefined,
+    next: structuredClone(asset)
+  }));
   const materialSnapshots = build.materials.map((material) => ({
     before: scene.materials.get(material.id) ? structuredClone(scene.materials.get(material.id)!) : undefined,
     next: structuredClone(material)
@@ -630,12 +639,22 @@ function createArticulatedAssetCommand(scene: SceneDocument, build: ArticulatedB
   return {
     label: "create articulated asset",
     execute(nextScene) {
+      assetSnapshots.forEach(({ next }) => nextScene.setAsset(structuredClone(next)));
       materialSnapshots.forEach(({ next }) => nextScene.setMaterial(structuredClone(next)));
       nodes.forEach((node) => nextScene.addNode(structuredClone(node)));
     },
     undo(nextScene) {
       nodes.slice().reverse().forEach((node) => {
         nextScene.removeNode(node.id);
+      });
+      assetSnapshots.forEach(({ before, next }) => {
+        if (before) {
+          nextScene.setAsset(structuredClone(before));
+          return;
+        }
+
+        nextScene.assets.delete(next.id);
+        nextScene.touch();
       });
       materialSnapshots.forEach(({ before, next }) => {
         if (before) {
@@ -902,6 +921,394 @@ function buildArticulatedAsset(scene: SceneDocument, args: Args): ArticulatedBui
   };
 }
 
+function buildArticraftMaterializeRequest(args: Args): ArticraftMaterializeRequest | string {
+  const partInputs = recordArray(args, "parts");
+  const jointInputs = recordArray(args, "joints");
+
+  if (partInputs.length === 0) {
+    return "At least one articulated part is required.";
+  }
+
+  return {
+    joints: jointInputs.map((joint, index) => ({
+      axisX: numFromRecord(joint, "axisX", 0),
+      axisY: numFromRecord(joint, "axisY", 1),
+      axisZ: numFromRecord(joint, "axisZ", 0),
+      childPartId: strFromRecord(joint, "childPartId", `child-${index + 1}`),
+      defaultValue: typeof joint.defaultValue === "number" ? joint.defaultValue : undefined,
+      effort: typeof joint.effort === "number" ? joint.effort : undefined,
+      id: strFromRecord(joint, "id", strFromRecord(joint, "name", `joint-${index + 1}`)),
+      lower: typeof joint.lower === "number" ? joint.lower : undefined,
+      mimicJointId: strFromRecord(joint, "mimicJointId") || undefined,
+      mimicMultiplier: typeof joint.mimicMultiplier === "number" ? joint.mimicMultiplier : undefined,
+      mimicOffset: typeof joint.mimicOffset === "number" ? joint.mimicOffset : undefined,
+      name: strFromRecord(joint, "name") || undefined,
+      originX: numFromRecord(joint, "originX", 0),
+      originY: numFromRecord(joint, "originY", 0),
+      originZ: numFromRecord(joint, "originZ", 0),
+      parentPartId: strFromRecord(joint, "parentPartId", "root"),
+      type: strFromRecord(joint, "type", "fixed"),
+      upper: typeof joint.upper === "number" ? joint.upper : undefined,
+      velocity: typeof joint.velocity === "number" ? joint.velocity : undefined
+    })),
+    name: str(args, "name", "Articulated Asset"),
+    parts: partInputs.map((part, index) => ({
+      color: strFromRecord(part, "color") || undefined,
+      id: strFromRecord(part, "id", strFromRecord(part, "name", `part-${index + 1}`)),
+      mass: typeof part.mass === "number" ? part.mass : undefined,
+      materialId: strFromRecord(part, "materialId") || undefined,
+      materialName: strFromRecord(part, "materialName") || strFromRecord(part, "name") || undefined,
+      metalness: typeof part.metalness === "number" ? part.metalness : undefined,
+      name: strFromRecord(part, "name", `Part ${index + 1}`),
+      parentPartId: strFromRecord(part, "parentPartId") || undefined,
+      pivotX: typeof part.pivotX === "number" ? part.pivotX : undefined,
+      pivotY: typeof part.pivotY === "number" ? part.pivotY : undefined,
+      pivotZ: typeof part.pivotZ === "number" ? part.pivotZ : undefined,
+      rotationX: typeof part.rotationX === "number" ? part.rotationX : undefined,
+      rotationY: typeof part.rotationY === "number" ? part.rotationY : undefined,
+      rotationZ: typeof part.rotationZ === "number" ? part.rotationZ : undefined,
+      roughness: typeof part.roughness === "number" ? part.roughness : undefined,
+      semanticRole: strFromRecord(part, "semanticRole") || undefined,
+      shape: strFromRecord(part, "shape", "cube"),
+      sizeX: Math.max(0.01, numFromRecord(part, "sizeX", 1)),
+      sizeY: Math.max(0.01, numFromRecord(part, "sizeY", 1)),
+      sizeZ: Math.max(0.01, numFromRecord(part, "sizeZ", 1)),
+      x: numFromRecord(part, "x", 0),
+      y: numFromRecord(part, "y", 0),
+      z: numFromRecord(part, "z", 0)
+    })),
+    prompt: str(args, "prompt") || undefined,
+    showJointGuides: bool(args, "showJointGuides") ?? true,
+    x: num(args, "x"),
+    y: num(args, "y"),
+    z: num(args, "z")
+  };
+}
+
+function buildArticraftEngineAsset(
+  scene: SceneDocument,
+  args: Args,
+  materialized: ArticraftMaterializeResponse
+): ArticulatedBuildResult | string {
+  const partInputs = recordArray(args, "parts");
+  const jointInputs = recordArray(args, "joints");
+
+  if (partInputs.length === 0) {
+    return "At least one articulated part is required.";
+  }
+
+  const name = str(args, "name", "Articulated Asset");
+  const assetSlug = slugifyId(name, "asset");
+  const rootIdReserved = new Set<string>();
+  const rootId = uniqueSceneNodeId(scene, `node:articraft:${assetSlug}`, rootIdReserved);
+  const showJointGuides = bool(args, "showJointGuides") ?? true;
+  const partNodeIds = new Map<string, string>();
+  const materializedParts = new Map(materialized.parts.map((part) => [slugifyId(part.id, part.id), part]));
+  const partRecords: ArticulatedPartRecord[] = [];
+  const assets: Asset[] = [];
+  const materialsById = new Map<string, Material>();
+  const nodeIds = new Set<string>(rootIdReserved);
+  const normalizedJoints: ArticulatedJointRecord[] = jointInputs.map((joint, index) => {
+    const id = slugifyId(strFromRecord(joint, "id", strFromRecord(joint, "name", `joint-${index + 1}`)), `joint-${index + 1}`);
+    const typeInput = strFromRecord(joint, "type", "fixed");
+    const type: ArticulatedJointType = ["fixed", "revolute", "continuous", "prismatic", "ball"].includes(typeInput)
+      ? typeInput as ArticulatedJointType
+      : "fixed";
+
+    return {
+      axis: normalizeAxis(vec3FromRecord(joint, "axis", vec3(0, 1, 0))),
+      childPartId: slugifyId(strFromRecord(joint, "childPartId"), `child-${index + 1}`),
+      defaultValue: typeof joint.defaultValue === "number" ? joint.defaultValue : undefined,
+      effort: typeof joint.effort === "number" ? joint.effort : undefined,
+      id,
+      lower: typeof joint.lower === "number" ? joint.lower : undefined,
+      mimicJointId: strFromRecord(joint, "mimicJointId") || undefined,
+      mimicMultiplier: typeof joint.mimicMultiplier === "number" ? joint.mimicMultiplier : undefined,
+      mimicOffset: typeof joint.mimicOffset === "number" ? joint.mimicOffset : undefined,
+      name: strFromRecord(joint, "name", id),
+      origin: vec3FromRecord(joint, "origin", vec3(0, 0, 0)),
+      parentPartId: slugifyId(strFromRecord(joint, "parentPartId"), "root"),
+      type,
+      upper: typeof joint.upper === "number" ? joint.upper : undefined,
+      velocity: typeof joint.velocity === "number" ? joint.velocity : undefined
+    };
+  });
+  const parentByChildPartId = new Map(normalizedJoints.map((joint) => [joint.childPartId, joint.parentPartId]));
+  const nodes: GeometryNode[] = [];
+  const rootNode: GroupNode = {
+    data: {},
+    id: rootId,
+    kind: "group",
+    metadata: {
+      [ARTICULATED_METADATA.asset]: true,
+      [ARTICULATED_METADATA.schemaVersion]: ARTICULATED_ASSET_SCHEMA_VERSION,
+      [ARTICULATED_METADATA.source]: "articraft-engine",
+      "articraft.engine": "sdk-compiler",
+      "articraft.modelPath": materialized.modelPath,
+      "articraft.rootDir": materialized.rootDir,
+      "articraft.urdf": materialized.urdfXml,
+      "articraft.urdfPath": materialized.urdfPath
+    },
+    name,
+    tags: ["articulated-asset", "articraft", "articraft-engine"],
+    transform: makeTransform(vec3(num(args, "x"), num(args, "y"), num(args, "z")))
+  };
+  nodes.push(rootNode);
+
+  partInputs.forEach((part, index) => {
+    const partId = slugifyId(strFromRecord(part, "id", strFromRecord(part, "name", `part-${index + 1}`)), `part-${index + 1}`);
+    const partSlug = slugifyId(partId, `part-${index + 1}`);
+    const shape = normalizePrimitiveShape(strFromRecord(part, "shape", "cube"));
+    const size = vec3(
+      Math.max(0.01, numFromRecord(part, "sizeX", 1)),
+      Math.max(0.01, numFromRecord(part, "sizeY", 1)),
+      Math.max(0.01, numFromRecord(part, "sizeZ", 1))
+    );
+    const materializedPart = materializedParts.get(partId);
+    const assetId = `asset:model:articraft:${assetSlug}:${partSlug}:${crypto.randomUUID()}`;
+    const previewColor = strFromRecord(part, "color") || ["#d7c27a", "#69d6c2", "#8aa2bd", "#d86f5d", "#a98de8", "#f1f5f9"][index % 6]!;
+    const asset: Asset | undefined = materializedPart?.modelDataUrl
+      ? {
+          id: assetId,
+          metadata: {
+            materialMtlText: "",
+            modelFormat: "obj",
+            nativeCenterX: 0,
+            nativeCenterY: 0,
+            nativeCenterZ: 0,
+            nativeSizeX: size.x,
+            nativeSizeY: size.y,
+            nativeSizeZ: size.z,
+            previewColor,
+            prompt: str(args, "prompt") || name,
+            source: "articraft-engine",
+            texturePath: ""
+          },
+          path: materializedPart.modelDataUrl,
+          type: "model"
+        }
+      : undefined;
+
+    if (asset) {
+      assets.push(asset);
+    }
+
+    const transform = makeTransform(vec3FromRecord(part, "", vec3(0, 0, 0)));
+    transform.rotation = vec3FromRecord(part, "rotation", vec3(0, 0, 0));
+    if (asset) {
+      transform.rotation = vec3(transform.rotation.x - Math.PI / 2, transform.rotation.y, transform.rotation.z);
+    }
+    if (["pivotX", "pivotY", "pivotZ"].some((key) => typeof part[key] === "number")) {
+      transform.pivot = vec3FromRecord(part, "pivot", vec3(0, 0, 0));
+    }
+
+    const requestedParentPartId = slugifyId(strFromRecord(part, "parentPartId"), "");
+    const parentPartId = requestedParentPartId && requestedParentPartId !== "root"
+      ? requestedParentPartId
+      : parentByChildPartId.get(partId);
+    const nodeId = uniqueSceneNodeId(scene, `node:articraft:${assetSlug}:part:${partSlug}`, nodeIds);
+    partNodeIds.set(partId, nodeId);
+
+    const partRecord: ArticulatedPartRecord = {
+      id: partId,
+      materialId: asset?.id ?? (strFromRecord(part, "materialId") || `material:articraft:${assetSlug}:${partSlug}`),
+      mass: typeof part.mass === "number" ? part.mass : undefined,
+      name: strFromRecord(part, "name", partId),
+      nodeId,
+      parentPartId,
+      semanticRole: strFromRecord(part, "semanticRole") || undefined,
+      shape,
+      size
+    };
+    partRecords.push(partRecord);
+
+    if (asset) {
+      const node: ModelNode = {
+        data: {
+          assetId: asset.id,
+          path: asset.path
+        },
+        id: nodeId,
+        kind: "model",
+        metadata: {
+          [ARTICULATED_METADATA.baseTransform]: jsonMetadata(transform),
+          [ARTICULATED_METADATA.part]: true,
+          [ARTICULATED_METADATA.partId]: partId,
+          [ARTICULATED_METADATA.rootId]: rootId,
+          "articraft.mass": partRecord.mass ?? 0,
+          "articraft.meshPath": materializedPart?.meshPath ?? "",
+          "articraft.semanticRole": partRecord.semanticRole ?? ""
+        },
+        name: partRecord.name,
+        parentId: parentPartId ? partNodeIds.get(parentPartId) ?? rootId : rootId,
+        tags: ["articulated-part", "articraft-mesh", `part:${partId}`],
+        transform
+      };
+      nodes.push(node);
+      return;
+    }
+
+    const data = createPrimitiveNodeData("prop", shape, structuredClone(size));
+    data.materialId = partRecord.materialId;
+    if (typeof part.mass === "number" && data.physics) {
+      data.physics.mass = part.mass;
+    }
+    if (!scene.materials.get(partRecord.materialId)) {
+      materialsById.set(partRecord.materialId, createArticulatedMaterial(assetSlug, partSlug, part, previewColor));
+    }
+    const node: PrimitiveNode = {
+      data,
+      id: nodeId,
+      kind: "primitive",
+      metadata: {
+        [ARTICULATED_METADATA.baseTransform]: jsonMetadata(transform),
+        [ARTICULATED_METADATA.part]: true,
+        [ARTICULATED_METADATA.partId]: partId,
+        [ARTICULATED_METADATA.rootId]: rootId,
+        "articraft.mass": partRecord.mass ?? 0,
+        "articraft.semanticRole": partRecord.semanticRole ?? ""
+      },
+      name: partRecord.name,
+      parentId: parentPartId ? partNodeIds.get(parentPartId) ?? rootId : rootId,
+      tags: ["articulated-part", "articraft-fallback-primitive", `part:${partId}`],
+      transform
+    };
+    nodes.push(node);
+  });
+
+  partRecords.forEach((partRecord) => {
+    const node = nodes.find((candidate) => candidate.id === partRecord.nodeId);
+    if (!node) {
+      return;
+    }
+
+    node.parentId = partRecord.parentPartId
+      ? partNodeIds.get(partRecord.parentPartId) ?? rootId
+      : rootId;
+  });
+  normalizedJoints.forEach((joint) => {
+    joint.childNodeId = partNodeIds.get(joint.childPartId);
+  });
+
+  if (showJointGuides && normalizedJoints.length > 0) {
+    appendArticulatedJointGuides(scene, nodes, materialsById, nodeIds, assetSlug, rootId, partNodeIds, normalizedJoints);
+  }
+
+  rootNode.metadata = {
+    ...rootNode.metadata,
+    [ARTICULATED_METADATA.parts]: jsonMetadata(partRecords),
+    [ARTICULATED_METADATA.joints]: jsonMetadata(normalizedJoints),
+    [ARTICULATED_METADATA.pose]: jsonMetadata({})
+  };
+
+  return {
+    assets,
+    jointRecords: normalizedJoints,
+    materials: Array.from(materialsById.values()),
+    nodes,
+    partRecords,
+    rootId
+  };
+}
+
+function appendArticulatedJointGuides(
+  scene: SceneDocument,
+  nodes: GeometryNode[],
+  materialsById: Map<string, Material>,
+  nodeIds: Set<string>,
+  assetSlug: string,
+  rootId: string,
+  partNodeIds: Map<string, string>,
+  normalizedJoints: ArticulatedJointRecord[]
+) {
+  const guideMaterials: Material[] = [
+    {
+      id: "material:articraft:joint-pivot",
+      name: "Articraft Joint Pivot",
+      category: "custom",
+      color: "#3ee6d1",
+      emissiveColor: "#1ecfc1",
+      emissiveIntensity: 0.35,
+      metalness: 0.1,
+      roughness: 0.35
+    },
+    {
+      id: "material:articraft:joint-axis",
+      name: "Articraft Joint Axis",
+      category: "custom",
+      color: "#d9bd73",
+      emissiveColor: "#d9bd73",
+      emissiveIntensity: 0.25,
+      metalness: 0.2,
+      roughness: 0.42
+    }
+  ];
+  guideMaterials.forEach((material) => {
+    if (!scene.materials.get(material.id)) {
+      materialsById.set(material.id, material);
+    }
+  });
+
+  normalizedJoints.forEach((joint) => {
+    const parentNodeId = partNodeIds.get(joint.parentPartId) ?? rootId;
+    const pivotTransform = makeTransform(structuredClone(joint.origin));
+    const pivotData = createPrimitiveNodeData("prop", "sphere", vec3(0.16, 0.16, 0.16));
+    pivotData.materialId = "material:articraft:joint-pivot";
+    if (pivotData.physics) {
+      pivotData.physics.enabled = false;
+    }
+    nodes.push({
+      data: pivotData,
+      id: uniqueSceneNodeId(scene, `node:articraft:${assetSlug}:joint:${joint.id}:pivot`, nodeIds),
+      kind: "primitive",
+      metadata: {
+        [ARTICULATED_METADATA.joint]: joint.id,
+        [ARTICULATED_METADATA.rootId]: rootId,
+        "articraft.guide": "pivot"
+      },
+      name: `${joint.name} Pivot`,
+      parentId: parentNodeId,
+      tags: ["articulated-guide", "joint-pivot"],
+      transform: pivotTransform
+    });
+
+    if (joint.type === "fixed" || joint.type === "ball") {
+      return;
+    }
+
+    const axis = normalizeAxis(joint.axis);
+    const axisTransform = makeTransform(vec3(
+      joint.origin.x + axis.x * 0.32,
+      joint.origin.y + axis.y * 0.32,
+      joint.origin.z + axis.z * 0.32
+    ));
+    const axisQuaternionValue = new Quaternion().setFromUnitVectors(
+      new Vector3(0, 1, 0),
+      new Vector3(axis.x, axis.y, axis.z).normalize()
+    );
+    axisTransform.rotation = eulerVecFromQuaternion(axisQuaternionValue);
+    const axisData = createPrimitiveNodeData("prop", "cylinder", vec3(0.05, 0.64, 0.05));
+    axisData.materialId = "material:articraft:joint-axis";
+    if (axisData.physics) {
+      axisData.physics.enabled = false;
+    }
+    nodes.push({
+      data: axisData,
+      id: uniqueSceneNodeId(scene, `node:articraft:${assetSlug}:joint:${joint.id}:axis`, nodeIds),
+      kind: "primitive",
+      metadata: {
+        [ARTICULATED_METADATA.joint]: joint.id,
+        [ARTICULATED_METADATA.rootId]: rootId,
+        "articraft.guide": "axis"
+      },
+      name: `${joint.name} Axis`,
+      parentId: parentNodeId,
+      tags: ["articulated-guide", "joint-axis"],
+      transform: axisTransform
+    });
+  });
+}
+
 function getArticulatedAssetPayload(scene: SceneDocument, assetNodeId: string) {
   const root = scene.getNode(assetNodeId);
 
@@ -1080,15 +1487,15 @@ function updateBehaviorTreeNodeData(tree: BehaviorTree, nodeId: string, args: Ar
   return found ? { ...tree, nodes } : null;
 }
 
-export function executeTool(
+export async function executeTool(
   editor: EditorCore,
   toolCall: CopilotToolCall,
   context: CopilotToolExecutionContext = {}
-): CopilotToolResult {
+): Promise<CopilotToolResult> {
   const { name, args } = toolCall;
 
   try {
-    const result = executeToolInner(editor, name, args, context);
+    const result = await executeToolInner(editor, name, args, context);
     return { callId: toolCall.id, name, result };
   } catch (error) {
     return {
@@ -1099,7 +1506,7 @@ export function executeTool(
   }
 }
 
-function executeToolInner(editor: EditorCore, name: string, args: Args, context: CopilotToolExecutionContext): string {
+async function executeToolInner(editor: EditorCore, name: string, args: Args, context: CopilotToolExecutionContext): Promise<string> {
   const scene = editor.scene;
 
   switch (name) {
@@ -1608,7 +2015,13 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
 
     // ── Read-only queries ─────────────────────────────────────
     case "create_articulated_asset": {
-      const build = buildArticulatedAsset(scene, args);
+      const request = buildArticraftMaterializeRequest(args);
+      if (typeof request === "string") {
+        return fail(request);
+      }
+
+      const materialized = await materializeArticraftAsset(request);
+      const build = buildArticraftEngineAsset(scene, args, materialized);
       if (typeof build === "string") {
         return fail(build);
       }
@@ -1616,11 +2029,15 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
       editor.execute(createArticulatedAssetCommand(scene, build));
       return ok({
         assetNodeId: build.rootId,
+        engine: "articraft",
         jointCount: build.jointRecords.length,
+        modelPath: materialized.modelPath,
         materialIds: build.materials.map((material) => material.id),
         nodeIds: build.nodes.map((node) => node.id),
         partCount: build.partRecords.length,
-        partNodeIds: build.partRecords.map((part) => ({ nodeId: part.nodeId, partId: part.id }))
+        partNodeIds: build.partRecords.map((part) => ({ nodeId: part.nodeId, partId: part.id })),
+        urdfPath: materialized.urdfPath,
+        warnings: materialized.warnings
       });
     }
 
@@ -1972,6 +2389,204 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
     }
 
     // ── Mesh topology query ─────────────────────────────────
+    case "list_behavior_trees": {
+      return ok({ trees: listBehaviorTrees() });
+    }
+
+    case "get_behavior_tree": {
+      const tree = loadBehaviorTreeOrFail(str(args, "treeId"));
+      if (!tree) {
+        return fail("Behavior tree not found.");
+      }
+
+      return ok({ tree });
+    }
+
+    case "create_behavior_tree": {
+      const name = str(args, "name", "New Tree");
+      const treeId = slugifyBehaviorTreeId(optionalStr(args, "treeId") || name);
+
+      if (loadBehaviorTreeOrFail(treeId)) {
+        return fail("Behavior tree id already exists.");
+      }
+
+      const useDefaultTemplate = bool(args, "useDefaultTemplate") ?? false;
+      const tree: BehaviorTree = useDefaultTemplate
+        ? { ...makeDefaultBehaviorTree(), id: treeId, name }
+        : {
+            id: treeId,
+            name,
+            nodes: [
+              createBehaviorTreeNode("root", {
+                position: { x: 0, y: 0 }
+              })
+            ],
+            edges: []
+          };
+
+      return saveBehaviorTreeResult(tree, { created: true });
+    }
+
+    case "add_behavior_tree_node": {
+      const tree = loadBehaviorTreeOrFail(str(args, "treeId"));
+      if (!tree) {
+        return fail("Behavior tree not found.");
+      }
+
+      const nodeType = str(args, "nodeType") as BtNodeType;
+      const knownTypes: BtNodeType[] = [
+        "root",
+        "selector",
+        "sequence",
+        "parallel",
+        "inverter",
+        "repeater",
+        "condition",
+        "action"
+      ];
+
+      if (!knownTypes.includes(nodeType)) {
+        return fail("Unsupported behavior tree node type.");
+      }
+
+      if (nodeType === "root" && tree.nodes.some((node) => node.data.btType === "root")) {
+        return fail("Behavior trees can only have one root node.");
+      }
+
+      const mode = optionalStr(args, "mode");
+      const node = createBehaviorTreeNode(
+        nodeType,
+        {
+          position: {
+            x: optionalNum(args, "positionX") ?? 120,
+            y: optionalNum(args, "positionY") ?? 160
+          }
+        },
+        {
+          ...(optionalStr(args, "label") !== undefined ? { label: str(args, "label") } : {}),
+          ...(optionalStr(args, "event") !== undefined ? { event: str(args, "event") } : {}),
+          ...(mode === "allOf" || mode === "anyOf" ? { mode } : {}),
+          ...(optionalStr(args, "actionType") !== undefined ? { actionType: str(args, "actionType") } : {}),
+          ...(optionalStr(args, "actionTarget") !== undefined ? { actionTarget: str(args, "actionTarget") } : {}),
+          ...(optionalStr(args, "actionValue") !== undefined ? { actionValue: str(args, "actionValue") } : {}),
+          ...(optionalNum(args, "count") !== undefined ? { count: num(args, "count") } : {})
+        }
+      );
+
+      const nextTree: BehaviorTree = {
+        ...tree,
+        nodes: [...tree.nodes, node]
+      };
+
+      const parentNodeId = optionalStr(args, "parentNodeId");
+      if (parentNodeId) {
+        if (!tree.nodes.some((candidate) => candidate.id === parentNodeId)) {
+          return fail("Parent behavior tree node not found.");
+        }
+
+        nextTree.edges = [
+          ...nextTree.edges,
+          {
+            id: `${parentNodeId}-${node.id}-${Date.now()}`,
+            source: parentNodeId,
+            target: node.id
+          }
+        ];
+      }
+
+      return saveBehaviorTreeResult(nextTree, { nodeId: node.id });
+    }
+
+    case "update_behavior_tree_node": {
+      const tree = loadBehaviorTreeOrFail(str(args, "treeId"));
+      if (!tree) {
+        return fail("Behavior tree not found.");
+      }
+
+      const nodeId = str(args, "nodeId");
+      const nextTree = updateBehaviorTreeNodeData(tree, nodeId, args);
+      if (!nextTree) {
+        return fail("Behavior tree node not found.");
+      }
+
+      return saveBehaviorTreeResult(nextTree, { nodeId, updated: true });
+    }
+
+    case "connect_behavior_tree_nodes": {
+      const tree = loadBehaviorTreeOrFail(str(args, "treeId"));
+      if (!tree) {
+        return fail("Behavior tree not found.");
+      }
+
+      const sourceNodeId = str(args, "sourceNodeId");
+      const targetNodeId = str(args, "targetNodeId");
+
+      if (!tree.nodes.some((node) => node.id === sourceNodeId)) {
+        return fail("Source behavior tree node not found.");
+      }
+
+      if (!tree.nodes.some((node) => node.id === targetNodeId)) {
+        return fail("Target behavior tree node not found.");
+      }
+
+      if (tree.edges.some((edge) => edge.source === sourceNodeId && edge.target === targetNodeId)) {
+        return fail("Behavior tree edge already exists.");
+      }
+
+      const nextTree: BehaviorTree = {
+        ...tree,
+        edges: [
+          ...tree.edges,
+          {
+            id: `${sourceNodeId}-${targetNodeId}-${Date.now()}`,
+            source: sourceNodeId,
+            target: targetNodeId
+          }
+        ]
+      };
+
+      return saveBehaviorTreeResult(nextTree, { sourceNodeId, targetNodeId });
+    }
+
+    case "delete_behavior_tree_node": {
+      const tree = loadBehaviorTreeOrFail(str(args, "treeId"));
+      if (!tree) {
+        return fail("Behavior tree not found.");
+      }
+
+      const nodeId = str(args, "nodeId");
+      if (!tree.nodes.some((node) => node.id === nodeId)) {
+        return fail("Behavior tree node not found.");
+      }
+
+      const nextTree: BehaviorTree = {
+        ...tree,
+        nodes: tree.nodes.filter((node) => node.id !== nodeId),
+        edges: tree.edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+      };
+
+      return saveBehaviorTreeResult(nextTree, { deletedNodeId: nodeId });
+    }
+
+    case "apply_behavior_tree_layout": {
+      const tree = loadBehaviorTreeOrFail(str(args, "treeId"));
+      if (!tree) {
+        return fail("Behavior tree not found.");
+      }
+
+      return saveBehaviorTreeResult(layoutBehaviorTree(tree), { laidOut: true });
+    }
+
+    case "delete_behavior_tree": {
+      const treeId = str(args, "treeId");
+      if (!loadBehaviorTreeOrFail(treeId)) {
+        return fail("Behavior tree not found.");
+      }
+
+      deleteBehaviorTree(treeId);
+      return ok({ deleted: true, treeId });
+    }
+
     case "get_mesh_topology": {
       const node = scene.getNode(str(args, "nodeId"));
 

@@ -4,6 +4,7 @@ import { searchForWorkspaceRoot, defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { createAntigravitySkillsApiPlugin } from "./server/antigravity-skills-api";
+import { createArticraftApiPlugin } from "./server/articraft-api";
 import { createCodexBridgePlugin } from "./server/codex-bridge-plugin";
 import { createCopilotGenerateApiPlugin } from "./server/copilot-generate-api";
 import { createEditorGameSyncPlugin } from "./server/editor-game-sync-plugin";
@@ -185,6 +186,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       createAntigravitySkillsApiPlugin(),
+      createArticraftApiPlugin(),
       createCopilotGenerateApiPlugin(),
       createCodexBridgePlugin(),
       createEditorGameSyncPlugin(),

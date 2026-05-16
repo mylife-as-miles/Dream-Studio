@@ -189,46 +189,48 @@ export function createCodexProvider(): SessionBasedCopilotProvider {
               });
               emitUpdate();
 
-              const startedAt = performance.now();
-              const result = config.executeTool(toolCall);
-              const elapsed = Math.round(performance.now() - startedAt);
-              const parsed = parseToolResult(result.result);
+              void (async () => {
+                const startedAt = performance.now();
+                const result = await config.executeTool(toolCall);
+                const elapsed = Math.round(performance.now() - startedAt);
+                const parsed = parseToolResult(result.result);
 
-              if (parsed.success === false) {
-                console.warn(`  ${TAG} FAIL ${msg.name} (${elapsed}ms):`, parsed.error);
-              } else {
-                console.log(`  ${TAG} OK ${msg.name} (${elapsed}ms):`, result.result);
-              }
+                if (parsed.success === false) {
+                  console.warn(`  ${TAG} FAIL ${msg.name} (${elapsed}ms):`, parsed.error);
+                } else {
+                  console.log(`  ${TAG} OK ${msg.name} (${elapsed}ms):`, result.result);
+                }
 
-              messages.push({
-                id: uid(),
-                role: "tool",
-                content: "",
-                toolResults: [result],
-                timestamp: Date.now()
-              });
+                messages.push({
+                  id: uid(),
+                  role: "tool",
+                  content: "",
+                  toolResults: [result],
+                  timestamp: Date.now()
+                });
 
-              pushActivity({
-                kind: "tool_result",
-                title: parsed.success ? `${msg.name} completed` : `${msg.name} failed`,
-                detail: summarizeToolResult(result.result),
-                iteration: session.iterationCount,
-                toolResult: result,
-                elapsedMs: elapsed,
-                tone: parsed.success ? "success" : "error"
-              });
+                pushActivity({
+                  kind: "tool_result",
+                  title: parsed.success ? `${msg.name} completed` : `${msg.name} failed`,
+                  detail: summarizeToolResult(result.result),
+                  iteration: session.iterationCount,
+                  toolResult: result,
+                  elapsedMs: elapsed,
+                  tone: parsed.success ? "success" : "error"
+                });
 
-              ws.send(
-                JSON.stringify({
-                  type: "tool_result",
-                  id: msg.id,
-                  result: result.result,
-                  success: parsed.success
-                })
-              );
+                ws.send(
+                  JSON.stringify({
+                    type: "tool_result",
+                    id: msg.id,
+                    result: result.result,
+                    success: parsed.success
+                  })
+                );
 
-              session.status = "thinking";
-              emitUpdate();
+                session.status = "thinking";
+                emitUpdate();
+              })();
               break;
             }
 

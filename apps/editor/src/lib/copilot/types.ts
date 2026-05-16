@@ -152,7 +152,7 @@ export type SessionBasedCopilotProvider = {
     skillContext?: CopilotSkillContext;
     threadId?: string;
     onThreadId?: (threadId: string | undefined) => void;
-    executeTool: (call: CopilotToolCall) => CopilotToolResult;
+    executeTool: (call: CopilotToolCall) => Promise<CopilotToolResult>;
     onUpdate: (session: CopilotSession) => void;
     signal?: AbortSignal;
   }): Promise<CopilotSession>;
