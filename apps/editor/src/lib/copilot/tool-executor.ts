@@ -139,7 +139,7 @@ export type CopilotToolExecutionContext = {
     projectName?: string;
     projectSlug?: string;
   }) => void;
-  onGeneratedGame?: (title: string, html: string) => void;
+  onGeneratedGame?: (title: string, html: string, files?: Array<{ content: string; path: string }>) => void;
 };
 
 function num(args: Args, key: string, fallback = 0): number {
@@ -179,6 +179,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function recordArray(args: Args, key: string): Record<string, unknown>[] {
   const value = args[key];
   return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => isRecord(entry)) : [];
+}
+
+function fileBundle(value: unknown): Array<{ content: string; path: string }> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const path = typeof entry.path === "string" ? entry.path.trim() : "";
+    const content = typeof entry.content === "string" ? entry.content : "";
+    return path && content ? [{ content, path }] : [];
+  });
 }
 
 const MODELING_GROUP_COLORS = ["#f59e0b", "#10b981", "#38bdf8", "#f472b6", "#a78bfa", "#fb7185"];
@@ -2497,8 +2513,10 @@ function executeToolInner(editor: EditorCore, name: string, args: Args, context:
 
     case "generate_game_html": {
       const title = str(args, "title", "Generated Game");
-      context.onGeneratedGame?.(title, "");
-      return ok({ registered: true, title });
+      const html = str(args, "html");
+      const files = fileBundle(args.files);
+      context.onGeneratedGame?.(title, html, files.length > 0 ? files : undefined);
+      return ok({ registered: true, title, hasHtml: Boolean(html.trim()), fileCount: files.length });
     }
 
     default:

@@ -490,6 +490,22 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
         title: {
           type: "string",
           description: "A short, descriptive title for the game shown in the UI (e.g. 'Terrain Vehicle Demo')"
+        },
+        html: {
+          type: "string",
+          description: "Optional complete standalone index.html for provider fallback mode."
+        },
+        files: {
+          type: "array",
+          description: "Optional multi-file project bundle for provider fallback mode. Prefer this over html when possible.",
+          items: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Project-relative path such as index.html, main.js, scene.js, or style.css" },
+              content: { type: "string", description: "Complete file contents" }
+            },
+            required: ["path", "content"]
+          }
         }
       },
       required: ["title"]

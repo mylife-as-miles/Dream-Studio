@@ -3,14 +3,23 @@
  * generated game HTML and creating blob URLs for it.
  */
 
+import { loadCopilotSettings } from "./copilot/settings";
+
 /** Inject a `window.elevenlabs` bridge into the game HTML.
  *  Uses the absolute editor origin so requests work from a blob: URL context. */
 export function injectElevenLabsBridge(html: string): string {
   const origin = window.location.origin;
+  const elevenLabsApiKey = loadCopilotSettings().elevenlabsApiKey;
   const bridge = `<script>
 (function(){
   var B=${JSON.stringify(origin)};
+  var K=${JSON.stringify(elevenLabsApiKey)};
   var ac=null;
+  function headers(){
+    var h={'Content-Type':'application/json'};
+    if(K)h['x-elevenlabs-api-key']=K;
+    return h;
+  }
   function ctx(){
     if(!ac||ac.state==='closed')ac=new AudioContext();
     if(ac.state==='suspended')ac.resume();
@@ -26,12 +35,12 @@ export function injectElevenLabsBridge(html: string): string {
   window.elevenlabs={
     speak:function(text,opts){
       opts=opts||{};
-      return fetch(B+'/api/elevenlabs/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({text:text},opts))})
+      return fetch(B+'/api/elevenlabs/tts',{method:'POST',headers:headers(),body:JSON.stringify(Object.assign({text:text},opts))})
         .then(function(r){if(!r.ok)throw new Error('ElevenLabs TTS '+r.status);return r.arrayBuffer();}).then(play);
     },
     generateSfx:function(desc,dur){
       var b={description:desc};if(dur!=null)b.durationSeconds=dur;
-      return fetch(B+'/api/elevenlabs/sfx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)})
+      return fetch(B+'/api/elevenlabs/sfx',{method:'POST',headers:headers(),body:JSON.stringify(b)})
         .then(function(r){if(!r.ok)throw new Error('ElevenLabs SFX '+r.status);return r.arrayBuffer();}).then(play);
     }
   };

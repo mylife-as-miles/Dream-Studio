@@ -128,11 +128,29 @@ export function useCopilot(
   const mergedToolContext = useMemo<CopilotToolExecutionContext>(
     () => ({
       ...toolContext,
-      onGeneratedGame: (title: string, _html: string) => {
+      onGeneratedGame: (title: string, html: string, generatedFiles?: Array<{ content: string; path: string }>) => {
+        const toolFiles = generatedFiles?.map((file) => ({
+          content: file.content,
+          language: inferMorphusFileLanguage(file.path),
+          path: file.path.replace(/\\/g, "/").replace(/^\.?\//, ""),
+          updatedAt: Date.now()
+        })) ?? [];
+        const toolHtml = mode === "morphus" && toolFiles.length > 0
+          ? buildMorphusPreviewHtml(toolFiles)
+          : null;
+        const resolvedHtml = toolHtml || html.trim();
+
+        if (resolvedHtml) {
+          const game = { title, html: resolvedHtml };
+          setLatestGame(game);
+          if (mode === "morphus") {
+            setFiles(toolFiles.length > 0 ? toolFiles : createMorphusFilesFromGame(game));
+          }
+        }
         pendingGameTitleRef.current = title;
       }
     }),
-    [toolContext]
+    [mode, toolContext]
   );
 
   useEffect(() => {
@@ -390,31 +408,4 @@ export function useCopilot(
         );
       }
 
-      return nextFiles;
-    });
-  }, []);
-
-  return {
-    session,
-    sendMessage,
-    abort,
-    clearHistory,
-    isConfigured: configured,
-    refreshConfigured: () => setConfigured(isCopilotConfigured()),
-    latestGame,
-    clearLatestGame,
-    files,
-    saveFile
-  };
-}
-
-function findLatestAssistantContent(messages: CopilotSession["messages"]) {
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i];
-    if (message.role === "assistant" && message.content.trim()) {
-      return message.content;
-    }
-  }
-
-  return "";
-}
+   
