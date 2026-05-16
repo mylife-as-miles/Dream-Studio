@@ -128,6 +128,19 @@ import {
   createPrimitiveNodeLabel
 } from "@/lib/authoring";
 import { createSceneHook, HOOK_DEFINITION_MAP, HOOK_DEFINITIONS, resolveGameplayEvents, setGameplayValue } from "@/lib/gameplay";
+import {
+  createBehaviorTreeNode,
+  deleteBehaviorTree,
+  layoutBehaviorTree,
+  listBehaviorTrees,
+  loadBehaviorTree,
+  makeDefaultBehaviorTree,
+  saveBehaviorTree,
+  slugifyBehaviorTreeId,
+  type BehaviorTree,
+  type BtNodeData,
+  type BtNodeType
+} from "@/lib/behavior-tree-storage";
 import type { CopilotToolCall, CopilotToolResult } from "./types";
 
 type Args = Record<string, unknown>;
@@ -1005,6 +1018,66 @@ function updateHooksOnTarget(
   const { hooks, result } = update(currentHooks);
   editor.execute(createSetEntityCommand(editor.scene, targetId, { ...structuredClone(entity), hooks }));
   return ok(result);
+}
+
+function loadBehaviorTreeOrFail(treeId: string) {
+  const tree = loadBehaviorTree(treeId);
+  return tree ?? null;
+}
+
+function saveBehaviorTreeResult(tree: BehaviorTree, extra: Record<string, unknown> = {}) {
+  saveBehaviorTree(tree);
+  return ok({
+    edgeCount: tree.edges.length,
+    nodeCount: tree.nodes.length,
+    treeId: tree.id,
+    treeName: tree.name,
+    ...extra
+  });
+}
+
+function updateBehaviorTreeNodeData(tree: BehaviorTree, nodeId: string, args: Args) {
+  let found = false;
+
+  const nodes = tree.nodes.map((node) => {
+    if (node.id !== nodeId) {
+      return node;
+    }
+
+    found = true;
+    const nextData: BtNodeData = {
+      ...node.data
+    };
+
+    const label = optionalStr(args, "label");
+    const event = optionalStr(args, "event");
+    const mode = optionalStr(args, "mode");
+    const actionType = optionalStr(args, "actionType");
+    const actionTarget = optionalStr(args, "actionTarget");
+    const actionValue = optionalStr(args, "actionValue");
+    const count = optionalNum(args, "count");
+    const positionX = optionalNum(args, "positionX");
+    const positionY = optionalNum(args, "positionY");
+
+    if (label !== undefined) nextData.label = label;
+    if (event !== undefined) nextData.event = event;
+    if (mode === "allOf" || mode === "anyOf") nextData.mode = mode;
+    if (actionType !== undefined) nextData.actionType = actionType;
+    if (actionTarget !== undefined) nextData.actionTarget = actionTarget;
+    if (actionValue !== undefined) nextData.actionValue = actionValue;
+    if (count !== undefined) nextData.count = count;
+
+    return {
+      ...node,
+      data: nextData,
+      position: {
+        x: positionX ?? node.position.x,
+        y: positionY ?? node.position.y
+      }
+    };
+  });
+
+  return found ? { ...tree, nodes } : null;
 }
 
 export function executeTool(

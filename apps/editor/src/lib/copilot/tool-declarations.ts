@@ -836,6 +836,128 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "list_behavior_trees",
+    description: "Lists locally saved behavior trees from the AI Behavior Tree Editor.",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "get_behavior_tree",
+    description: "Gets the full nodes and edges for a saved behavior tree by id.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" }
+      },
+      required: ["treeId"]
+    }
+  },
+  {
+    name: "create_behavior_tree",
+    description: "Creates a new behavior tree in local storage. By default it starts with a root node only. Set useDefaultTemplate to true for the starter attack/patrol example tree.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Optional requested tree id. If omitted, one is derived from the name." },
+        name: { type: "string", description: "Tree display name" },
+        useDefaultTemplate: { type: "boolean", description: "Whether to start from the built-in sample tree instead of an empty root-only tree" }
+      },
+      required: ["name"]
+    }
+  },
+  {
+    name: "add_behavior_tree_node",
+    description: "Adds a node to a behavior tree, optionally connecting it under a parent node.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" },
+        nodeType: { type: "string", enum: ["root", "selector", "sequence", "parallel", "inverter", "repeater", "condition", "action"], description: "Behavior tree node type" },
+        label: { type: "string", description: "Optional node label" },
+        parentNodeId: { type: "string", description: "Optional parent node id to connect from" },
+        positionX: { type: "number", description: "Optional canvas X position" },
+        positionY: { type: "number", description: "Optional canvas Y position" },
+        event: { type: "string", description: "Condition event name" },
+        mode: { type: "string", enum: ["allOf", "anyOf"], description: "Condition mode" },
+        actionType: { type: "string", description: "Action type, usually emit" },
+        actionTarget: { type: "string", description: "Action target/event name" },
+        actionValue: { type: "string", description: "Optional action value" },
+        count: { type: "number", description: "Repeater count" }
+      },
+      required: ["treeId", "nodeType"]
+    }
+  },
+  {
+    name: "update_behavior_tree_node",
+    description: "Updates label, behavior data, or canvas position for an existing behavior tree node.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" },
+        nodeId: { type: "string", description: "Node id" },
+        label: { type: "string", description: "Updated node label" },
+        event: { type: "string", description: "Condition event name" },
+        mode: { type: "string", enum: ["allOf", "anyOf"], description: "Condition mode" },
+        actionType: { type: "string", description: "Action type" },
+        actionTarget: { type: "string", description: "Action target/event name" },
+        actionValue: { type: "string", description: "Optional action value" },
+        count: { type: "number", description: "Repeater count" },
+        positionX: { type: "number", description: "Canvas X position" },
+        positionY: { type: "number", description: "Canvas Y position" }
+      },
+      required: ["treeId", "nodeId"]
+    }
+  },
+  {
+    name: "connect_behavior_tree_nodes",
+    description: "Creates a directed edge from one behavior tree node to another.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" },
+        sourceNodeId: { type: "string", description: "Parent/source node id" },
+        targetNodeId: { type: "string", description: "Child/target node id" }
+      },
+      required: ["treeId", "sourceNodeId", "targetNodeId"]
+    }
+  },
+  {
+    name: "delete_behavior_tree_node",
+    description: "Deletes a node and any connected edges from a behavior tree.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" },
+        nodeId: { type: "string", description: "Node id" }
+      },
+      required: ["treeId", "nodeId"]
+    }
+  },
+  {
+    name: "apply_behavior_tree_layout",
+    description: "Automatically lays out the nodes in a behavior tree.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" }
+      },
+      required: ["treeId"]
+    }
+  },
+  {
+    name: "delete_behavior_tree",
+    description: "Deletes a saved behavior tree from local storage.",
+    parameters: {
+      type: "object",
+      properties: {
+        treeId: { type: "string", description: "Behavior tree id" }
+      },
+      required: ["treeId"]
+    }
+  },
+  {
     name: "get_mesh_topology",
     description: "Returns the face IDs, vertex IDs with positions, face centers, face normals, and edges for a mesh node. Use this before mesh editing operations to discover which faces/vertices/edges to target.",
     parameters: {
