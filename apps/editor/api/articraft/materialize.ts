@@ -56,6 +56,10 @@ function setCors(res: VercelResponse) {
 }
 
 function parsePayload(body: unknown) {
+  if (Buffer.isBuffer(body)) {
+    return JSON.parse(body.toString("utf8")) as unknown;
+  }
+
   return typeof body === "string" ? JSON.parse(body) as unknown : body;
 }
 
