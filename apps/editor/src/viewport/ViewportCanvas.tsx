@@ -256,6 +256,41 @@ const SKY_FRAG = /* glsl */ `
   }
 `;
 
+const COPILOT_SCREENSHOT_MAX_EDGE = 960;
+const COPILOT_SCREENSHOT_QUALITY = 0.72;
+
+function encodeCopilotViewportScreenshot(canvas: HTMLCanvasElement) {
+  const scale = Math.min(1, COPILOT_SCREENSHOT_MAX_EDGE / Math.max(canvas.width, canvas.height));
+  const width = Math.max(1, Math.round(canvas.width * scale));
+  const height = Math.max(1, Math.round(canvas.height * scale));
+
+  if (scale >= 1 && canvas.width <= COPILOT_SCREENSHOT_MAX_EDGE && canvas.height <= COPILOT_SCREENSHOT_MAX_EDGE) {
+    return {
+      dataUrl: canvas.toDataURL("image/webp", COPILOT_SCREENSHOT_QUALITY),
+      height: canvas.height,
+      mimeType: "image/webp",
+      width: canvas.width
+    };
+  }
+
+  const outputCanvas = document.createElement("canvas");
+  outputCanvas.width = width;
+  outputCanvas.height = height;
+  const context = outputCanvas.getContext("2d", { alpha: false });
+  if (!context) {
+    throw new Error("Unable to prepare viewport screenshot.");
+  }
+
+  context.drawImage(canvas, 0, 0, width, height);
+
+  return {
+    dataUrl: outputCanvas.toDataURL("image/webp", COPILOT_SCREENSHOT_QUALITY),
+    height,
+    mimeType: "image/webp",
+    width
+  };
+}
+
 function ViewportOrientationGizmo() {
   const { gl } = useThree();
   const isWebGPU = (gl as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
@@ -543,12 +578,7 @@ export function ViewportCanvas({
         requestAnimationFrame(() => resolve());
       });
 
-      return {
-        dataUrl: canvas.toDataURL("image/png"),
-        height: canvas.height,
-        mimeType: "image/png",
-        width: canvas.width
-      };
+      return encodeCopilotViewportScreenshot(canvas);
     };
 
     onRegisterViewportScreenshotCapture(viewportId, capture);
