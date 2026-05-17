@@ -20,7 +20,7 @@ import {
 } from "./activity";
 
 export type AgenticLoopConfig = {
-  maxIterations: number;
+  maxIterations?: number;
   provider: CopilotProvider;
   providerConfig: CopilotProviderConfig;
   providerId: CopilotProviderId;
@@ -106,7 +106,11 @@ export async function runAgenticLoop(
   }
   emitUpdate();
 
-  for (let iteration = 0; iteration < config.maxIterations; iteration++) {
+  for (let iteration = 0; ; iteration++) {
+    if (config.maxIterations !== undefined && iteration >= config.maxIterations) {
+      break;
+    }
+
     const stepNumber = iteration + 1;
 
     if (signal?.aborted) {
