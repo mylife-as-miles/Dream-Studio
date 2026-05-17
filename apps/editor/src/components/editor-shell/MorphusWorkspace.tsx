@@ -56,6 +56,7 @@ export function MorphusWorkspace({
   const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
   const activeFile = files.find((file) => file.path === activePath) ?? files[0];
   const activeFileIsAudio = Boolean(activeFile && isPlayableAudioFile(activeFile));
+  const codeLanguage = activeFile ? inferEditorLanguage(activeFile.path) : "text";
   const fileTree = useMemo(() => buildMorphusFileTree(files), [files]);
   const elevenLabsAvailable = Boolean(loadCopilotSettings().elevenlabsApiKey);
   const audioRequests = useMemo(() => {
@@ -373,16 +374,16 @@ export function MorphusWorkspace({
             </div>
           </div>
         ) : editingActiveFile ? (
-          <textarea
-            className="h-full w-full resize-none overflow-auto border-0 bg-[#171a1f] px-4 py-4 font-mono text-[12px] leading-6 text-slate-100 outline-none selection:bg-emerald-400/20 md:px-6 md:py-5"
-            onChange={(event) => setDraftContent(event.target.value)}
-            spellCheck={false}
+          <MorphusCodeEditor
+            language={codeLanguage}
+            onChange={setDraftContent}
             value={draftContent}
           />
         ) : (
-          <pre className="h-full overflow-auto bg-[#171a1f] px-4 py-4 font-mono text-[12px] leading-6 text-slate-200 md:px-6 md:py-5">
-            <code>{activeFile.content}</code>
-          </pre>
+          <MorphusCodeViewer
+            language={codeLanguage}
+            value={activeFile.content}
+          />
         )
       ) : (
         <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
@@ -594,6 +595,69 @@ type MorphusFileTreeNodeData =
       path: string;
     };
 
+function MorphusCodeEditor({
+  language,
+  onChange,
+  value
+}: {
+  language: EditorLanguage;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const lineCount = Math.max(1, value.split("\n").length);
+
+  return (
+    <div className="flex h-full min-h-0 bg-[#14181e] font-mono text-[12px] leading-6 text-slate-100">
+      <div className="flex w-14 shrink-0 flex-col items-end overflow-hidden border-r border-white/6 bg-[#10141a] px-2 py-4 text-[11px] text-white/28 md:py-5">
+        {Array.from({ length: lineCount }, (_, index) => (
+          <div className="h-6" key={index}>
+            {index + 1}
+          </div>
+        ))}
+      </div>
+      <textarea
+        className="h-full w-full resize-none overflow-auto border-0 bg-transparent px-4 py-4 font-mono text-[12px] leading-6 text-slate-100 outline-none selection:bg-emerald-400/20 md:px-6 md:py-5"
+        data-language={language}
+        onChange={(event) => onChange(event.target.value)}
+        spellCheck={false}
+        value={value}
+        wrap="off"
+      />
+    </div>
+  );
+}
+
+function MorphusCodeViewer({
+  language,
+  value
+}: {
+  language: EditorLanguage;
+  value: string;
+}) {
+  const lines = value.split("\n");
+
+  return (
+    <div className="flex h-full min-h-0 bg-[#14181e] font-mono text-[12px] leading-6 text-slate-200">
+      <div className="flex w-14 shrink-0 flex-col items-end overflow-hidden border-r border-white/6 bg-[#10141a] px-2 py-4 text-[11px] text-white/28 md:py-5">
+        {lines.map((_, index) => (
+          <div className="h-6" key={index}>
+            {index + 1}
+          </div>
+        ))}
+      </div>
+      <pre className="h-full min-w-0 flex-1 overflow-auto bg-transparent px-4 py-4 md:px-6 md:py-5">
+        <code>
+          {lines.map((line, index) => (
+            <div className="min-h-6 whitespace-pre" key={index}>
+              {renderHighlightedLine(line, language)}
+            </div>
+          ))}
+        </code>
+      </pre>
+    </div>
+  );
+}
+
 function MorphusFileTreeNode({
   activePath,
   depth = 0,
@@ -732,6 +796,80 @@ function sortMorphusFileTree(nodes: MorphusFileTreeNodeData[]): MorphusFileTreeN
 
       return a.name.localeCompare(b.name);
     });
+}
+
+type EditorLanguage = "css" | "html" | "javascript" | "json" | "text";
+
+function inferEditorLanguage(path: string): EditorLanguage {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
+  if (lower.endsWith(".css")) return "css";
+  if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".ts") || lower.endsWith(".tsx") || lower.endsWith(".jsx")) return "javascript";
+  if (lower.endsWith(".json")) return "json";
+  return "text";
+}
+
+function renderHighlightedLine(line: string, language: EditorLanguage) {
+  if (!line) {
+    return <span>&nbsp;</span>;
+  }
+
+  const tokens = tokenizeCodeLine(line, language);
+  return tokens.map((token, index) => (
+    <span className={codeTokenClassName(token.kind)} key={`${index}:${token.value}`}>
+      {token.value}
+    </span>
+  ));
+}
+
+function tokenizeCodeLine(line: string, language: EditorLanguage) {
+  const pattern = /(\"(?:\\.|[^"])*\"|'(?:\\.|[^'])*'|`(?:\\.|[^`])*`|\/\/.*$|\/\*.*?\*\/|<!--.*?-->|<\/?[A-Za-z][^>\s/]*|[{}()[\];,.<>/=:+\-*]|-?\b\d+(?:\.\d+)?\b|\b(?:class|const|constructor|else|export|extends|false|function|if|import|let|new|null|return|super|this|true|var|while)\b)/gm;
+  const tokens: Array<{ kind: "comment" | "keyword" | "number" | "operator" | "string" | "tag" | "text"; value: string }> = [];
+  let lastIndex = 0;
+
+  for (const match of line.matchAll(pattern)) {
+    const value = match[0];
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      tokens.push({ kind: "text", value: line.slice(lastIndex, index) });
+    }
+
+    let kind: "comment" | "keyword" | "number" | "operator" | "string" | "tag" | "text" = "text";
+    if (/^(\/\/|\/\*|<!--)/.test(value)) kind = "comment";
+    else if (/^["'`]/.test(value)) kind = "string";
+    else if (/^-?\d/.test(value)) kind = "number";
+    else if (/^[{}()[\];,.<>/=:+\-*]+$/.test(value)) kind = "operator";
+    else if (language === "html" && /^<\/?[A-Za-z]/.test(value)) kind = "tag";
+    else if (/^(class|const|constructor|else|export|extends|false|function|if|import|let|new|null|return|super|this|true|var|while)$/.test(value)) kind = "keyword";
+
+    tokens.push({ kind, value });
+    lastIndex = index + value.length;
+  }
+
+  if (lastIndex < line.length) {
+    tokens.push({ kind: "text", value: line.slice(lastIndex) });
+  }
+
+  return tokens;
+}
+
+function codeTokenClassName(kind: "comment" | "keyword" | "number" | "operator" | "string" | "tag" | "text") {
+  switch (kind) {
+    case "comment":
+      return "text-[#66778d]";
+    case "keyword":
+      return "text-[#ffb86c]";
+    case "number":
+      return "text-[#7dd3fc]";
+    case "operator":
+      return "text-[#f8fafc]";
+    case "string":
+      return "text-[#a3e635]";
+    case "tag":
+      return "text-[#5eead4]";
+    default:
+      return "text-slate-200";
+  }
 }
 
 function MorphusTabButton({
