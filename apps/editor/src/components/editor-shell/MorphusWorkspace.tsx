@@ -581,6 +581,8 @@ function AudioApprovalTray({
   onReject: (request: MorphusAudioRequest) => void;
   requests: MorphusAudioRequest[];
 }) {
+  const busy = generatingPaths.length > 0;
+
   return (
     <div className="shrink-0 rounded-2xl border border-[#f6d07d]/16 bg-[#f6d07d]/[0.055] p-3 shadow-[0_18px_42px_rgba(0,0,0,0.2)]">
       <div className="flex items-start gap-2">
@@ -597,6 +599,25 @@ function AudioApprovalTray({
           <p className="mt-2 text-[11px] leading-relaxed text-white/40">
             Play access stays locked until every requested clip is approved or skipped.
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              className="rounded-lg px-2.5 py-1 text-[10px] font-medium text-white/42 transition-colors hover:bg-white/[0.05] hover:text-white/76 disabled:pointer-events-none disabled:opacity-40"
+              disabled={busy}
+              onClick={() => requests.forEach(onReject)}
+              type="button"
+            >
+              Skip all
+            </button>
+            <button
+              className="flex items-center gap-1 rounded-lg border border-emerald-300/18 bg-emerald-500/16 px-2.5 py-1 text-[10px] font-medium text-emerald-100 transition-colors hover:bg-emerald-500/24 disabled:pointer-events-none disabled:opacity-45"
+              disabled={!available || busy}
+              onClick={() => requests.forEach(onApprove)}
+              type="button"
+            >
+              <Check className="size-3" />
+              Approve all
+            </button>
+          </div>
           {!available && (
             <p className="mt-2 rounded-xl border border-amber-300/15 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-100/80">
               Add an ElevenLabs API key in settings before approving audio.
