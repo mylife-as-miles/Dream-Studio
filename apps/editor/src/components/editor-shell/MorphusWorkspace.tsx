@@ -1,4 +1,4 @@
-import { Check, Code2, Edit3, ExternalLink, FileCode2, Folder, FolderUp, LayoutPanelLeft, Loader2, MessageSquareText, Music2, Upload, Volume2, X } from "lucide-react";
+import { Check, Code2, Download, Edit3, ExternalLink, FileCode2, Folder, FolderUp, LayoutPanelLeft, Loader2, MessageSquareText, Music2, Upload, Volume2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
@@ -43,6 +43,8 @@ export function MorphusWorkspace({
   const [draftContent, setDraftContent] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [audioError, setAudioError] = useState("");
+  const [exportError, setExportError] = useState("");
+  const [exportingZip, setExportingZip] = useState(false);
   const [generatingAudioPaths, setGeneratingAudioPaths] = useState<string[]>([]);
   const [mobileTab, setMobileTab] = useState<"files" | "code" | "chat">("chat");
   const [rejectedAudioPaths, setRejectedAudioPaths] = useState<string[]>([]);
@@ -52,6 +54,7 @@ export function MorphusWorkspace({
   const hasConversation = session.messages.length > 0 || session.activity.length > 0;
   const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
   const activeFile = files.find((file) => file.path === activePath) ?? files[0];
+  const activeFileIsAudio = Boolean(activeFile && isPlayableAudioFile(activeFile));
   const elevenLabsAvailable = Boolean(loadCopilotSettings().elevenlabsApiKey);
   const audioRequests = useMemo(() => {
     const existingPaths = new Set(files.map((file) => file.path.toLowerCase()));
@@ -64,8 +67,10 @@ export function MorphusWorkspace({
         (request) =>
           !existingPaths.has(request.path.toLowerCase()) &&
           !rejectedPaths.has(request.path.toLowerCase())
-      );
+        );
   }, [files, rejectedAudioPaths, session.messages]);
+  const hasPendingAudioApproval = audioRequests.length > 0 || generatingAudioPaths.length > 0;
+  const playableGame = hasPendingAudioApproval ? null : latestGame;
 
   useEffect(() => {
     if (files.length === 0) {
@@ -87,11 +92,11 @@ export function MorphusWorkspace({
   }, [activeFile, editingPath]);
 
   const openGame = () => {
-    if (!latestGame) {
+    if (!playableGame) {
       return;
     }
 
-    window.open(buildGameBlobUrl(latestGame.html), "_blank");
+    window.open(buildGameBlobUrl(playableGame.html), "_blank");
   };
 
   const sendMorphusMessage = (prompt: string, images?: CopilotImageAttachment[]) => {
@@ -116,6 +121,7 @@ export function MorphusWorkspace({
     setRequestStarted(false);
     setActivePath("");
     setAudioError("");
+    setExportError("");
     setEditingPath("");
     setDraftContent("");
     setRejectedAudioPaths([]);
@@ -166,6 +172,28 @@ export function MorphusWorkspace({
 
   const rejectAudioRequest = (request: MorphusAudioRequest) => {
     setRejectedAudioPaths((previous) => [...previous, request.path]);
+  };
+
+  const exportFilesAsZip = async () => {
+    if (files.length === 0 || exportingZip) {
+      return;
+    }
+
+    setExportError("");
+    setExportingZip(true);
+
+    try {
+      const { zipSync } = await import("fflate");
+      const entries = Object.fromEntries(
+        files.map((file) => [file.path, encodeMorphusFile(file)])
+      );
+      const zip = zipSync(entries, { level: 6 });
+      downloadBinaryFile(`${slugifyFilename(playableGame?.title || latestGame?.title || "morphus-project")}.zip`, zip, "application/zip");
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Could not export ZIP.");
+    } finally {
+      setExportingZip(false);
+    }
   };
 
   const editingActiveFile = Boolean(activeFile && editingPath === activeFile.path);
@@ -266,7 +294,28 @@ export function MorphusWorkspace({
         )}
       </div>
       {activeFile ? (
-        activeFile.language === "asset" ? (
+        activeFile.language === "asset" && activeFileIsAudio ? (
+          <div className="flex h-full items-center justify-center bg-[#171a1f] px-6">
+            <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-center shadow-[0_22px_80px_rgba(0,0,0,0.28)]">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-emerald-300/16 bg-emerald-500/10 text-emerald-200">
+                <Volume2 className="size-5" />
+              </div>
+              <div className="mt-4 text-[11px] font-semibold tracking-[0.18em] text-white/72 uppercase">
+                Audio asset
+              </div>
+              <p className="mt-2 break-all text-[11px] leading-relaxed text-white/40">{activeFile.path}</p>
+              <audio
+                className="mt-5 w-full"
+                controls
+                preload="metadata"
+                src={resolveAudioSource(activeFile)}
+              />
+              <p className="mt-3 text-[11px] leading-relaxed text-white/34">
+                Preview the exact clip that will be referenced by the generated game.
+              </p>
+            </div>
+          </div>
+        ) : activeFile.language === "asset" ? (
           <div className="flex h-full items-center justify-center bg-[#171a1f] px-6 text-center">
             <div className="max-w-md">
               <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[#f6d07d]/20 bg-[#f6d07d]/10 text-[#f6d07d]">
@@ -328,7 +377,7 @@ export function MorphusWorkspace({
         <CopilotPanel
           emptyText="Describe the HTML game you want Morphus to create."
           isConfigured={isConfigured}
-          latestGame={latestGame}
+          latestGame={playableGame}
           onAbort={onAbort}
           onClearGame={onClearGame}
           onClearHistory={clearMorphusHistory}
@@ -407,10 +456,25 @@ export function MorphusWorkspace({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            {files.length > 0 && (
+              <Button
+                className="editor-toolbar-button h-8 rounded-[10px] px-2.5 text-[11px]"
+                disabled={exportingZip}
+                onClick={() => {
+                  void exportFilesAsZip();
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                {exportingZip ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+                Export ZIP
+              </Button>
+            )}
             {latestGame && (
               <>
                 <Button
                   className="editor-toolbar-button h-8 rounded-[10px] px-2.5 text-[11px]"
+                  disabled={hasPendingAudioApproval}
                   onClick={openGame}
                   size="sm"
                   variant="ghost"
@@ -431,6 +495,11 @@ export function MorphusWorkspace({
             </Button>
           </div>
         </header>
+        {exportError && (
+          <div className="border-b border-rose-300/12 bg-rose-500/10 px-4 py-2 text-[11px] text-rose-100/80">
+            {exportError}
+          </div>
+        )}
 
         <div className="hidden min-h-0 flex-1 grid-cols-[minmax(0,1fr)_22rem] md:grid">
           {codePane}
@@ -525,6 +594,9 @@ function AudioApprovalTray({
           <p className="mt-1 text-[11px] leading-relaxed text-white/48">
             Morphus requested ElevenLabs audio. Approve only the clips you want generated and saved into the file explorer.
           </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+            Play access stays locked until every requested clip is approved or skipped.
+          </p>
           {!available && (
             <p className="mt-2 rounded-xl border border-amber-300/15 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-100/80">
               Add an ElevenLabs API key in settings before approving audio.
@@ -616,6 +688,60 @@ function isTextLikeFile(file: File) {
     file.type.startsWith("text/") ||
     /\.(html?|css|m?js|ts|tsx|jsx|json|gltf|glsl|wgsl|md|txt|csv|xml|svg|obj|mtl)$/i.test(lower)
   );
+}
+
+function isPlayableAudioFile(file: MorphusFileRecord) {
+  return /\.(mp3|wav|ogg|m4a)$/i.test(file.path) || /^data:audio\//i.test(file.content);
+}
+
+function resolveAudioSource(file: MorphusFileRecord) {
+  return file.content;
+}
+
+function encodeMorphusFile(file: MorphusFileRecord) {
+  if (file.content.startsWith("data:")) {
+    return dataUrlToBytes(file.content);
+  }
+
+  return new TextEncoder().encode(file.content);
+}
+
+function dataUrlToBytes(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/i);
+  if (!match) {
+    throw new Error("Unsupported data URL asset.");
+  }
+
+  const [, , base64Flag, payload] = match;
+  if (base64Flag) {
+    const binary = atob(payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  return new TextEncoder().encode(decodeURIComponent(payload));
+}
+
+function downloadBinaryFile(filename: string, content: Uint8Array, type: string) {
+  const bytes = new Uint8Array(content.byteLength);
+  bytes.set(content);
+  const url = URL.createObjectURL(new Blob([bytes.buffer], { type }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function slugifyFilename(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "morphus-project";
 }
 
 function MorphusStart({
