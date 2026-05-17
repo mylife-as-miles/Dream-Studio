@@ -417,6 +417,7 @@ export function ViewportCanvas({
   sculptBrushType,
   sculptSymmetryX,
   onActivateViewport,
+  onRegisterViewportScreenshotCapture,
   onClearSelection,
   onDropBlockout,
   onCommitMeshTopology,
@@ -464,6 +465,7 @@ export function ViewportCanvas({
   viewport
 }: ViewportCanvasProps) {
   const cameraRef = useRef<Camera | null>(null);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const aiPlacementClickOriginRef = useRef<Vector2 | null>(null);
   const brushClickOriginRef = useRef<Vector2 | null>(null);
   const marqueeOriginRef = useRef<Vector2 | null>(null);
@@ -525,6 +527,36 @@ export function ViewportCanvas({
       setPreviewMouseCaptured(false);
     }
   }, [previewActive, previewPossessed]);
+
+  useEffect(() => {
+    if (!onRegisterViewportScreenshotCapture) {
+      return;
+    }
+
+    const capture = async () => {
+      const canvas = canvasElementRef.current;
+      if (!canvas) {
+        throw new Error("Viewport canvas is not ready yet.");
+      }
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
+      return {
+        dataUrl: canvas.toDataURL("image/png"),
+        height: canvas.height,
+        mimeType: "image/png",
+        width: canvas.width
+      };
+    };
+
+    onRegisterViewportScreenshotCapture(viewportId, capture);
+
+    return () => {
+      onRegisterViewportScreenshotCapture(viewportId, null);
+    };
+  }, [onRegisterViewportScreenshotCapture, viewportId]);
 
   const handleTransformDragStateChange = (dragging: boolean) => {
     transformDraggingRef.current = dragging;
@@ -3531,6 +3563,7 @@ export function ViewportCanvas({
         orthographic={viewport.projection === "orthographic"}
         onCreated={(state: RootState) => {
           cameraRef.current = state.camera;
+          canvasElementRef.current = state.gl.domElement;
         }}
         onPointerMissed={() => {
           if (!editorInteractionEnabled) {

@@ -61,6 +61,17 @@ export type ViewportCanvasProps = {
   sculptBrushType: "draw" | "smooth" | "grab";
   sculptSymmetryX: boolean;
   onActivateViewport: (viewportId: ViewportPaneId) => void;
+  onRegisterViewportScreenshotCapture?: (
+    viewportId: ViewportPaneId,
+    capture:
+      | (() => Promise<{
+          dataUrl: string;
+          height: number;
+          mimeType: string;
+          width: number;
+        }>)
+      | null
+  ) => void;
   onClearSelection: () => void;
   onDropBlockout?: (kind: ViewportBlockoutDropKind, position: Vec3) => void;
   onCommitMeshTopology: (nodeId: string, mesh: EditableMesh) => void;

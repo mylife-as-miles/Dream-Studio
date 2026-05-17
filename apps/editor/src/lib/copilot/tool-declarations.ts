@@ -512,6 +512,20 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "capture_viewport_screenshot",
+    description:
+      "Capture a screenshot of the active editor viewport so you can inspect what has actually been built. Use this after meaningful scene changes when visual confirmation would help.",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          description: "Optional short note about what you want to inspect in the screenshot"
+        }
+      }
+    }
+  },
+  {
     name: "morphus_list_files",
     description:
       "List files in the current Morphus HTML game workspace. Use this before follow-up edits so you can inspect the existing project instead of regenerating it.",
@@ -523,11 +537,14 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   {
     name: "morphus_read_file",
     description:
-      "Read one existing file from the current Morphus workspace. Use this before editing a file.",
+      "Read a bounded slice of one existing text file from the current Morphus workspace. Use only for files you truly need to edit, and do not reread the same file in one run.",
     parameters: {
       type: "object",
       properties: {
-        path: { type: "string", description: "Project-relative file path, for example index.html, style.css, or main.js" }
+        path: { type: "string", description: "Project-relative file path, for example index.html, style.css, or main.js" },
+        startLine: { type: "number", description: "Optional 1-based first line to read when you only need a slice." },
+        endLine: { type: "number", description: "Optional 1-based last line to read when you only need a slice." },
+        maxChars: { type: "number", description: "Optional character cap for the returned content. Defaults to a small safe cap." }
       },
       required: ["path"]
     }

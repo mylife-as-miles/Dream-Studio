@@ -22,6 +22,7 @@ export type CopilotSettings = {
 export type CopilotImageAttachment = {
   dataUrl: string;
   mimeType: string;
+  name?: string;
 };
 
 export type CopilotMessage = {
@@ -44,6 +45,7 @@ export type CopilotToolCall = {
 
 export type CopilotToolResult = {
   callId: string;
+  images?: CopilotImageAttachment[];
   name: string;
   result: string;
 };

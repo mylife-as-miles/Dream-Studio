@@ -153,6 +153,17 @@ function loadModelAssetTools() {
 }
 
 export function App() {
+  const viewportScreenshotCapturesRef = useRef(
+    new Map<
+      ViewportPaneId,
+      () => Promise<{
+        dataUrl: string;
+        height: number;
+        mimeType: string;
+        width: number;
+      }>
+    >()
+  );
   const [editor] = useState(() => createEditorCore(createSeedSceneDocument()));
   const [activeToolId, setActiveToolId] = useState<ToolId>(defaultToolId);
   const [activeBrushShape, setActiveBrushShape] = useState<BrushShape>("cube");
@@ -377,6 +388,25 @@ export function App() {
   const handleUpdateViewport = (viewportId: ViewportPaneId, viewport: ViewportState) => {
     uiStore.viewports[viewportId].projection = viewport.projection;
     uiStore.viewports[viewportId].camera = viewport.camera;
+  };
+
+  const handleRegisterViewportScreenshotCapture = (
+    viewportId: ViewportPaneId,
+    capture:
+      | (() => Promise<{
+          dataUrl: string;
+          height: number;
+          mimeType: string;
+          width: number;
+        }>)
+      | null
+  ) => {
+    if (capture) {
+      viewportScreenshotCapturesRef.current.set(viewportId, capture);
+      return;
+    }
+
+    viewportScreenshotCapturesRef.current.delete(viewportId);
   };
 
   const handleToggleViewportQuality = () => {
@@ -1967,6 +1997,14 @@ export function App() {
   };
 
   const copilot = useCopilot(editor, {
+    captureViewportScreenshot: async () => {
+      const capture = viewportScreenshotCapturesRef.current.get(uiStore.activeViewportId);
+      if (!capture) {
+        throw new Error("The active viewport is not ready for screenshots yet.");
+      }
+
+      return capture();
+    },
     requestScenePush: (options: {
       forceSwitch?: boolean;
       gameId?: string;
@@ -2167,6 +2205,7 @@ export function App() {
         jobs={[...workerJobs, ...exportJobs]}
         meshEditToolbarAction={meshEditToolbarAction}
         onActivateViewport={handleActivateViewport}
+        onRegisterViewportScreenshotCapture={handleRegisterViewportScreenshotCapture}
         onInvertSelectionNormals={handleInvertSelectionNormals}
         onApplyMaterial={handleApplyMaterial}
         onClipSelection={handleClipSelection}

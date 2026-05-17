@@ -129,7 +129,7 @@ export function CopilotPanel({
       const reader = new FileReader();
       reader.onload = (readerEvent) => {
         const dataUrl = readerEvent.target?.result as string;
-        setAttachedImages((previous) => [...previous, { dataUrl, mimeType: file.type }]);
+        setAttachedImages((previous) => [...previous, { dataUrl, mimeType: file.type, name: file.name }]);
       };
       reader.readAsDataURL(file);
     }
@@ -155,7 +155,7 @@ export function CopilotPanel({
       const reader = new FileReader();
       reader.onload = (readerEvent) => {
         const dataUrl = readerEvent.target?.result as string;
-        setAttachedImages((previous) => [...previous, { dataUrl, mimeType: file.type }]);
+        setAttachedImages((previous) => [...previous, { dataUrl, mimeType: file.type, name: file.name }]);
       };
       reader.readAsDataURL(file);
     }

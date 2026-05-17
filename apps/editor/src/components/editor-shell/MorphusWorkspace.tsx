@@ -124,6 +124,16 @@ export function MorphusWorkspace({
 
   const sendMorphusMessage = (prompt: string, images?: CopilotImageAttachment[]) => {
     setRequestStarted(true);
+
+    if (images?.length) {
+      const existingPaths = files.map((file) => file.path);
+      images.forEach((image, index) => {
+        const assetPath = buildMorphusImageAssetPath(existingPaths, image, index);
+        existingPaths.push(assetPath);
+        onSaveFile(assetPath, image.dataUrl);
+      });
+    }
+
     onSendMessage(prompt, images);
   };
 
@@ -1051,6 +1061,39 @@ function isPlayableAudioFile(file: MorphusFileRecord) {
 
 function resolveAudioSource(file: MorphusFileRecord) {
   return file.content;
+}
+
+function extensionFromMimeType(mimeType: string) {
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  if (mimeType === "image/gif") return "gif";
+  if (mimeType === "image/svg+xml") return "svg";
+  return "png";
+}
+
+function slugifyAssetName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+function buildMorphusImageAssetPath(existingPaths: string[], image: CopilotImageAttachment, index: number) {
+  const existing = new Set(existingPaths.map((path) => path.toLowerCase()));
+  const ext = extensionFromMimeType(image.mimeType);
+  const baseName = slugifyAssetName(image.name || `reference-image-${index + 1}`) || `reference-image-${index + 1}`;
+  let path = `assets/images/${baseName}.${ext}`;
+  let suffix = 2;
+
+  while (existing.has(path.toLowerCase())) {
+    path = `assets/images/${baseName}-${suffix}.${ext}`;
+    suffix += 1;
+  }
+
+  return path;
 }
 
 function encodeMorphusFile(file: MorphusFileRecord) {

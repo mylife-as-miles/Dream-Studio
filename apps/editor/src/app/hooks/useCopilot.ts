@@ -23,6 +23,17 @@ const EMPTY_SESSION: CopilotSession = {
   iterationCount: 0
 };
 
+const MORPHUS_DEFAULT_READ_CHARS = 24000;
+const MORPHUS_MAX_READ_CHARS = 42000;
+const MORPHUS_RUN_READ_CHAR_BUDGET = 90000;
+const MORPHUS_RUN_UNIQUE_READ_BUDGET = 8;
+
+type MorphusReadFileOptions = {
+  endLine?: number;
+  maxChars?: number;
+  startLine?: number;
+};
+
 type CopilotRuntime = {
   runAgenticLoop: typeof import("@/lib/copilot/agentic-loop").runAgenticLoop;
   createCopilotProvider: typeof import("@/lib/copilot/provider").createCopilotProvider;
@@ -111,6 +122,254 @@ function summarizeMorphusFile(file: MorphusFileRecord) {
   };
 }
 
+function clampMorphusReadChars(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return MORPHUS_DEFAULT_READ_CHARS;
+  }
+
+  return Math.max(1000, Math.min(Math.round(value), MORPHUS_MAX_READ_CHARS));
+}
+
+function sliceMorphusContent(content: string, options?: MorphusReadFileOptions) {
+  const lines = content.split(/\r?\n/);
+  const hasLineSlice =
+    typeof options?.startLine === "number" ||
+    typeof options?.endLine === "number";
+  const startLine = hasLineSlice
+    ? Math.max(1, Math.floor(options?.startLine ?? 1))
+    : 1;
+  const endLine = hasLineSlice
+    ? Math.max(startLine, Math.min(lines.length, Math.floor(options?.endLine ?? lines.length)))
+    : lines.length;
+  const slicedContent = hasLineSlice
+    ? lines.slice(startLine - 1, endLine).join("\n")
+    : content;
+  const maxChars = clampMorphusReadChars(options?.maxChars);
+  const truncated = slicedContent.length > maxChars;
+
+  return {
+    content: truncated ? slicedContent.slice(0, maxChars) : slicedContent,
+    endLine,
+    lineSliced: hasLineSlice,
+    maxChars,
+    startLine,
+    totalLines: lines.length,
+    totalSize: content.length,
+    truncated
+  };
+}
+
+function createBudgetedMorphusToolContext(baseContext: CopilotToolExecutionContext): CopilotToolExecutionContext {
+  let readCharsUsed = 0;
+  const readCache = new Map<string, Record<string, unknown>>();
+  const uniqueReadPaths = new Set<string>();
+
+  return {
+    ...baseContext,
+    morphusReadFile: (path, options) => {
+      const normalizedPath = normalizeMorphusPath(path);
+      const cacheKey = JSON.stringify({
+        path: normalizedPath,
+        startLine: options?.startLine,
+        endLine: options?.endLine,
+        maxChars: options?.maxChars
+      });
+
+      if (readCache.has(cacheKey)) {
+        const cached = readCache.get(cacheKey)!;
+        return {
+          cached: true,
+          file: cached.file,
+          message: "This file slice was already read during this run. Use the previous content instead of reading it again.",
+          readBudget: {
+            charsUsed: readCharsUsed,
+            maxChars: MORPHUS_RUN_READ_CHAR_BUDGET,
+            maxUniqueFiles: MORPHUS_RUN_UNIQUE_READ_BUDGET,
+            uniqueFilesRead: uniqueReadPaths.size
+          }
+        };
+      }
+
+      if (!uniqueReadPaths.has(normalizedPath) && uniqueReadPaths.size >= MORPHUS_RUN_UNIQUE_READ_BUDGET) {
+        return {
+          budgetExceeded: true,
+          message: "Morphus read budget reached for this run. Stop reading files and use the context already gathered to write the needed changes.",
+          path: normalizedPath,
+          readBudget: {
+            charsUsed: readCharsUsed,
+            maxChars: MORPHUS_RUN_READ_CHAR_BUDGET,
+            maxUniqueFiles: MORPHUS_RUN_UNIQUE_READ_BUDGET,
+            uniqueFilesRead: uniqueReadPaths.size
+          }
+        };
+      }
+
+      if (readCharsUsed >= MORPHUS_RUN_READ_CHAR_BUDGET) {
+        return {
+          budgetExceeded: true,
+          message: "Morphus read character budget reached for this run. Stop reading files and use the context already gathered to write the needed changes.",
+          path: normalizedPath,
+          readBudget: {
+            charsUsed: readCharsUsed,
+            maxChars: MORPHUS_RUN_READ_CHAR_BUDGET,
+            maxUniqueFiles: MORPHUS_RUN_UNIQUE_READ_BUDGET,
+            uniqueFilesRead: uniqueReadPaths.size
+          }
+        };
+      }
+
+      const result = baseContext.morphusReadFile?.(normalizedPath, options);
+      if (!result) {
+        throw new Error("Morphus file reading is unavailable in this context.");
+      }
+
+      const content = typeof result.content === "string" ? result.content : "";
+      readCharsUsed += content.length;
+      uniqueReadPaths.add(normalizedPath);
+
+      const budgetedResult = {
+        ...result,
+        readBudget: {
+          charsUsed: readCharsUsed,
+          maxChars: MORPHUS_RUN_READ_CHAR_BUDGET,
+          maxUniqueFiles: MORPHUS_RUN_UNIQUE_READ_BUDGET,
+          uniqueFilesRead: uniqueReadPaths.size
+        }
+      };
+
+      readCache.set(cacheKey, budgetedResult);
+      return budgetedResult;
+    }
+  };
+}
+
+function isMorphusAudioAssetPath(path: string) {
+  return /^assets\/audio\/.+\.(mp3|wav|ogg|m4a)$/i.test(path);
+}
+
+function referencesAudioPath(content: string, audioPath: string) {
+  const basename = audioPath.split("/").pop() ?? audioPath;
+  return content.includes(audioPath) || content.includes(basename);
+}
+
+function inferAudioKind(path: string) {
+  return /\b(loop|music|theme|bgm|background|track|chill|synthwave|pulse)\b/i.test(path) ? "music" : "sfx";
+}
+
+function ensureMorphusAudioIntegration(files: MorphusFileRecord[]) {
+  const audioFiles = files.filter((file) => isMorphusAudioAssetPath(file.path));
+  if (audioFiles.length === 0) {
+    return files;
+  }
+
+  const indexFile = files.find((file) => file.path.toLowerCase() === "index.html");
+  if (!indexFile) {
+    return files;
+  }
+
+  const nonAssetFiles = files.filter((file) => file.language !== "asset");
+  const hasExplicitAudioReferences = audioFiles.some((audioFile) =>
+    nonAssetFiles.some((file) => file.path !== "morphus-audio-runtime.js" && referencesAudioPath(file.content, audioFile.path))
+  );
+
+  const runtimePath = "morphus-audio-runtime.js";
+  const runtimeContent = buildMorphusAudioRuntime(audioFiles.map((file) => file.path), hasExplicitAudioReferences);
+  const nextFiles = mergeMorphusFiles(
+    files,
+    [
+      {
+        content: runtimeContent,
+        language: "javascript",
+        path: runtimePath,
+        updatedAt: Date.now()
+      }
+    ]
+  );
+
+  const nextIndexFile = nextFiles.find((file) => file.path.toLowerCase() === "index.html");
+  if (!nextIndexFile) {
+    return nextFiles;
+  }
+
+  const scriptTag = '<script type="module" src="./morphus-audio-runtime.js"></script>';
+  if (nextIndexFile.content.includes(scriptTag)) {
+    return nextFiles;
+  }
+
+  const updatedIndexContent = nextIndexFile.content.includes("</body>")
+    ? nextIndexFile.content.replace("</body>", `  ${scriptTag}\n</body>`)
+    : `${nextIndexFile.content}\n${scriptTag}\n`;
+
+  return mergeMorphusFiles(
+    nextFiles,
+    [
+      {
+        ...nextIndexFile,
+        content: updatedIndexContent,
+        updatedAt: Date.now()
+      }
+    ]
+  );
+}
+
+function buildMorphusAudioRuntime(audioPaths: string[], hasExplicitAudioReferences: boolean) {
+  const assets = audioPaths.map((path) => ({
+    kind: inferAudioKind(path),
+    path
+  }));
+
+  return `const assets = ${JSON.stringify(assets, null, 2)};
+
+let activeMusic = null;
+let musicStarted = false;
+
+function play(path, options = {}) {
+  const audio = new Audio(path);
+  audio.loop = Boolean(options.loop);
+  audio.volume = typeof options.volume === "number" ? options.volume : 0.7;
+  audio.play().catch(() => {});
+  return audio;
+}
+
+function startBackgroundMusic() {
+  if (musicStarted) return activeMusic;
+  const track = assets.find((asset) => asset.kind === "music");
+  if (!track) return null;
+  musicStarted = true;
+  activeMusic = play(track.path, { loop: true, volume: 0.55 });
+  return activeMusic;
+}
+
+function playSfx(path, options = {}) {
+  return play(path, { loop: false, volume: options.volume ?? 0.82 });
+}
+
+window.morphusAudio = {
+  assets,
+  play,
+  playSfx,
+  startBackgroundMusic,
+  stopBackgroundMusic() {
+    if (!activeMusic) return;
+    activeMusic.pause();
+    activeMusic.currentTime = 0;
+    activeMusic = null;
+    musicStarted = false;
+  }
+};
+
+if (!${JSON.stringify(hasExplicitAudioReferences)}) {
+  const unlock = () => {
+    startBackgroundMusic();
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+  };
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+}
+`;
+}
+
 async function exportMorphusFilesToWorkspace(files: MorphusFileRecord[]) {
   const response = await fetch("/api/morphus/export", {
     method: "POST",
@@ -153,6 +412,13 @@ export function useCopilot(
       .sort((a, b) => a.localeCompare(b)),
     [files]
   );
+  const availableMorphusImageFiles = useMemo(
+    () => files
+      .map((file) => file.path)
+      .filter((path) => /^assets\/images\//i.test(path))
+      .sort((a, b) => a.localeCompare(b)),
+    [files]
+  );
   const availableMorphusFilePaths = useMemo(
     () => files
       .map((file) => file.path)
@@ -186,7 +452,7 @@ export function useCopilot(
           path: normalizedPath,
           updatedAt: Date.now()
         };
-        const nextFiles = mergeMorphusFiles(files, [nextFile]);
+        const nextFiles = ensureMorphusAudioIntegration(mergeMorphusFiles(files, [nextFile]));
         const html = buildMorphusPreviewHtml(nextFiles);
         setFiles(nextFiles);
         if (html) {
@@ -199,16 +465,25 @@ export function useCopilot(
         count: files.length,
         files: files.map(summarizeMorphusFile)
       }),
-      morphusReadFile: (path: string) => {
+      morphusReadFile: (path: string, options?: MorphusReadFileOptions) => {
         const normalizedPath = normalizeMorphusPath(path);
         const file = files.find((entry) => entry.path === normalizedPath);
         if (!file) {
           throw new Error(`File not found: ${normalizedPath}`);
         }
 
+        const slice = sliceMorphusContent(file.content, options);
+
         return {
-          content: file.content,
-          file: summarizeMorphusFile(file)
+          content: slice.content,
+          endLine: slice.endLine,
+          file: summarizeMorphusFile(file),
+          lineSliced: slice.lineSliced,
+          maxChars: slice.maxChars,
+          startLine: slice.startLine,
+          totalLines: slice.totalLines,
+          totalSize: slice.totalSize,
+          truncated: slice.truncated
         };
       },
       morphusRequestDeleteFile: (path: string, reason: string) => {
@@ -262,7 +537,7 @@ export function useCopilot(
           language: inferMorphusFileLanguage(normalizedPath),
           updatedAt: Date.now()
         };
-        const nextFiles = mergeMorphusFiles(files, [nextFile]);
+        const nextFiles = ensureMorphusAudioIntegration(mergeMorphusFiles(files, [nextFile]));
         const html = buildMorphusPreviewHtml(nextFiles);
         setFiles(nextFiles);
         if (html) {
@@ -278,7 +553,7 @@ export function useCopilot(
           path: normalizeMorphusPath(file.path),
           updatedAt: Date.now()
         })) ?? [];
-        const mergedFiles = mode === "morphus" ? mergeMorphusFiles(files, toolFiles) : toolFiles;
+        const mergedFiles = mode === "morphus" ? ensureMorphusAudioIntegration(mergeMorphusFiles(files, toolFiles)) : toolFiles;
         const toolHtml = mode === "morphus" && mergedFiles.length > 0
           ? buildMorphusPreviewHtml(mergedFiles)
           : null;
@@ -323,7 +598,7 @@ export function useCopilot(
         setLatestGame(memory.latestGame);
       }
       if (mode === "morphus") {
-        setFiles(memory.files);
+        setFiles(ensureMorphusAudioIntegration(memory.files));
       }
       memoryLoadedRef.current = true;
     });
@@ -378,7 +653,7 @@ export function useCopilot(
       setLatestGame(game);
       if (mode === "morphus") {
         setFiles((previousFiles) => {
-          const mergedFiles = mergeMorphusFiles(previousFiles, morphusFiles);
+          const mergedFiles = ensureMorphusAudioIntegration(mergeMorphusFiles(previousFiles, morphusFiles));
           return mergedFiles.length > 0 ? mergedFiles : createMorphusFilesFromGame(game);
         });
       }
@@ -402,7 +677,7 @@ export function useCopilot(
     }
 
     setFiles((previousFiles) => {
-      const mergedFiles = mergeMorphusFiles(previousFiles, morphusFiles);
+      const mergedFiles = ensureMorphusAudioIntegration(mergeMorphusFiles(previousFiles, morphusFiles));
       return mergedFiles.length > 0 ? mergedFiles : createMorphusFilesFromGame({ title: "Generated Game", html });
     });
     setLatestGame((previousGame) => previousGame ?? { title: "Generated Game", html });
@@ -453,6 +728,10 @@ export function useCopilot(
             availableMorphusAudioFiles.length > 0
               ? availableMorphusAudioFiles.slice(0, 24).join(", ")
               : "none"
+          }.\n- Existing Morphus image files: ${
+            availableMorphusImageFiles.length > 0
+              ? availableMorphusImageFiles.slice(0, 24).join(", ")
+              : "none"
           }.\n- Existing Morphus project files: ${
             availableMorphusFilePaths.length > 0
               ? availableMorphusFilePaths.slice(0, 40).join(", ")
@@ -462,6 +741,9 @@ export function useCopilot(
       const systemPrompt = appendSkillContextToPrompt(`${baseSystemPrompt}${audioContext}`, skillContext);
       const modeLabel = mode === "morphus" ? "morphus" : "editor";
       const tools = mode === "morphus" ? GAME_TOOL_DECLARATIONS : EDITOR_COPILOT_TOOL_DECLARATIONS;
+      const runToolContext = mode === "morphus"
+        ? createBudgetedMorphusToolContext(mergedToolContext)
+        : mergedToolContext;
 
       console.log(
         `[COPILOT] Mode: ${mode === "morphus" ? "morphus (1 tool)" : `editor (${tools.length} tools)`}`
@@ -488,7 +770,7 @@ export function useCopilot(
           onThreadId: (threadId) => {
             codexThreadIdRef.current = threadId;
           },
-          executeTool: (toolCall) => executeTool(editor, toolCall, mergedToolContext),
+          executeTool: (toolCall) => executeTool(editor, toolCall, runToolContext),
           onUpdate: publishSession,
           signal: controller.signal
         });
@@ -505,7 +787,7 @@ export function useCopilot(
             existingActivity: session.activity,
             systemPrompt,
             tools,
-            executeTool: (toolCall) => executeTool(editor, toolCall, mergedToolContext),
+            executeTool: (toolCall) => executeTool(editor, toolCall, runToolContext),
             onUpdate: publishSession
           },
           controller.signal,
@@ -515,7 +797,7 @@ export function useCopilot(
 
       abortRef.current = null;
     },
-    [availableMorphusAudioFiles, availableMorphusFilePaths, editor, mergedToolContext, mode, publishSession, session.activity, session.messages]
+    [availableMorphusAudioFiles, availableMorphusFilePaths, availableMorphusImageFiles, editor, mergedToolContext, mode, publishSession, session.activity, session.messages]
   );
 
   const abort = useCallback(() => {
@@ -557,15 +839,16 @@ export function useCopilot(
               updatedAt: now
             }
           ];
+      const ensuredFiles = ensureMorphusAudioIntegration(nextFiles);
 
-      const html = buildMorphusPreviewHtml(nextFiles);
+      const html = buildMorphusPreviewHtml(ensuredFiles);
       if (html) {
         setLatestGame((previousGame) =>
           previousGame ? { ...previousGame, html } : { title: "Edited Game", html }
         );
       }
 
-      return nextFiles;
+      return ensuredFiles;
     });
   }, []);
 

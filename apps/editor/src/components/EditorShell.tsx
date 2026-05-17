@@ -127,6 +127,17 @@ type EditorShellProps = {
   sculptBrushType: "draw" | "smooth" | "grab";
   sculptSymmetryX: boolean;
   onActivateViewport: (viewportId: ViewportPaneId) => void;
+  onRegisterViewportScreenshotCapture?: (
+    viewportId: ViewportPaneId,
+    capture:
+      | (() => Promise<{
+          dataUrl: string;
+          height: number;
+          mimeType: string;
+          width: number;
+        }>)
+      | null
+  ) => void;
   onApplyMaterial: (materialId: string, scope: "faces" | "object", faceIds: string[]) => void;
   onClipSelection: (axis: TransformAxis) => void;
   onCommitMeshTopology: (nodeId: string, mesh: EditableMesh) => void;
@@ -281,6 +292,7 @@ export function EditorShell({
   sculptBrushType,
   sculptSymmetryX,
   onActivateViewport,
+  onRegisterViewportScreenshotCapture,
   onApplyMaterial,
   onClipSelection,
   onCommitMeshTopology,
@@ -478,6 +490,7 @@ export function EditorShell({
           sculptBrushType={sculptBrushType}
           sculptSymmetryX={sculptSymmetryX}
           onActivateViewport={onActivateViewport}
+          onRegisterViewportScreenshotCapture={onRegisterViewportScreenshotCapture}
           onClearSelection={onClearSelection}
           onDropBlockout={onDropBlockout}
           onCommitMeshTopology={onCommitMeshTopology}

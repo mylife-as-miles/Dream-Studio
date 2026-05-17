@@ -150,6 +150,12 @@ import type { CopilotToolCall, CopilotToolResult } from "./types";
 type Args = Record<string, unknown>;
 
 export type CopilotToolExecutionContext = {
+  captureViewportScreenshot?: () => Promise<{
+    dataUrl: string;
+    height: number;
+    mimeType: string;
+    width: number;
+  }>;
   requestScenePush?: (options: {
     forceSwitch?: boolean;
     gameId?: string;
@@ -158,7 +164,7 @@ export type CopilotToolExecutionContext = {
   }) => void;
   morphusCreateFile?: (path: string, content: string) => Record<string, unknown>;
   morphusListFiles?: () => Record<string, unknown>;
-  morphusReadFile?: (path: string) => Record<string, unknown>;
+  morphusReadFile?: (path: string, options?: { endLine?: number; maxChars?: number; startLine?: number }) => Record<string, unknown>;
   morphusRequestDeleteFile?: (path: string, reason: string) => Record<string, unknown>;
   morphusRequestRenameFile?: (fromPath: string, toPath: string, reason: string) => Record<string, unknown>;
   morphusWriteFile?: (path: string, content: string) => Record<string, unknown>;
@@ -1501,6 +1507,35 @@ export async function executeTool(
   const { name, args } = toolCall;
 
   try {
+    if (name === "capture_viewport_screenshot") {
+      if (!context.captureViewportScreenshot) {
+        return {
+          callId: toolCall.id,
+          name,
+          result: fail("Viewport screenshot capture is unavailable in this context.")
+        };
+      }
+
+      const screenshot = await context.captureViewportScreenshot();
+      return {
+        callId: toolCall.id,
+        images: [
+          {
+            dataUrl: screenshot.dataUrl,
+            mimeType: screenshot.mimeType,
+            name: "viewport-screenshot.png"
+          }
+        ],
+        name,
+        result: ok({
+          captured: true,
+          height: screenshot.height,
+          message: "Viewport screenshot captured and attached for the next model step.",
+          width: screenshot.width
+        })
+      };
+    }
+
     const result = await executeToolInner(editor, name, args, context);
     return { callId: toolCall.id, name, result };
   } catch (error) {
@@ -3220,8 +3255,11 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
 
     case "morphus_read_file": {
       const path = str(args, "path");
+      const startLine = optionalNum(args, "startLine");
+      const endLine = optionalNum(args, "endLine");
+      const maxChars = optionalNum(args, "maxChars");
       return context.morphusReadFile
-        ? ok(context.morphusReadFile(path))
+        ? ok(context.morphusReadFile(path, { endLine, maxChars, startLine }))
         : fail("Morphus file reading is unavailable in this context.");
     }
 
