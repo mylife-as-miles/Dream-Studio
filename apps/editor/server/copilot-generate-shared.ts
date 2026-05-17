@@ -640,6 +640,41 @@ function convertMessagesForLightningTextOnly(messages: CopilotMessage[]) {
   return converted;
 }
 
+function truncateForFallback(content: string, maxChars: number) {
+  if (content.length <= maxChars) {
+    return content;
+  }
+
+  return `${content.slice(0, Math.max(0, maxChars - 20)).trimEnd()}\n...[truncated]`;
+}
+
+function buildGeminiFlashFallbackText(request: CopilotGenerateRequest) {
+  const converted = convertMessagesForLightningTextOnly(request.messages);
+
+  if (!isMorphusRequest(request)) {
+    return converted
+      .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+      .join("\n\n");
+  }
+
+  const recentMessages = converted.slice(-6);
+  const earlierCount = Math.max(0, converted.length - recentMessages.length);
+  const lines: string[] = [
+    "Morphus standalone game generation/update fallback context.",
+    "Use the available tool to produce the final runnable game files."
+  ];
+
+  if (earlierCount > 0) {
+    lines.push(`[${earlierCount} earlier message${earlierCount === 1 ? "" : "s"} omitted to keep fallback fast]`);
+  }
+
+  for (const message of recentMessages) {
+    lines.push(`${message.role.toUpperCase()}: ${truncateForFallback(message.content, 6000)}`);
+  }
+
+  return lines.join("\n\n");
+}
+
 function convertToolsForLightning(tools: CopilotToolDeclaration[]) {
   return tools.map((tool) => ({
     type: "function",
@@ -867,9 +902,8 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
 
   const ai = new GoogleGenAI({ apiKey });
   const timeoutPolicy = getTimeoutPolicy(request);
-  const textOnlyMessages = convertMessagesForLightningTextOnly(request.messages)
-    .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
-    .join("\n\n");
+  const textOnlyMessages = buildGeminiFlashFallbackText(request);
+  const morphusRequest = isMorphusRequest(request);
 
   const response = await withTimeout(
     ai.models.generateContent({
@@ -885,7 +919,7 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
         }
       ],
       config: {
-        systemInstruction: `${request.systemPrompt}\n\nYou are running as the final fast Gemini Flash fallback after Gemini primary, Lightning, and NVIDIA failed or timed out. You must keep working through tools. If the user asks to modify, build, add, continue, or inspect the editor scene, call the appropriate tool instead of replying with future-tense planning text. Use text only when the task is complete or you need a brief clarification.`,
+        systemInstruction: `${request.systemPrompt}\n\nYou are running as the Gemini Flash fallback after the primary Gemini request failed or timed out. Keep working through tools. If the user asks to modify, build, add, continue, or inspect, call the appropriate tool instead of replying with future-tense planning text. Use text only when the task is complete or you need a brief clarification.`,
         temperature: request.temperature,
         tools: [{ functionDeclarations: convertToolDeclarations(request.tools) }],
         toolConfig: {
@@ -893,9 +927,11 @@ async function generateViaGeminiFlash(request: CopilotGenerateRequest): Promise<
             mode: FunctionCallingConfigMode.AUTO
           }
         },
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.HIGH
-        }
+        ...(!morphusRequest ? {
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.HIGH
+          }
+        } : {})
       }
     }),
     timeoutPolicy.geminiFlashMs,
