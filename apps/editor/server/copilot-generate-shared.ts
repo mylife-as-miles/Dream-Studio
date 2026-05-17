@@ -32,6 +32,50 @@ type TimeoutPolicy = {
   geminiFlashMs: number;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function sanitizeGeminiParts(parts: unknown[] | undefined): Record<string, unknown>[] {
+  if (!parts?.length) {
+    return [];
+  }
+
+  const sanitized: Record<string, unknown>[] = [];
+
+  for (const part of parts) {
+    if (!isRecord(part)) {
+      continue;
+    }
+
+    if (typeof part.text === "string") {
+      sanitized.push({ text: part.text });
+      continue;
+    }
+
+    if (isRecord(part.functionCall) && typeof part.functionCall.name === "string") {
+      sanitized.push({
+        functionCall: {
+          name: part.functionCall.name,
+          args: isRecord(part.functionCall.args) ? part.functionCall.args : {}
+        }
+      });
+      continue;
+    }
+
+    if (isRecord(part.inlineData) && typeof part.inlineData.mimeType === "string" && typeof part.inlineData.data === "string") {
+      sanitized.push({
+        inlineData: {
+          mimeType: part.inlineData.mimeType,
+          data: part.inlineData.data
+        }
+      });
+    }
+  }
+
+  return sanitized;
+}
+
 function convertMessages(messages: CopilotMessage[]) {
   const contents: Record<string, unknown>[] = [];
 
@@ -47,26 +91,24 @@ function convertMessages(messages: CopilotMessage[]) {
       if (message.content) {
         parts.push({ text: message.content });
       }
-      contents.push({ role: "user", parts });
+      if (parts.length > 0) {
+        contents.push({ role: "user", parts });
+      }
     } else if (message.role === "assistant") {
-      if (message.rawParts && message.rawParts.length > 0) {
-        contents.push({ role: "model", parts: message.rawParts });
-      } else {
-        const parts: Record<string, unknown>[] = [];
+      const parts = sanitizeGeminiParts(message.rawParts);
 
-        if (message.content) {
-          parts.push({ text: message.content });
-        }
+      if (parts.length === 0 && message.content) {
+        parts.push({ text: message.content });
+      }
 
-        if (message.toolCalls) {
-          for (const tc of message.toolCalls) {
-            parts.push({ functionCall: { name: tc.name, args: tc.args } });
-          }
+      if (parts.length === 0 && message.toolCalls) {
+        for (const tc of message.toolCalls) {
+          parts.push({ functionCall: { name: tc.name, args: tc.args } });
         }
+      }
 
-        if (parts.length > 0) {
-          contents.push({ role: "model", parts });
-        }
+      if (parts.length > 0) {
+        contents.push({ role: "model", parts });
       }
     } else if (message.role === "tool" && message.toolResults) {
       const parts = message.toolResults.map((tr) => ({
@@ -416,6 +458,11 @@ function escapeHtml(value: string) {
 function isGeminiQuotaError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /resource_exhausted|quota|rate[- ]limit|429/i.test(message);
+}
+
+function isGeminiInvalidArgumentError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /invalid_argument|request contains an invalid argument|400/i.test(message);
 }
 
 function isTimeoutError(error: unknown) {
@@ -929,12 +976,16 @@ export async function generateCopilotContent(
 
     return readGeminiResponse(response);
   } catch (error) {
-    if (!isGeminiQuotaError(error) && !isTimeoutError(error)) {
+    if (!isGeminiQuotaError(error) && !isTimeoutError(error) && !isGeminiInvalidArgumentError(error)) {
       throw error;
     }
 
     return generateViaProviderFallbacks(request).catch((fallbackError: unknown) => {
-      const reason = isTimeoutError(error) ? "Gemini timed out" : "Gemini quota was reached";
+      const reason = isTimeoutError(error)
+        ? "Gemini timed out"
+        : isGeminiInvalidArgumentError(error)
+          ? "Gemini rejected the request shape"
+          : "Gemini quota was reached";
       throw new Error(`${reason}, and all fallbacks failed: ${formatFallbackError(fallbackError)}`);
     });
   }
