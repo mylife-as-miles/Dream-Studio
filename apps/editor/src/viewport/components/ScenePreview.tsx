@@ -91,27 +91,31 @@ const tempInstanceMatrix = new Matrix4();
 const tempPivotMatrix = new Matrix4();
 const tempInstanceColor = new Color();
 let cloneModelSceneImpl: (scene: Object3D) => Object3D = (scene) => scene.clone(true);
-let gltfPreviewToolsPromise: Promise<{ gltfLoader: import("three/examples/jsm/loaders/GLTFLoader.js").GLTFLoader }> | null = null;
+let skeletonUtilsPromise: Promise<typeof import("three/examples/jsm/utils/SkeletonUtils.js")> | null = null;
 let objPreviewToolsPromise: Promise<{
   MTLLoader: typeof import("three/examples/jsm/loaders/MTLLoader.js").MTLLoader;
   OBJLoader: typeof import("three/examples/jsm/loaders/OBJLoader.js").OBJLoader;
 }> | null = null;
 
-function loadGltfPreviewTools() {
-  if (!gltfPreviewToolsPromise) {
-    gltfPreviewToolsPromise = Promise.all([
-      import("@blud/three-runtime"),
-      import("three/examples/jsm/utils/SkeletonUtils.js")
-    ]).then(([runtime, skeletonUtilsModule]) => {
-      cloneModelSceneImpl = skeletonUtilsModule.clone;
+type Ktx2CompressionRenderer = Parameters<import("three/examples/jsm/loaders/KTX2Loader.js").KTX2Loader["detectSupport"]>[0];
 
-      return {
-        gltfLoader: runtime.getSharedGLTFLoader({ publicBaseUrl: import.meta.env.BASE_URL ?? "/" })
-      };
-    });
+async function loadGltfPreviewTools(renderer: Ktx2CompressionRenderer) {
+  if (!skeletonUtilsPromise) {
+    skeletonUtilsPromise = import("three/examples/jsm/utils/SkeletonUtils.js");
   }
 
-  return gltfPreviewToolsPromise;
+  const [runtime, skeletonUtilsModule] = await Promise.all([
+    import("@blud/three-runtime"),
+    skeletonUtilsPromise
+  ]);
+  cloneModelSceneImpl = skeletonUtilsModule.clone;
+
+  return {
+    gltfLoader: runtime.getSharedGLTFLoader({
+      publicBaseUrl: import.meta.env.BASE_URL ?? "/",
+      renderer
+    })
+  };
 }
 
 function loadObjPreviewTools() {
@@ -2748,6 +2752,7 @@ function useLoadedModelScene(
   texturePath?: string,
   mtlText?: string
 ) {
+  const { gl } = useThree();
   const [scene, setScene] = useState<Object3D>();
 
   useEffect(() => {
@@ -2766,7 +2771,7 @@ function useLoadedModelScene(
 
     let cancelled = false;
 
-    void loadModelScene(path, format, texturePath, mtlText)
+    void loadModelScene(path, format, gl as Ktx2CompressionRenderer, texturePath, mtlText)
       .then((loadedScene) => {
         if (cancelled) {
           return;
@@ -2784,7 +2789,7 @@ function useLoadedModelScene(
     return () => {
       cancelled = true;
     };
-  }, [format, mtlText, path, texturePath]);
+  }, [format, gl, mtlText, path, texturePath]);
 
   return scene;
 }
@@ -2792,6 +2797,7 @@ function useLoadedModelScene(
 async function loadModelScene(
   path: string,
   format: "glb" | "obj",
+  renderer: Ktx2CompressionRenderer,
   texturePath?: string,
   mtlText?: string
 ) {
@@ -2827,7 +2833,7 @@ async function loadModelScene(
     return object;
   }
 
-  const { gltfLoader } = await loadGltfPreviewTools();
+  const { gltfLoader } = await loadGltfPreviewTools(renderer);
   const gltf = await gltfLoader.loadAsync(path);
   return gltf.scene;
 }

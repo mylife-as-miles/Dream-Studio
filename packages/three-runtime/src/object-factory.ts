@@ -53,7 +53,7 @@ type TextureSlot = "baseColorTexture" | "metallicRoughnessTexture" | "normalText
 
 type WebHammerSceneObjectFactoryOptions = Pick<
   WebHammerSceneLoaderOptions,
-  "castShadow" | "lod" | "receiveShadow" | "resolveAssetUrl"
+  "castShadow" | "lod" | "receiveShadow" | "renderer" | "resolveAssetUrl"
 >;
 
 type CreateNodeObjectOverrides = {
@@ -80,7 +80,6 @@ type WebHammerSceneObjectFactoryResources = {
 };
 
 const textureLoader = new TextureLoader();
-const gltfLoader = getSharedGLTFLoader();
 const mtlLoader = new MTLLoader();
 const modelTextureLoader = new TextureLoader();
 const tempModelInstanceMatrix = new Matrix4();
@@ -740,7 +739,7 @@ async function loadModelTemplate(
       const object =
         reference.format === "obj"
           ? await loadObjModel(reference.asset, resolvedPath, resolvedTexturePath)
-          : await loadGltfModel(reference.asset, resolvedPath);
+          : await loadGltfModel(reference.asset, resolvedPath, options);
       centerObject(object, reference.center);
       return object;
     } catch (error) {
@@ -785,7 +784,7 @@ async function loadObjModel(asset: Asset | undefined, resolvedPath: string, reso
   return object;
 }
 
-async function loadGltfModel(asset: Asset | undefined, resolvedPath: string) {
+async function loadGltfModel(asset: Asset | undefined, resolvedPath: string, options: WebHammerSceneObjectFactoryOptions) {
   const response = await fetch(resolvedPath);
 
   if (!response.ok) {
@@ -795,6 +794,7 @@ async function loadGltfModel(asset: Asset | undefined, resolvedPath: string) {
   const payload = isJsonGltfPath(resolvedPath)
     ? await response.text()
     : await response.arrayBuffer();
+  const gltfLoader = getSharedGLTFLoader({ renderer: options.renderer });
   const gltf = await new Promise<Awaited<ReturnType<typeof gltfLoader.loadAsync>>>((resolve, reject) => {
     gltfLoader.parse(payload, resolveAssetBasePath(resolvedPath), resolve, reject);
   });

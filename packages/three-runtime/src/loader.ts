@@ -68,6 +68,7 @@ import type {
 } from "./types";
 
 type TextureSlot = "baseColorTexture" | "metallicRoughnessTexture" | "normalTexture" | "surfaceBlendColorTexture" | "surfaceDecalTexture";
+type Ktx2CompressionRenderer = Parameters<import("three/examples/jsm/loaders/KTX2Loader.js").KTX2Loader["detectSupport"]>[0];
 
 export type WebHammerAssetResolverContext =
   | {
@@ -95,6 +96,7 @@ export type WebHammerSceneLoaderOptions = {
   lod?: WebHammerSceneLodOptions;
   receiveShadow?: boolean;
   resolveAssetUrl?: (context: WebHammerAssetResolverContext) => Promise<string> | string;
+  renderer?: Ktx2CompressionRenderer;
 };
 
 export type WebHammerSceneLodOptions = {
@@ -127,7 +129,6 @@ export type ThreeRuntimeSceneInstanceOptions = WebHammerSceneLoaderOptions;
 export type ThreeRuntimeSceneLodOptions = WebHammerSceneLodOptions;
 
 const textureLoader = new TextureLoader();
-const gltfLoader = getSharedGLTFLoader();
 const hdrLoader = new HDRLoader();
 const mtlLoader = new MTLLoader();
 
@@ -986,7 +987,7 @@ async function createModelObject(
     const object =
       format === "obj"
         ? await loadObjModel(asset, resolvedPath, resolvedTexturePath)
-        : await loadGltfModel(asset, resolvedPath);
+        : await loadGltfModel(asset, resolvedPath, options);
 
     object.name = `${node.name}:${lodLevel?.level ?? "high"}`;
     object.userData.webHammer = {
@@ -1039,7 +1040,8 @@ async function loadObjModel(asset: Asset | undefined, resolvedPath: string, reso
   return object;
 }
 
-async function loadGltfModel(asset: Asset | undefined, resolvedPath: string) {
+async function loadGltfModel(asset: Asset | undefined, resolvedPath: string, options: WebHammerSceneLoaderOptions) {
+  const gltfLoader = getSharedGLTFLoader({ renderer: options.renderer });
   const gltf = await gltfLoader.loadAsync(resolvedPath);
   const object = gltf.scene;
   centerObject(object, readAssetVec3(asset, "nativeCenter"));

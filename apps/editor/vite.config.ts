@@ -105,6 +105,9 @@ function resolveEditorManualChunk(id: string) {
 
   if (
     normalizedId.includes("/three/examples/jsm/loaders/GLTFLoader.js") ||
+    normalizedId.includes("/three/examples/jsm/loaders/DRACOLoader.js") ||
+    normalizedId.includes("/three/examples/jsm/loaders/KTX2Loader.js") ||
+    normalizedId.includes("/three/examples/jsm/libs/meshopt_decoder.module.js") ||
     normalizedId.includes("/three/examples/jsm/utils/SkeletonUtils.js")
   ) {
     return "gltf-loader";
