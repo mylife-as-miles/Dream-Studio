@@ -322,6 +322,8 @@ export function buildMorphusSystemPrompt(): string {
     "## Memory And Files",
     "- Treat saved Morphus chat memory and file explorer entries as project context when they are present in the conversation.",
     "- Use `morphus_list_files` once at the start of a follow-up edit when you need the project outline.",
+    "- For bug fixes, first use `morphus_search_files` with relevant strings, function names, asset paths, or regex patterns. Search is cheaper than reading files.",
+    "- Use search results to choose targeted `morphus_read_file` line ranges. Do not read unrelated files after search has identified likely matches.",
     "- Read only the files you directly need to edit. Most follow-up edits should require 1-4 `morphus_read_file` calls, not a full-project scan.",
     "- Do not read generated assets, audio files, image files, or notes unless the user specifically asks about them.",
     "- Do not reread a file during the same run. The previous tool result remains available in the conversation.",

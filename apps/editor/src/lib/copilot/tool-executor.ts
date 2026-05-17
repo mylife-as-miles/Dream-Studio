@@ -165,6 +165,7 @@ export type CopilotToolExecutionContext = {
   morphusCreateFile?: (path: string, content: string) => Record<string, unknown>;
   morphusListFiles?: () => Record<string, unknown>;
   morphusReadFile?: (path: string, options?: { endLine?: number; maxChars?: number; startLine?: number }) => Record<string, unknown>;
+  morphusSearchFiles?: (query: string, options?: { includeAssets?: boolean; maxResults?: number; pathGlob?: string; useRegex?: boolean }) => Record<string, unknown>;
   morphusRequestDeleteFile?: (path: string, reason: string) => Record<string, unknown>;
   morphusRequestRenameFile?: (fromPath: string, toPath: string, reason: string) => Record<string, unknown>;
   morphusWriteFile?: (path: string, content: string) => Record<string, unknown>;
@@ -3261,6 +3262,17 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
       return context.morphusReadFile
         ? ok(context.morphusReadFile(path, { endLine, maxChars, startLine }))
         : fail("Morphus file reading is unavailable in this context.");
+    }
+
+    case "morphus_search_files": {
+      const query = str(args, "query");
+      const maxResults = optionalNum(args, "maxResults");
+      const pathGlob = optionalStr(args, "pathGlob");
+      const useRegex = bool(args, "useRegex");
+      const includeAssets = bool(args, "includeAssets");
+      return context.morphusSearchFiles
+        ? ok(context.morphusSearchFiles(query, { includeAssets, maxResults, pathGlob, useRegex }))
+        : fail("Morphus file search is unavailable in this context.");
     }
 
     case "morphus_write_file": {

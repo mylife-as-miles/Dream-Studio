@@ -34,6 +34,13 @@ type MorphusReadFileOptions = {
   startLine?: number;
 };
 
+type MorphusSearchFilesOptions = {
+  includeAssets?: boolean;
+  maxResults?: number;
+  pathGlob?: string;
+  useRegex?: boolean;
+};
+
 type CopilotRuntime = {
   runAgenticLoop: typeof import("@/lib/copilot/agentic-loop").runAgenticLoop;
   createCopilotProvider: typeof import("@/lib/copilot/provider").createCopilotProvider;
@@ -113,6 +120,10 @@ function normalizeMorphusPath(path: string) {
   return path.replace(/\\/g, "/").replace(/^\.?\//, "").trim();
 }
 
+function isMorphusAssetFile(file: MorphusFileRecord) {
+  return file.language === "asset" || /\.(glb|bin|png|jpe?g|webp|gif|svg|hdr|exr|ktx2|mp3|wav|ogg|fbx|obj|mtl|usdz)$/i.test(file.path);
+}
+
 function summarizeMorphusFile(file: MorphusFileRecord) {
   return {
     language: file.language,
@@ -157,6 +168,37 @@ function sliceMorphusContent(content: string, options?: MorphusReadFileOptions) 
     totalSize: content.length,
     truncated
   };
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function clampMorphusSearchResults(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 12;
+  }
+
+  return Math.max(1, Math.min(Math.round(value), 30));
+}
+
+function buildMorphusSearchPattern(query: string, useRegex?: boolean) {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    throw new Error("Search query is required.");
+  }
+
+  return new RegExp(useRegex ? trimmed : escapeRegex(trimmed), "i");
+}
+
+function createMorphusSearchSnippet(line: string, matchIndex: number, matchLength: number) {
+  const radius = 72;
+  const start = Math.max(0, matchIndex - radius);
+  const end = Math.min(line.length, matchIndex + Math.max(matchLength, 1) + radius);
+  const prefix = start > 0 ? "..." : "";
+  const suffix = end < line.length ? "..." : "";
+
+  return `${prefix}${line.slice(start, end).trim()}${suffix}`;
 }
 
 function createBudgetedMorphusToolContext(baseContext: CopilotToolExecutionContext): CopilotToolExecutionContext {
@@ -465,6 +507,74 @@ export function useCopilot(
         count: files.length,
         files: files.map(summarizeMorphusFile)
       }),
+      morphusSearchFiles: (query: string, options?: MorphusSearchFilesOptions) => {
+        const pattern = buildMorphusSearchPattern(query, options?.useRegex);
+        const maxResults = clampMorphusSearchResults(options?.maxResults);
+        const pathFilter = options?.pathGlob?.trim().toLowerCase();
+        const matches: Array<{
+          endLine?: number;
+          line?: number;
+          path: string;
+          score: number;
+          snippet: string;
+          startLine?: number;
+          type: "content" | "path";
+        }> = [];
+
+        for (const file of files) {
+          if (matches.length >= maxResults) {
+            break;
+          }
+
+          const normalizedPath = normalizeMorphusPath(file.path);
+          const lowerPath = normalizedPath.toLowerCase();
+          if (pathFilter && !lowerPath.includes(pathFilter)) {
+            continue;
+          }
+
+          const pathMatch = pattern.exec(normalizedPath);
+          if (pathMatch) {
+            matches.push({
+              path: normalizedPath,
+              score: 2,
+              snippet: normalizedPath,
+              type: "path"
+            });
+          }
+
+          if (matches.length >= maxResults || (isMorphusAssetFile(file) && !options?.includeAssets)) {
+            continue;
+          }
+
+          const lines = file.content.split(/\r?\n/);
+          for (let index = 0; index < lines.length && matches.length < maxResults; index += 1) {
+            pattern.lastIndex = 0;
+            const match = pattern.exec(lines[index]);
+            if (!match) {
+              continue;
+            }
+
+            const line = index + 1;
+            matches.push({
+              endLine: Math.min(lines.length, line + 4),
+              line,
+              path: normalizedPath,
+              score: 1,
+              snippet: createMorphusSearchSnippet(lines[index], match.index, match[0]?.length ?? 1),
+              startLine: Math.max(1, line - 4),
+              type: "content"
+            });
+          }
+        }
+
+        return {
+          count: matches.length,
+          maxResults,
+          matches,
+          query,
+          useRegex: Boolean(options?.useRegex)
+        };
+      },
       morphusReadFile: (path: string, options?: MorphusReadFileOptions) => {
         const normalizedPath = normalizeMorphusPath(path);
         const file = files.find((entry) => entry.path === normalizedPath);

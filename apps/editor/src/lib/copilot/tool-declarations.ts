@@ -550,6 +550,22 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "morphus_search_files",
+    description:
+      "Search Morphus workspace file paths and text content before reading files. Use this for bug fixes and follow-up edits to find relevant files cheaply, then read only the returned line ranges you need.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Plain text or regex query, for example Audio, morphusAudio, play\\(, goal.mp3, or audio|Audio|play\\(" },
+        useRegex: { type: "boolean", description: "Treat query as a JavaScript regular expression. Defaults to false." },
+        pathGlob: { type: "string", description: "Optional path substring filter such as .js, audio, index.html, or assets/audio." },
+        maxResults: { type: "number", description: "Maximum matches to return. Defaults to 12 and is capped." },
+        includeAssets: { type: "boolean", description: "Whether to include binary/asset files in path-only search results. Defaults to false." }
+      },
+      required: ["query"]
+    }
+  },
+  {
     name: "morphus_write_file",
     description:
       "Replace the full contents of an existing Morphus workspace file. Use only after reading or otherwise knowing the current file contents.",

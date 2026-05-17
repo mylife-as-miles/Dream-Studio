@@ -43,7 +43,9 @@ const MORPHUS_MAX_CONSECUTIVE_READ_ONLY_STEPS = 8;
 
 function isMorphusReadOnlyToolBatch(toolCalls: CopilotToolCall[]) {
   return toolCalls.length > 0 && toolCalls.every((call) =>
-    call.name === "morphus_list_files" || call.name === "morphus_read_file"
+    call.name === "morphus_list_files" ||
+    call.name === "morphus_read_file" ||
+    call.name === "morphus_search_files"
   );
 }
 
