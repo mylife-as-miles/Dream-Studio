@@ -512,6 +512,80 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
     }
   },
   {
+    name: "morphus_list_files",
+    description:
+      "List files in the current Morphus HTML game workspace. Use this before follow-up edits so you can inspect the existing project instead of regenerating it.",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "morphus_read_file",
+    description:
+      "Read one existing file from the current Morphus workspace. Use this before editing a file.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Project-relative file path, for example index.html, style.css, or main.js" }
+      },
+      required: ["path"]
+    }
+  },
+  {
+    name: "morphus_write_file",
+    description:
+      "Replace the full contents of an existing Morphus workspace file. Use only after reading or otherwise knowing the current file contents.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Existing project-relative file path to update" },
+        content: { type: "string", description: "Complete replacement file contents" }
+      },
+      required: ["path", "content"]
+    }
+  },
+  {
+    name: "morphus_create_file",
+    description:
+      "Create a new file in the current Morphus workspace. Prefer editing existing files for continue/follow-up requests; create a file only when a new module or asset manifest is genuinely needed.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "New project-relative file path" },
+        content: { type: "string", description: "Complete file contents" }
+      },
+      required: ["path", "content"]
+    }
+  },
+  {
+    name: "morphus_request_delete_file",
+    description:
+      "Request user approval to delete a Morphus workspace file. This tool does not delete anything; it records the requested path and reason so the assistant can ask the user before removal.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Project-relative file path proposed for deletion" },
+        reason: { type: "string", description: "Why deleting this file is necessary" }
+      },
+      required: ["path", "reason"]
+    }
+  },
+  {
+    name: "morphus_request_rename_file",
+    description:
+      "Request user approval to rename or move a Morphus workspace file. This tool does not rename anything; it records the requested source, destination, and reason.",
+    parameters: {
+      type: "object",
+      properties: {
+        fromPath: { type: "string", description: "Existing project-relative file path" },
+        toPath: { type: "string", description: "Requested new project-relative file path" },
+        reason: { type: "string", description: "Why this rename or move is necessary" }
+      },
+      required: ["fromPath", "toPath", "reason"]
+    }
+  },
+  {
     name: "push_scene_to_connected_game",
     description:
       "Pushes the current editor scene into the connected scaffolded game dev server. Use it when the user asks to sync or send the current scene to the game.",
@@ -1657,12 +1731,13 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
 
 /** Viewport-editor Copilot tools only. Standalone HTML generation belongs to Morphus. */
 export const EDITOR_COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] =
-  COPILOT_TOOL_DECLARATIONS.filter((tool) => tool.name !== "generate_game_html");
+  COPILOT_TOOL_DECLARATIONS.filter((tool) => !tool.name.startsWith("morphus_") && tool.name !== "generate_game_html");
 
 /** Only `generate_game_html` — used when the model's task is a standalone game or browser-based interactive experience */
-export const GAME_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
-  COPILOT_TOOL_DECLARATIONS.find((t) => t.name === "generate_game_html")!
-];
+export const GAME_TOOL_DECLARATIONS: CopilotToolDeclaration[] =
+  COPILOT_TOOL_DECLARATIONS.filter((tool) =>
+    tool.name === "generate_game_html" || tool.name.startsWith("morphus_")
+  );
 
 /**
  * Return `true` when the user's prompt is clearly a standalone-game or browser-based

@@ -84,6 +84,36 @@ function cloneSession(updated: CopilotSession): CopilotSession {
   };
 }
 
+function mergeMorphusFiles(
+  existingFiles: MorphusFileRecord[],
+  incomingFiles: MorphusFileRecord[]
+): MorphusFileRecord[] {
+  if (incomingFiles.length === 0) {
+    return existingFiles;
+  }
+
+  const byPath = new Map(existingFiles.map((file) => [file.path, file]));
+
+  for (const file of incomingFiles) {
+    byPath.set(file.path, file);
+  }
+
+  return Array.from(byPath.values()).sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function normalizeMorphusPath(path: string) {
+  return path.replace(/\\/g, "/").replace(/^\.?\//, "").trim();
+}
+
+function summarizeMorphusFile(file: MorphusFileRecord) {
+  return {
+    language: file.language,
+    path: file.path,
+    size: file.content.length,
+    updatedAt: file.updatedAt
+  };
+}
+
 async function exportMorphusFilesToWorkspace(files: MorphusFileRecord[]) {
   const response = await fetch("/api/morphus/export", {
     method: "POST",
@@ -119,6 +149,19 @@ export function useCopilot(
   const pendingGameTitleRef = useRef<string | null>(null);
   const memoryLoadedRef = useRef(false);
   const memoryKey = mode === "morphus" ? "morphus" : "copilot";
+  const availableMorphusAudioFiles = useMemo(
+    () => files
+      .map((file) => file.path)
+      .filter((path) => /^assets\/audio\//i.test(path))
+      .sort((a, b) => a.localeCompare(b)),
+    [files]
+  );
+  const availableMorphusFilePaths = useMemo(
+    () => files
+      .map((file) => file.path)
+      .sort((a, b) => a.localeCompare(b)),
+    [files]
+  );
 
   const publishSession = useCallback((updated: CopilotSession) => {
     const nextSession = cloneSession(updated);
@@ -131,15 +174,116 @@ export function useCopilot(
   const mergedToolContext = useMemo<CopilotToolExecutionContext>(
     () => ({
       ...toolContext,
+      morphusCreateFile: (path: string, content: string) => {
+        const normalizedPath = normalizeMorphusPath(path);
+        if (!normalizedPath) {
+          throw new Error("File path is required.");
+        }
+        if (files.some((file) => file.path === normalizedPath)) {
+          throw new Error(`File already exists: ${normalizedPath}`);
+        }
+
+        const nextFile: MorphusFileRecord = {
+          content,
+          language: inferMorphusFileLanguage(normalizedPath),
+          path: normalizedPath,
+          updatedAt: Date.now()
+        };
+        const nextFiles = mergeMorphusFiles(files, [nextFile]);
+        const html = buildMorphusPreviewHtml(nextFiles);
+        setFiles(nextFiles);
+        if (html) {
+          setLatestGame((previousGame) => ({ title: previousGame?.title ?? "Edited Game", html }));
+        }
+
+        return { created: true, file: summarizeMorphusFile(nextFile) };
+      },
+      morphusListFiles: () => ({
+        count: files.length,
+        files: files.map(summarizeMorphusFile)
+      }),
+      morphusReadFile: (path: string) => {
+        const normalizedPath = normalizeMorphusPath(path);
+        const file = files.find((entry) => entry.path === normalizedPath);
+        if (!file) {
+          throw new Error(`File not found: ${normalizedPath}`);
+        }
+
+        return {
+          content: file.content,
+          file: summarizeMorphusFile(file)
+        };
+      },
+      morphusRequestDeleteFile: (path: string, reason: string) => {
+        const normalizedPath = normalizeMorphusPath(path);
+        const file = files.find((entry) => entry.path === normalizedPath);
+        if (!file) {
+          throw new Error(`File not found: ${normalizedPath}`);
+        }
+
+        return {
+          action: "delete_file",
+          approvalRequired: true,
+          file: summarizeMorphusFile(file),
+          message: `Ask the user before deleting ${normalizedPath}.`,
+          reason
+        };
+      },
+      morphusRequestRenameFile: (fromPath: string, toPath: string, reason: string) => {
+        const normalizedFromPath = normalizeMorphusPath(fromPath);
+        const normalizedToPath = normalizeMorphusPath(toPath);
+        const file = files.find((entry) => entry.path === normalizedFromPath);
+        if (!file) {
+          throw new Error(`File not found: ${normalizedFromPath}`);
+        }
+        if (!normalizedToPath) {
+          throw new Error("Destination path is required.");
+        }
+        if (files.some((entry) => entry.path === normalizedToPath)) {
+          throw new Error(`Destination already exists: ${normalizedToPath}`);
+        }
+
+        return {
+          action: "rename_file",
+          approvalRequired: true,
+          fromPath: normalizedFromPath,
+          message: `Ask the user before renaming ${normalizedFromPath} to ${normalizedToPath}.`,
+          reason,
+          toPath: normalizedToPath
+        };
+      },
+      morphusWriteFile: (path: string, content: string) => {
+        const normalizedPath = normalizeMorphusPath(path);
+        const existingFile = files.find((file) => file.path === normalizedPath);
+        if (!existingFile) {
+          throw new Error(`File not found: ${normalizedPath}`);
+        }
+
+        const nextFile: MorphusFileRecord = {
+          ...existingFile,
+          content,
+          language: inferMorphusFileLanguage(normalizedPath),
+          updatedAt: Date.now()
+        };
+        const nextFiles = mergeMorphusFiles(files, [nextFile]);
+        const html = buildMorphusPreviewHtml(nextFiles);
+        setFiles(nextFiles);
+        if (html) {
+          setLatestGame((previousGame) => ({ title: previousGame?.title ?? "Edited Game", html }));
+        }
+
+        return { file: summarizeMorphusFile(nextFile), updated: true };
+      },
       onGeneratedGame: (title: string, html: string, generatedFiles?: Array<{ content: string; path: string }>) => {
         const toolFiles = generatedFiles?.map((file) => ({
           content: file.content,
           language: inferMorphusFileLanguage(file.path),
-          path: file.path.replace(/\\/g, "/").replace(/^\.?\//, ""),
+          path: normalizeMorphusPath(file.path),
           updatedAt: Date.now()
         })) ?? [];
-        const toolHtml = mode === "morphus" && toolFiles.length > 0
-          ? buildMorphusPreviewHtml(toolFiles)
+        const mergedFiles = mode === "morphus" ? mergeMorphusFiles(files, toolFiles) : toolFiles;
+        const toolHtml = mode === "morphus" && mergedFiles.length > 0
+          ? buildMorphusPreviewHtml(mergedFiles)
           : null;
         const resolvedHtml = toolHtml || html.trim();
 
@@ -147,13 +291,13 @@ export function useCopilot(
           const game = { title, html: resolvedHtml };
           setLatestGame(game);
           if (mode === "morphus") {
-            setFiles(toolFiles.length > 0 ? toolFiles : createMorphusFilesFromGame(game));
+            setFiles(mergedFiles.length > 0 ? mergedFiles : createMorphusFilesFromGame(game));
           }
         }
         pendingGameTitleRef.current = title;
       }
     }),
-    [mode, toolContext]
+    [files, mode, toolContext]
   );
 
   useEffect(() => {
@@ -236,7 +380,10 @@ export function useCopilot(
       const game = { title, html };
       setLatestGame(game);
       if (mode === "morphus") {
-        setFiles(morphusFiles.length > 0 ? morphusFiles : createMorphusFilesFromGame(game));
+        setFiles((previousFiles) => {
+          const mergedFiles = mergeMorphusFiles(previousFiles, morphusFiles);
+          return mergedFiles.length > 0 ? mergedFiles : createMorphusFilesFromGame(game);
+        });
       }
     }
   }, [mode, session.status, session.messages]);
@@ -257,7 +404,10 @@ export function useCopilot(
       return;
     }
 
-    setFiles(morphusFiles.length > 0 ? morphusFiles : createMorphusFilesFromGame({ title: "Generated Game", html }));
+    setFiles((previousFiles) => {
+      const mergedFiles = mergeMorphusFiles(previousFiles, morphusFiles);
+      return mergedFiles.length > 0 ? mergedFiles : createMorphusFilesFromGame({ title: "Generated Game", html });
+    });
     setLatestGame((previousGame) => previousGame ?? { title: "Generated Game", html });
   }, [files.length, latestGame, mode, session.status, session.messages]);
 
@@ -302,7 +452,15 @@ export function useCopilot(
         mode === "morphus" ? buildMorphusSystemPrompt() : buildEditorSystemPrompt(editor);
       const audioContext =
         mode === "morphus"
-          ? `\n\n## Runtime Context\n- ElevenLabs audio is ${settings.elevenlabsApiKey ? "available" : "not configured"} in this browser.`
+          ? `\n\n## Runtime Context\n- ElevenLabs audio is ${settings.elevenlabsApiKey ? "available" : "not configured"} in this browser.\n- Existing Morphus audio files: ${
+            availableMorphusAudioFiles.length > 0
+              ? availableMorphusAudioFiles.slice(0, 24).join(", ")
+              : "none"
+          }.\n- Existing Morphus project files: ${
+            availableMorphusFilePaths.length > 0
+              ? availableMorphusFilePaths.slice(0, 40).join(", ")
+              : "none"
+          }.\n- Reuse and edit the existing project files by default. On continue or follow-up requests, change only the files that need changes.\n- Reuse existing workspace audio by default. Only ask for new audio if the user explicitly requests it or a required sound category is missing.`
           : "";
       const systemPrompt = appendSkillContextToPrompt(`${baseSystemPrompt}${audioContext}`, skillContext);
       const modeLabel = mode === "morphus" ? "morphus" : "editor";
@@ -361,7 +519,7 @@ export function useCopilot(
 
       abortRef.current = null;
     },
-    [editor, mergedToolContext, mode, publishSession, session.activity, session.messages]
+    [availableMorphusAudioFiles, availableMorphusFilePaths, editor, mergedToolContext, mode, publishSession, session.activity, session.messages]
   );
 
   const abort = useCallback(() => {

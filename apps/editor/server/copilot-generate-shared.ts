@@ -813,7 +813,7 @@ function formatFallbackError(error: unknown) {
 }
 
 function isMorphusRequest(request: CopilotGenerateRequest) {
-  return request.tools.length === 1 && request.tools[0]?.name === "generate_game_html";
+  return request.tools.some((tool) => tool.name === "generate_game_html" || tool.name.startsWith("morphus_"));
 }
 
 function getTimeoutPolicy(request: CopilotGenerateRequest): TimeoutPolicy {

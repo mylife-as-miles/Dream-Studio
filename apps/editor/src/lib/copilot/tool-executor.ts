@@ -156,6 +156,12 @@ export type CopilotToolExecutionContext = {
     projectName?: string;
     projectSlug?: string;
   }) => void;
+  morphusCreateFile?: (path: string, content: string) => Record<string, unknown>;
+  morphusListFiles?: () => Record<string, unknown>;
+  morphusReadFile?: (path: string) => Record<string, unknown>;
+  morphusRequestDeleteFile?: (path: string, reason: string) => Record<string, unknown>;
+  morphusRequestRenameFile?: (fromPath: string, toPath: string, reason: string) => Record<string, unknown>;
+  morphusWriteFile?: (path: string, content: string) => Record<string, unknown>;
   onGeneratedGame?: (title: string, html: string, files?: Array<{ content: string; path: string }>) => void;
 };
 
@@ -3205,6 +3211,51 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
       const files = fileBundle(args.files);
       context.onGeneratedGame?.(title, html, files.length > 0 ? files : undefined);
       return ok({ registered: true, title, hasHtml: Boolean(html.trim()), fileCount: files.length });
+    }
+
+    case "morphus_list_files":
+      return context.morphusListFiles
+        ? ok(context.morphusListFiles())
+        : fail("Morphus file listing is unavailable in this context.");
+
+    case "morphus_read_file": {
+      const path = str(args, "path");
+      return context.morphusReadFile
+        ? ok(context.morphusReadFile(path))
+        : fail("Morphus file reading is unavailable in this context.");
+    }
+
+    case "morphus_write_file": {
+      const path = str(args, "path");
+      const content = str(args, "content");
+      return context.morphusWriteFile
+        ? ok(context.morphusWriteFile(path, content))
+        : fail("Morphus file writing is unavailable in this context.");
+    }
+
+    case "morphus_create_file": {
+      const path = str(args, "path");
+      const content = str(args, "content");
+      return context.morphusCreateFile
+        ? ok(context.morphusCreateFile(path, content))
+        : fail("Morphus file creation is unavailable in this context.");
+    }
+
+    case "morphus_request_delete_file": {
+      const path = str(args, "path");
+      const reason = str(args, "reason");
+      return context.morphusRequestDeleteFile
+        ? ok(context.morphusRequestDeleteFile(path, reason))
+        : fail("Morphus delete approval requests are unavailable in this context.");
+    }
+
+    case "morphus_request_rename_file": {
+      const fromPath = str(args, "fromPath");
+      const toPath = str(args, "toPath");
+      const reason = str(args, "reason");
+      return context.morphusRequestRenameFile
+        ? ok(context.morphusRequestRenameFile(fromPath, toPath, reason))
+        : fail("Morphus rename approval requests are unavailable in this context.");
     }
 
     default:
