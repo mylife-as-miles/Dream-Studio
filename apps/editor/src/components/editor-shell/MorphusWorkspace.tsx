@@ -73,6 +73,8 @@ export function MorphusWorkspace({
   }, [files, rejectedAudioPaths, session.messages]);
   const hasPendingAudioApproval = audioRequests.length > 0 || generatingAudioPaths.length > 0;
   const playableGame = hasPendingAudioApproval ? null : latestGame;
+  const folderPaths = useMemo(() => collectMorphusFolderPaths(files), [files]);
+  const allFoldersExpanded = folderPaths.length > 0 && folderPaths.every((path) => expandedFolders.includes(path));
 
   useEffect(() => {
     if (files.length === 0) {
@@ -203,6 +205,16 @@ export function MorphusWorkspace({
     );
   };
 
+  const toggleAllFolders = () => {
+    setExpandedFolders((previous) => {
+      if (folderPaths.length === 0) {
+        return previous;
+      }
+
+      return allFoldersExpanded ? [] : folderPaths;
+    });
+  };
+
   const exportFilesAsZip = async () => {
     if (files.length === 0 || exportingZip) {
       return;
@@ -244,7 +256,14 @@ export function MorphusWorkspace({
       >
         <FolderUp className="size-3.5" />
       </button>
-      <LayoutPanelLeft className="hidden size-3.5 text-white/28 md:block" />
+      <button
+        className="hidden size-7 items-center justify-center rounded-lg text-white/34 transition-colors hover:bg-white/[0.05] hover:text-white/76 md:flex"
+        onClick={toggleAllFolders}
+        title={allFoldersExpanded ? "Collapse folders" : "Expand folders"}
+        type="button"
+      >
+        <LayoutPanelLeft className="size-3.5" />
+      </button>
     </div>
   );
   const fileList = (
@@ -685,6 +704,22 @@ function buildMorphusFileTree(files: MorphusFileRecord[]): MorphusFileTreeNodeDa
   }
 
   return sortMorphusFileTree(root);
+}
+
+function collectMorphusFolderPaths(files: MorphusFileRecord[]) {
+  const folderPaths = new Set<string>();
+
+  for (const file of files) {
+    const parts = file.path.split("/").filter(Boolean);
+    let folderPath = "";
+
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      folderPath = folderPath ? `${folderPath}/${parts[i]}` : parts[i];
+      folderPaths.add(folderPath);
+    }
+  }
+
+  return Array.from(folderPaths).sort((a, b) => a.localeCompare(b));
 }
 
 function sortMorphusFileTree(nodes: MorphusFileTreeNodeData[]): MorphusFileTreeNodeData[] {
