@@ -1,4 +1,4 @@
-import { Check, Code2, Download, Edit3, ExternalLink, FileCode2, Folder, FolderUp, LayoutPanelLeft, Loader2, MessageSquareText, Music2, Upload, Volume2, X } from "lucide-react";
+import { Check, ChevronRight, Code2, Download, Edit3, ExternalLink, FileCode2, Folder, FolderOpen, FolderUp, LayoutPanelLeft, Loader2, MessageSquareText, Music2, Upload, Volume2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { buildGameBlobUrl } from "@/lib/game-html";
 import type { CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
@@ -45,6 +45,7 @@ export function MorphusWorkspace({
   const [audioError, setAudioError] = useState("");
   const [exportError, setExportError] = useState("");
   const [exportingZip, setExportingZip] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [generatingAudioPaths, setGeneratingAudioPaths] = useState<string[]>([]);
   const [mobileTab, setMobileTab] = useState<"files" | "code" | "chat">("chat");
   const [rejectedAudioPaths, setRejectedAudioPaths] = useState<string[]>([]);
@@ -55,6 +56,7 @@ export function MorphusWorkspace({
   const workspaceActive = requestStarted || hasConversation || files.length > 0 || Boolean(latestGame);
   const activeFile = files.find((file) => file.path === activePath) ?? files[0];
   const activeFileIsAudio = Boolean(activeFile && isPlayableAudioFile(activeFile));
+  const fileTree = useMemo(() => buildMorphusFileTree(files), [files]);
   const elevenLabsAvailable = Boolean(loadCopilotSettings().elevenlabsApiKey);
   const audioRequests = useMemo(() => {
     const existingPaths = new Set(files.map((file) => file.path.toLowerCase()));
@@ -75,6 +77,7 @@ export function MorphusWorkspace({
   useEffect(() => {
     if (files.length === 0) {
       setActivePath("");
+      setExpandedFolders([]);
       return;
     }
 
@@ -82,6 +85,23 @@ export function MorphusWorkspace({
       setActivePath(files[0].path);
     }
   }, [activePath, files]);
+
+  useEffect(() => {
+    setExpandedFolders((previous) => {
+      const next = new Set(previous);
+
+      for (const file of files) {
+        const parts = file.path.split("/");
+        let folderPath = "";
+        for (let i = 0; i < parts.length - 1; i += 1) {
+          folderPath = folderPath ? `${folderPath}/${parts[i]}` : parts[i];
+          next.add(folderPath);
+        }
+      }
+
+      return Array.from(next);
+    });
+  }, [files]);
 
   useEffect(() => {
     if (!activeFile || editingPath !== activeFile.path) {
@@ -123,6 +143,7 @@ export function MorphusWorkspace({
     setAudioError("");
     setExportError("");
     setEditingPath("");
+    setExpandedFolders([]);
     setDraftContent("");
     setRejectedAudioPaths([]);
     onClearHistory();
@@ -172,6 +193,14 @@ export function MorphusWorkspace({
 
   const rejectAudioRequest = (request: MorphusAudioRequest) => {
     setRejectedAudioPaths((previous) => [...previous, request.path]);
+  };
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders((previous) =>
+      previous.includes(path)
+        ? previous.filter((entry) => entry !== path)
+        : [...previous, path]
+    );
   };
 
   const exportFilesAsZip = async () => {
@@ -226,24 +255,18 @@ export function MorphusWorkspace({
             Import assets or ask Morphus to generate a game. Files will appear here.
           </div>
         ) : null}
-        {files.map((file) => (
-          <button
-            className={cn(
-              "flex w-full items-center gap-2 border-l-2 px-3 py-2 text-left text-[12px] transition-colors",
-              activeFile?.path === file.path
-                ? "border-[#f6d07d] bg-white/[0.06] text-white"
-                : "border-transparent text-white/58 hover:bg-white/[0.035] hover:text-white/82"
-            )}
-            key={file.path}
-            onClick={() => {
-              setActivePath(file.path);
+        {fileTree.map((node) => (
+          <MorphusFileTreeNode
+            activePath={activeFile?.path ?? ""}
+            expandedFolders={expandedFolders}
+            key={node.path}
+            node={node}
+            onSelectFile={(path) => {
+              setActivePath(path);
               setMobileTab("code");
             }}
-            type="button"
-          >
-            <FileCode2 className="size-3.5 text-cyan-300/72" />
-            <span className="truncate font-medium">{file.path}</span>
-          </button>
+            onToggleFolder={toggleFolder}
+          />
         ))}
       </div>
       <div className="border-t border-white/8 p-3 text-[10px] leading-relaxed text-white/34">
@@ -536,6 +559,144 @@ export function MorphusWorkspace({
       )}
     </div>
   );
+}
+
+type MorphusFileTreeNodeData =
+  | {
+      children: MorphusFileTreeNodeData[];
+      kind: "folder";
+      name: string;
+      path: string;
+    }
+  | {
+      file: MorphusFileRecord;
+      kind: "file";
+      name: string;
+      path: string;
+    };
+
+function MorphusFileTreeNode({
+  activePath,
+  depth = 0,
+  expandedFolders,
+  node,
+  onSelectFile,
+  onToggleFolder
+}: {
+  activePath: string;
+  depth?: number;
+  expandedFolders: string[];
+  node: MorphusFileTreeNodeData;
+  onSelectFile: (path: string) => void;
+  onToggleFolder: (path: string) => void;
+}) {
+  if (node.kind === "folder") {
+    const expanded = expandedFolders.includes(node.path);
+
+    return (
+      <div>
+        <button
+          className="flex w-full items-center gap-1.5 border-l-2 border-transparent py-1.5 pr-3 text-left text-[12px] font-semibold text-white/58 transition-colors hover:bg-white/[0.035] hover:text-white/82"
+          onClick={() => onToggleFolder(node.path)}
+          style={{ paddingLeft: `${12 + depth * 12}px` }}
+          type="button"
+        >
+          <ChevronRight className={cn("size-3 text-white/32 transition-transform", expanded && "rotate-90")} />
+          {expanded ? <FolderOpen className="size-3.5 text-[#f6d07d]/72" /> : <Folder className="size-3.5 text-[#f6d07d]/60" />}
+          <span className="truncate">{node.name}</span>
+        </button>
+        {expanded && node.children.map((child) => (
+          <MorphusFileTreeNode
+            activePath={activePath}
+            depth={depth + 1}
+            expandedFolders={expandedFolders}
+            key={child.path}
+            node={child}
+            onSelectFile={onSelectFile}
+            onToggleFolder={onToggleFolder}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      className={cn(
+        "flex w-full items-center gap-2 border-l-2 py-2 pr-3 text-left text-[12px] transition-colors",
+        activePath === node.path
+          ? "border-[#f6d07d] bg-white/[0.06] text-white"
+          : "border-transparent text-white/58 hover:bg-white/[0.035] hover:text-white/82"
+      )}
+      onClick={() => onSelectFile(node.path)}
+      style={{ paddingLeft: `${28 + depth * 12}px` }}
+      type="button"
+    >
+      <FileCode2 className="size-3.5 shrink-0 text-cyan-300/72" />
+      <span className="truncate font-medium">{node.name}</span>
+    </button>
+  );
+}
+
+function buildMorphusFileTree(files: MorphusFileRecord[]): MorphusFileTreeNodeData[] {
+  const root: MorphusFileTreeNodeData[] = [];
+  const folders = new Map<string, Extract<MorphusFileTreeNodeData, { kind: "folder" }>>();
+
+  const getFolder = (name: string, path: string, siblings: MorphusFileTreeNodeData[]) => {
+    const existing = folders.get(path);
+    if (existing) {
+      return existing;
+    }
+
+    const folder: Extract<MorphusFileTreeNodeData, { kind: "folder" }> = {
+      children: [],
+      kind: "folder",
+      name,
+      path
+    };
+    folders.set(path, folder);
+    siblings.push(folder);
+    return folder;
+  };
+
+  for (const file of files) {
+    const parts = file.path.split("/").filter(Boolean);
+    let siblings = root;
+    let folderPath = "";
+
+    for (let i = 0; i < parts.length; i += 1) {
+      const part = parts[i];
+      const isFile = i === parts.length - 1;
+      const nextPath = folderPath ? `${folderPath}/${part}` : part;
+
+      if (isFile) {
+        siblings.push({
+          file,
+          kind: "file",
+          name: part,
+          path: file.path
+        });
+      } else {
+        const folder = getFolder(part, nextPath, siblings);
+        siblings = folder.children;
+        folderPath = nextPath;
+      }
+    }
+  }
+
+  return sortMorphusFileTree(root);
+}
+
+function sortMorphusFileTree(nodes: MorphusFileTreeNodeData[]): MorphusFileTreeNodeData[] {
+  return nodes
+    .map((node) => node.kind === "folder" ? { ...node, children: sortMorphusFileTree(node.children) } : node)
+    .sort((a, b) => {
+      if (a.kind !== b.kind) {
+        return a.kind === "folder" ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
 }
 
 function MorphusTabButton({
