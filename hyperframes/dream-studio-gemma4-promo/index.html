@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #02030a;
+        color: #f8f8ff;
+        font-family: "Space Grotesk", "Avenir Next", sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse at 16% 12%, rgba(155, 108, 255, 0.28), rgba(155, 108, 255, 0) 44%),
+          radial-gradient(ellipse at 86% 40%, rgba(95, 232, 220, 0.14), rgba(95, 232, 220, 0) 36%),
+          linear-gradient(180deg, #070b1d 0%, #050816 52%, #02030a 100%);
+      }
+
+      .grain,
+      .grid,
+      .orb {
+        pointer-events: none;
+        position: absolute;
+      }
+
+      .grid {
+        inset: 0;
+        z-index: 2;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, rgba(255, 255, 255, 0) 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, rgba(255, 255, 255, 0) 1px);
+        background-size: 96px 96px;
+        opacity: 0.58;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.1));
+      }
+
+      .grain {
+        inset: -20%;
+        z-index: 40;
+        opacity: 0.12;
+        background:
+          radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.14) 0 1px, rgba(255, 255, 255, 0) 1.5px),
+          radial-gradient(circle at 78% 58%, rgba(255, 255, 255, 0.12) 0 1px, rgba(255, 255, 255, 0) 1.4px);
+        background-size: 36px 34px, 44px 42px;
+      }
+
+      .orb {
+        border: 1px solid rgba(182, 146, 255, 0.18);
+        border-radius: 999px;
+      }
+
+      .orb-a {
+        left: -260px;
+        top: 140px;
+        width: 640px;
+        height: 640px;
+      }
+
+      .orb-b {
+        right: -320px;
+        top: 80px;
+        width: 760px;
+        height: 760px;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        width: 100%;
+        height: 100%;
+        padding: 94px 118px;
+        gap: 42px;
+        box-sizing: border-box;
+      }
+
+      .kicker {
+        display: inline-flex;
+        width: max-content;
+        min-height: 46px;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid rgba(182, 146, 255, 0.34);
+        border-radius: 999px;
+        background: #02030a;
+        padding: 0 22px;
+        color: #ffffff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #5fe8dc;
+        box-shadow: 0 0 22px rgba(95, 232, 220, 0.78);
+      }
+
+      h1,
+      h2 {
+        max-width: 980px;
+        color: #f8f8ff;
+        font-size: 92px;
+        font-weight: 900;
+        line-height: 0.96;
+        letter-spacing: -0.045em;
+        text-wrap: balance;
+      }
+
+      h2 {
+        max-width: 860px;
+        font-size: 78px;
+        line-height: 1;
+      }
+
+      .lede {
+        max-width: 760px;
+        color: #cfd6f3;
+        font-size: 34px;
+        font-weight: 350;
+        line-height: 1.22;
+      }
+
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .glow-word {
+        color: #d3c2ff;
+        text-shadow: 0 0 34px rgba(155, 108, 255, 0.64);
+      }
+
+      .cyan {
+        color: #5fe8dc;
+      }
+
+      .orange {
+        color: #d88b42;
+      }
+
+      #scene-1 .scene-content {
+        flex-direction: column;
+        justify-content: center;
+        padding-right: 720px;
+      }
+
+      .dream-stack {
+        position: absolute;
+        right: 120px;
+        top: 190px;
+        z-index: 4;
+        width: 520px;
+        height: 630px;
+      }
+
+      .game-card {
+        position: absolute;
+        display: flex;
+        align-items: flex-end;
+        width: 400px;
+        height: 235px;
+        overflow: hidden;
+        border: 1px solid rgba(214, 224, 255, 0.16);
+        border-radius: 34px;
+        background:
+          linear-gradient(180deg, rgba(255, 243, 208, 0.3), rgba(255, 243, 208, 0) 38%),
+          linear-gradient(140deg, #b77243, #3a2334 60%, #11162a);
+        box-shadow: 0 36px 80px rgba(0, 0, 0, 0.38);
+      }
+
+      .game-card::before {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 44%;
+        background:
+          linear-gradient(30deg, rgba(255, 255, 255, 0.16) 1px, rgba(255, 255, 255, 0) 1px),
+          linear-gradient(150deg, rgba(0, 0, 0, 0.24) 1px, rgba(0, 0, 0, 0) 1px),
+          linear-gradient(180deg, rgba(216, 139, 66, 0.88), rgba(58, 35, 32, 0.92));
+        background-size: 34px 24px;
+      }
+
+      .game-card::after {
+        content: "";
+        position: absolute;
+        left: 54%;
+        top: 17%;
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        background: #fff3d0;
+        box-shadow: 0 0 50px 28px rgba(255, 243, 208, 0.28);
+      }
+
+      .game-card span {
+        position: relative;
+        z-index: 2;
+        margin: 0 0 26px 28px;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .card-city {
+        right: 0;
+        top: 0;
+        transform: rotate(5deg);
+      }
+
+      .card-racer {
+        left: 8px;
+        top: 190px;
+        transform: rotate(-8deg);
+        background:
+          linear-gradient(180deg, rgba(95, 232, 220, 0.28), rgba(95, 232, 220, 0) 40%),
+          linear-gradient(140deg, #1c6a6f, #211b4f 58%, #100f20);
+      }
+
+      .card-myth {
+        right: 58px;
+        bottom: 0;
+        transform: rotate(3deg);
+        background:
+          linear-gradient(180deg, rgba(182, 146, 255, 0.28), rgba(182, 146, 255, 0) 42%),
+          linear-gradient(140deg, #8b5cf6, #2d204d 58%, #0e1021);
+      }
+
+      .blocker-list {
+        display: flex;
+        flex-wrap: wrap;
+        max-width: 800px;
+        gap: 14px;
+      }
+
+      .blocker-list span {
+        border: 1px solid rgba(207, 214, 243, 0.16);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 13px 18px;
+        color: #dfe5ff;
+        font-size: 24px;
+        font-weight: 650;
+      }
+
+      #scene-2 .scene-content {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        align-items: center;
+      }
+
+      .bridge {
+        position: relative;
+        height: 620px;
+      }
+
+      .bridge-card,
+      .gemma-core,
+      .artifact-card {
+        position: absolute;
+        border: 1px solid rgba(214, 224, 255, 0.18);
+        border-radius: 32px;
+        background: rgba(7, 11, 29, 0.82);
+        box-shadow: 0 28px 82px rgba(0, 0, 0, 0.4);
+      }
+
+      .bridge-card {
+        left: 18px;
+        top: 70px;
+        width: 430px;
+        padding: 28px;
+      }
+
+      .bridge-card strong,
+      .artifact-card strong {
+        display: block;
+        color: #ffffff;
+        font-size: 32px;
+        line-height: 1.1;
+      }
+
+      .bridge-card small,
+      .artifact-card small {
+        display: block;
+        margin-top: 12px;
+        color: #e6ebff;
+        font-size: 22px;
+        line-height: 1.35;
+      }
+
+      .gemma-core {
+        left: 478px;
+        top: 190px;
+        display: grid;
+        width: 252px;
+        height: 252px;
+        place-items: center;
+        border-color: rgba(182, 146, 255, 0.56);
+        background:
+          radial-gradient(circle at 50% 35%, rgba(182, 146, 255, 0.92), rgba(109, 61, 242, 0.84) 42%, rgba(7, 11, 29, 0.9) 72%),
+          #070b1d;
+        text-align: center;
+      }
+
+      .gemma-core strong {
+        font-size: 42px;
+        font-weight: 900;
+        line-height: 0.94;
+      }
+
+      .gemma-core small {
+        margin-top: 10px;
+        color: #e5dcff;
+        font-size: 20px;
+      }
+
+      .artifact-card {
+        right: 20px;
+        bottom: 70px;
+        width: 430px;
+        padding: 28px;
+      }
+
+      .bridge-line {
+        position: absolute;
+        left: 380px;
+        top: 316px;
+        width: 420px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(95, 232, 220, 0), #5fe8dc, #b692ff, rgba(182, 146, 255, 0));
+        box-shadow: 0 0 32px rgba(95, 232, 220, 0.52);
+      }
+
+      #scene-3 .scene-content {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 580px;
+        align-items: center;
+        gap: 46px;
+      }
+
+      .editor-frame {
+        position: relative;
+        width: 1130px;
+        overflow: hidden;
+        border: 1px solid rgba(182, 146, 255, 0.46);
+        border-radius: 30px;
+        background: rgba(7, 11, 29, 0.86);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.05),
+          0 42px 100px rgba(0, 0, 0, 0.44),
+          0 0 74px rgba(109, 61, 242, 0.32);
+      }
+
+      .editor-frame img {
+        display: block;
+        width: 100%;
+        height: 565px;
+        object-fit: cover;
+        object-position: 50% 50%;
+        opacity: 0.95;
+      }
+
+      .scan-box {
+        position: absolute;
+        left: 330px;
+        top: 266px;
+        width: 310px;
+        height: 178px;
+        border: 2px solid #5fe8dc;
+        border-radius: 18px;
+        box-shadow:
+          inset 0 0 32px rgba(95, 232, 220, 0.18),
+          0 0 36px rgba(95, 232, 220, 0.46);
+      }
+
+      .scan-box::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 42%;
+        height: 3px;
+        background: #5fe8dc;
+        box-shadow: 0 0 24px rgba(95, 232, 220, 0.84);
+      }
+
+      .tool-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .tool-call {
+        border: 1px solid rgba(214, 224, 255, 0.15);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.07);
+        padding: 18px 22px;
+        box-shadow: 0 22px 54px rgba(0, 0, 0, 0.25);
+      }
+
+      .tool-call small {
+        display: block;
+        color: #8cffbd;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 16px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .tool-call strong {
+        display: block;
+        margin-top: 8px;
+        color: #ffffff;
+        font-size: 30px;
+      }
+
+      #scene-4 .scene-content {
+        display: grid;
+        grid-template-columns: 650px minmax(0, 1fr);
+        align-items: center;
+      }
+
+      .morphus-window {
+        overflow: hidden;
+        border: 1px solid rgba(214, 224, 255, 0.16);
+        border-radius: 30px;
+        background: rgba(7, 11, 29, 0.86);
+        box-shadow: 0 42px 100px rgba(0, 0, 0, 0.45);
+      }
+
+      .window-top {
+        display: flex;
+        min-height: 58px;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(214, 224, 255, 0.12);
+        padding: 0 22px;
+        color: #cfd6f3;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 16px;
+      }
+
+      .window-body {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        min-height: 520px;
+      }
+
+      .file-tree {
+        border-right: 1px solid rgba(214, 224, 255, 0.1);
+        padding: 24px;
+      }
+
+      .file-tree span,
+      .code-line {
+        display: block;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 18px;
+      }
+
+      .file-tree span {
+        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.055);
+        color: #dfe5ff;
+      }
+
+      .code-pane {
+        padding: 24px;
+      }
+
+      .code-line {
+        color: #cfd6f3;
+      }
+
+      .code-line:nth-child(2n) {
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .preview-card {
+        position: absolute;
+        right: 100px;
+        bottom: 128px;
+        width: 470px;
+        overflow: hidden;
+        border: 1px solid rgba(95, 232, 220, 0.42);
+        border-radius: 28px;
+        background:
+          linear-gradient(180deg, rgba(255, 243, 208, 0.22), rgba(255, 243, 208, 0) 36%),
+          linear-gradient(150deg, #bd7342, #312344 56%, #101524);
+        box-shadow: 0 0 62px rgba(95, 232, 220, 0.22), 0 36px 82px rgba(0, 0, 0, 0.36);
+      }
+
+      .preview-card .world {
+        position: relative;
+        height: 250px;
+      }
+
+      .preview-card .world::before {
+        content: "";
+        position: absolute;
+        left: 20%;
+        top: 23%;
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: #fff3d0;
+        box-shadow: 0 0 48px 26px rgba(255, 243, 208, 0.26);
+      }
+
+      .preview-card .hud {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(2, 3, 10, 0.6);
+        padding: 18px 22px;
+        color: #ffffff;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 18px;
+      }
+
+      #scene-5 .scene-content {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .final-mark {
+        display: grid;
+        width: 156px;
+        height: 156px;
+        place-items: center;
+        border: 1px solid rgba(182, 146, 255, 0.56);
+        border-radius: 42px;
+        background:
+          radial-gradient(circle at 50% 28%, rgba(182, 146, 255, 0.94), rgba(109, 61, 242, 0.9) 48%, rgba(20, 18, 50, 0.92) 74%),
+          #070b1d;
+        box-shadow: 0 0 80px rgba(155, 108, 255, 0.46);
+      }
+
+      .final-mark span {
+        font-size: 56px;
+        font-weight: 900;
+        letter-spacing: -0.08em;
+      }
+
+      .tagline {
+        max-width: 1050px;
+        color: #cfd6f3;
+        font-size: 34px;
+        line-height: 1.25;
+      }
+
+      .cta-row {
+        display: flex;
+        gap: 18px;
+        margin-top: 4px;
+      }
+
+      .cta-row span {
+        border: 1px solid rgba(214, 224, 255, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        padding: 14px 20px;
+        color: #dfe5ff;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .transition {
+        position: absolute;
+        left: -10%;
+        top: 0;
+        z-index: 30;
+        width: 120%;
+        height: 100%;
+        background:
+          linear-gradient(90deg, rgba(2, 3, 10, 0) 0%, rgba(95, 232, 220, 0.9) 38%, rgba(182, 146, 255, 0.95) 55%, rgba(2, 3, 10, 0) 100%);
+        filter: blur(10px);
+        transform: scaleX(0);
+        transform-origin: left center;
+        opacity: 0;
+      }
+
+      .final-fade {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        background: #02030a;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
+      <audio id="narration" data-start="0" data-track-index="80" src="narration.wav" data-volume="1"></audio>
+
+      <div class="grid" data-layout-ignore></div>
+      <div class="grain" data-layout-ignore></div>
+      <div class="orb orb-a" data-layout-ignore></div>
+      <div class="orb orb-b" data-layout-ignore></div>
+
+      <section id="scene-1" class="scene clip" data-start="0" data-duration="4.05" data-track-index="1">
+        <div class="scene-content">
+          <div class="kicker s1-kicker"><span class="dot"></span> Gemma 4 Good Hackathon</div>
+          <h1 class="s1-title">Millions of players carry <span class="glow-word">game worlds</span> in their heads.</h1>
+          <p class="lede s1-lede">But engines, teams, funding, and hardware keep those worlds locked away.</p>
+          <div class="blocker-list">
+            <span class="s1-chip">coding</span>
+            <span class="s1-chip">3D tools</span>
+            <span class="s1-chip">assets</span>
+            <span class="s1-chip">teams</span>
+            <span class="s1-chip">hardware</span>
+          </div>
+        </div>
+        <div class="dream-stack" data-layout-allow-overflow>
+          <div class="game-card card-city"><span>open-world city</span></div>
+          <div class="game-card card-racer"><span>racing arena</span></div>
+          <div class="game-card card-myth"><span>local myth</span></div>
+        </div>
+      </section>
+
+      <section id="scene-2" class="scene clip" data-start="3.85" data-duration="4.25" data-track-index="2">
+        <div class="scene-content">
+          <div>
+            <div class="kicker s2-kicker"><span class="dot"></span> The bridge</div>
+            <h2 class="s2-title">Gemma 4 helps close the gap from idea to artifact.</h2>
+            <p class="lede s2-lede">Natural language becomes editable geometry, files, characters, and playable prototypes.</p>
+          </div>
+          <div class="bridge">
+            <div class="bridge-line"></div>
+            <div class="bridge-card">
+              <strong>Creator idea</strong>
+              <small>"Build a night-time neighborhood with shops, NPCs, a garage, and a chase route."</small>
+            </div>
+            <div class="gemma-core"><div><strong>Gemma 4</strong><small class="mono">reason + call tools</small></div></div>
+            <div class="artifact-card">
+              <strong>Playable output</strong>
+              <small>Scene edits, game files, screenshots, preview, export.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-3" class="scene clip" data-start="7.75" data-duration="4.35" data-track-index="3">
+        <div class="scene-content">
+          <div class="editor-frame s3-frame">
+            <img src="assets/dream-studio-hero-editor.png" alt="Dream Studio editor interface" />
+            <div class="scan-box"></div>
+          </div>
+          <div class="tool-panel">
+            <div class="kicker s3-kicker"><span class="dot"></span> Agentic editor proof</div>
+            <h2 class="s3-title"><span class="cyan">112 tools.</span> Real editor actions.</h2>
+            <div class="tool-call s3-call">
+              <small>Copilot</small>
+              <strong>104 live 3D editor tools</strong>
+            </div>
+            <div class="tool-call s3-call">
+              <small>Visual verification</small>
+              <strong>Gemma 4 checks viewport screenshots</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-4" class="scene clip" data-start="11.95" data-duration="4.2" data-track-index="4">
+        <div class="scene-content">
+          <div>
+            <div class="kicker s4-kicker"><span class="dot"></span> Morphus workspace</div>
+            <h2 class="s4-title">Gemma 4 helps create browser games, not just mockups.</h2>
+            <p class="lede s4-lede">Files persist locally. Follow-up edits search, read, patch, preview, and export.</p>
+          </div>
+          <div class="morphus-window s4-window">
+            <div class="window-top"><span>MORPHUS / playable-web-game</span><span class="cyan">PREVIEW READY</span></div>
+            <div class="window-body">
+              <div class="file-tree">
+                <span>index.html</span>
+                <span>src/game.js</span>
+                <span>src/npcs.js</span>
+                <span>style.css</span>
+                <span>assets/garage.png</span>
+              </div>
+              <div class="code-pane">
+                <span class="code-line">const mission = createDeliveryQuest();</span>
+                <span class="code-line">spawnNpc("Mechanic", garage);</span>
+                <span class="code-line">addChaseRoute(cityBlock);</span>
+                <span class="code-line">onPlayerArrive(showDialogue);</span>
+                <span class="code-line">exportZip(project);</span>
+              </div>
+            </div>
+          </div>
+          <div class="preview-card s4-preview">
+            <div class="world"></div>
+            <div class="hud"><span>PLAYABLE</span><span>EXPORT ZIP</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-5" class="scene clip" data-start="15.95" data-duration="4.05" data-track-index="5">
+        <div class="scene-content">
+          <div class="final-mark s5-mark"><span>DS</span></div>
+          <div class="kicker s5-kicker"><span class="dot"></span> Dream Studio for Gemma 4 Good</div>
+          <h2 class="s5-title">AI game creation for everyone.</h2>
+          <p class="tagline s5-tagline">Gemma 4 helps players, storytellers, and non-builders turn natural language into playable interactive worlds.</p>
+          <div class="cta-row">
+            <span class="s5-chip">Digital Equity</span>
+            <span class="s5-chip">Creative Access</span>
+            <span class="s5-chip">Playable Worlds</span>
+          </div>
+        </div>
+      </section>
+
+      <div id="wipe-1" class="transition clip" data-start="3.65" data-duration="0.55" data-track-index="20"></div>
+      <div id="wipe-2" class="transition clip" data-start="7.55" data-duration="0.55" data-track-index="21"></div>
+      <div id="wipe-3" class="transition clip" data-start="11.75" data-duration="0.55" data-track-index="22"></div>
+      <div id="wipe-4" class="transition clip" data-start="15.75" data-duration="0.55" data-track-index="23"></div>
+      <div class="final-fade"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.from(".orb-a", { scale: 0.9, opacity: 0.45, duration: 3.6, ease: "sine.inOut" }, 0.1);
+      tl.from(".orb-b", { scale: 0.88, opacity: 0.35, duration: 4.2, ease: "sine.inOut" }, 0.2);
+      tl.to(".grid", { x: -48, y: -30, duration: 20, ease: "none" }, 0);
+      tl.to(".grain", { x: 18, y: -24, duration: 20, ease: "none" }, 0);
+
+      tl.from(".s1-kicker", { opacity: 0, y: 38, duration: 0.48, ease: "power3.out" }, 0.18);
+      tl.from(".s1-title", { opacity: 0, y: 64, scale: 0.98, duration: 0.72, ease: "expo.out" }, 0.4);
+      tl.from(".s1-lede", { opacity: 0, x: -34, duration: 0.52, ease: "power2.out" }, 0.9);
+      tl.from(".s1-chip", { opacity: 0, y: 28, rotation: -2, duration: 0.42, stagger: 0.08, ease: "back.out(1.8)" }, 1.24);
+      tl.from(".game-card", { opacity: 0, y: 72, rotation: -12, scale: 0.9, duration: 0.7, stagger: 0.14, ease: "power4.out" }, 0.62);
+
+      tl.from(".s2-kicker", { opacity: 0, x: -42, duration: 0.45, ease: "power2.out" }, 4.08);
+      tl.from(".s2-title", { opacity: 0, y: 58, duration: 0.64, ease: "expo.out" }, 4.32);
+      tl.from(".s2-lede", { opacity: 0, y: 34, duration: 0.5, ease: "power3.out" }, 4.78);
+      tl.from(".bridge-card", { opacity: 0, x: -70, scale: 0.96, duration: 0.56, ease: "power4.out" }, 4.32);
+      tl.from(".bridge-line", { opacity: 0, scaleX: 0, transformOrigin: "left center", duration: 0.62, ease: "power2.inOut" }, 4.86);
+      tl.from(".gemma-core", { opacity: 0, scale: 0.78, rotation: -8, duration: 0.68, ease: "back.out(1.9)" }, 5.12);
+      tl.from(".artifact-card", { opacity: 0, x: 72, scale: 0.96, duration: 0.58, ease: "power3.out" }, 5.55);
+
+      tl.from(".s3-frame", { opacity: 0, x: -80, scale: 0.96, duration: 0.72, ease: "power4.out" }, 7.98);
+      tl.from(".s3-kicker", { opacity: 0, y: 34, duration: 0.46, ease: "power2.out" }, 8.22);
+      tl.from(".s3-title", { opacity: 0, y: 54, duration: 0.62, ease: "expo.out" }, 8.5);
+      tl.from(".scan-box", { opacity: 0, scale: 1.18, duration: 0.5, ease: "power2.out" }, 8.92);
+      tl.from(".s3-call", { opacity: 0, x: 54, duration: 0.48, stagger: 0.14, ease: "back.out(1.6)" }, 9.12);
+      tl.to(".scan-box", { y: 32, duration: 0.7, ease: "sine.inOut" }, 9.36);
+      tl.to(".scan-box", { y: 0, duration: 0.7, ease: "sine.inOut" }, 10.08);
+
+      tl.from(".s4-kicker", { opacity: 0, y: 36, duration: 0.46, ease: "power2.out" }, 12.18);
+      tl.from(".s4-title", { opacity: 0, y: 56, duration: 0.64, ease: "expo.out" }, 12.44);
+      tl.from(".s4-lede", { opacity: 0, x: -38, duration: 0.5, ease: "power3.out" }, 12.9);
+      tl.from(".s4-window", { opacity: 0, x: 80, scale: 0.96, duration: 0.68, ease: "power4.out" }, 12.3);
+      tl.from(".file-tree span", { opacity: 0, x: -24, duration: 0.32, stagger: 0.07, ease: "power2.out" }, 12.96);
+      tl.from(".code-line", { opacity: 0, x: 28, duration: 0.3, stagger: 0.06, ease: "power3.out" }, 13.28);
+      tl.from(".s4-preview", { opacity: 0, y: 76, scale: 0.92, duration: 0.58, ease: "back.out(1.7)" }, 14.02);
+
+      tl.from(".s5-mark", { opacity: 0, y: -38, scale: 0.82, rotation: -8, duration: 0.62, ease: "back.out(1.8)" }, 16.18);
+      tl.from(".s5-kicker", { opacity: 0, y: 30, duration: 0.45, ease: "power2.out" }, 16.54);
+      tl.from(".s5-title", { opacity: 0, y: 58, scale: 0.98, duration: 0.72, ease: "expo.out" }, 16.78);
+      tl.from(".s5-tagline", { opacity: 0, y: 34, duration: 0.52, ease: "power3.out" }, 17.34);
+      tl.from(".s5-chip", { opacity: 0, y: 28, duration: 0.36, stagger: 0.08, ease: "back.out(1.7)" }, 17.82);
+
+      ["#wipe-1", "#wipe-2", "#wipe-3", "#wipe-4"].forEach((selector) => {
+        const start = Number(document.querySelector(selector).dataset.start);
+        tl.fromTo(selector, { opacity: 0, scaleX: 0 }, { opacity: 0.95, scaleX: 1, duration: 0.22, ease: "power4.in" }, start);
+        tl.to(selector, { opacity: 0, scaleX: 0, transformOrigin: "right center", duration: 0.28, ease: "expo.out" }, start + 0.22);
+      });
+
+      tl.to(".final-fade", { opacity: 1, duration: 0.48, ease: "sine.inOut" }, 19.52);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

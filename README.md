@@ -1,8 +1,10 @@
 # Dream Studio
 
-Dream Studio is an open-source, browser-based world editor and game tooling monorepo for building Three.js game spaces. It combines a modern level editor, animation authoring tools, a local orchestration app, runtime packages, and a starter CLI into one workflow for moving from blockout to playable web prototype.
+Dream Studio is an open-source, browser-based world editor and game tooling monorepo for building Three.js game spaces. It combines a modern level editor, Gemma 4-powered creation agents, animation authoring tools, a local orchestration app, runtime packages, and a starter CLI into one workflow for moving from blockout to playable web prototype.
 
 The project is built for developers who want editor-grade world authoring without giving up ownership of their game runtime. Dream Studio helps create scenes, geometry, materials, entities, animation data, and runtime bundles, while your game code still owns the render loop, camera, controls, gameplay systems, and deployment model.
+
+For the Gemma 4 Good Hackathon, the submitted slice is the editor in [`apps/editor`](apps/editor/README.md): a Gemma 4-powered creative editor for players, solo creators, indie storytellers, students, educators, modders, and non-programmers who have game ideas but lack access to traditional game-development pipelines.
 
 > Status: public alpha. APIs, file formats, package boundaries, generated project structure, and editor workflows are expected to change.
 
@@ -10,6 +12,7 @@ The project is built for developers who want editor-grade world authoring withou
 
 - [Why Dream Studio](#why-dream-studio)
 - [Features](#features)
+- [Gemma 4 agentic editor](#gemma-4-agentic-editor)
 - [Repository layout](#repository-layout)
 - [Technology stack](#technology-stack)
 - [Prerequisites](#prerequisites)
@@ -18,6 +21,7 @@ The project is built for developers who want editor-grade world authoring withou
 - [Common scripts](#common-scripts)
 - [Configuration](#configuration)
 - [Core concepts](#core-concepts)
+- [Hackathon writeups](#hackathon-writeups)
 - [Runtime packages](#runtime-packages)
 - [Development workflow](#development-workflow)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -27,13 +31,14 @@ The project is built for developers who want editor-grade world authoring withou
 
 ## Why Dream Studio
 
-Dream Studio exists to make browser game worldbuilding feel fast, inspectable, and code-friendly.
+Dream Studio exists to make browser game worldbuilding feel fast, inspectable, code-friendly, and accessible to people who can imagine interactive worlds before they have the team, funding, hardware, or technical skills to build them.
 
 - Author worlds in a browser-based 3D editor instead of hand-writing every mesh, prop, light, and trigger.
+- Use Gemma 4 to help creators operate real editor tools rather than leaving them with a detached chatbot.
 - Use brush-style blockout tools inspired by classic level editors, with modern Three.js rendering and web workflows.
 - Keep authoring state in framework-agnostic packages, so React is used for UI and the scene model remains portable.
 - Export `.whmap`, glTF, and runtime bundle data for use in your own game projects.
-- Pair world authoring with animation graph tooling and a CLI-generated starter game.
+- Pair world authoring with standalone HTML game generation, animation graph tooling, and a CLI-generated starter game.
 
 ## Features
 
@@ -52,7 +57,19 @@ Dream Studio exists to make browser game worldbuilding feel fast, inspectable, a
 - Save/load support for `.whmap` scene snapshots.
 - Export flows for glTF and engine/runtime bundles.
 - HTML/JS scene import and GLB import entry points.
-- Optional AI-assisted creation panels and copilot flows when provider credentials are configured.
+- Gemma 4-powered Copilot for live 3D scene editing through structured tool calls.
+- Gemma 4-powered Morphus workspace for standalone playable HTML/CSS/JavaScript games.
+- Viewport screenshot capture so Copilot can inspect what it actually built before refining.
+- NPC dialogue preview backed by Gemma 4, with optional multilingual voice playback through ElevenLabs.
+- Game-code memory admin flow for ingesting examples into a Pinecone/Gemini-embedding retrieval store.
+
+### Agentic creation
+
+- In the submitted editor slice, `112` declared AI tools across the editor and game-generation workspace.
+- `104` live editor tools for placement, transforms, materials, discovery, mesh topology, UV/surface work, gameplay hooks, behavior trees, scene paths, screenshots, sync, and articulated assets.
+- `8` Morphus tools for standalone game registration and file operations: list, search, bounded read, write, create, and approval-gated delete/rename requests.
+- Iterative model/tool loop: prompt -> tool calls -> editor execution -> tool results -> optional screenshot -> refinement.
+- Mode-specific prompts: Copilot edits the Dream Studio viewport, while Morphus creates and maintains standalone browser-game projects.
 
 ### Animation tooling
 
@@ -69,6 +86,21 @@ Dream Studio exists to make browser game worldbuilding feel fast, inspectable, a
 
 - `create-blud` CLI package for bootstrapping a small Vite + TypeScript game project.
 - Runtime packages for scene format validation, Three.js loading, physics adapters, scripting bridges, streaming, audio, and development-time editor sync.
+
+## Gemma 4 agentic editor
+
+Gemma 4 is the default intelligence layer for the editor submission. The browser sends Copilot and Morphus requests to `/api/copilot/generate`; the server calls `gemma-4-31b-it` with the conversation history, a mode-specific system prompt, and the relevant tool catalog.
+
+Gemma 4 helps creators through an agentic editor workflow:
+
+1. The user describes a scene, edit, or playable game.
+2. Dream Studio sends Gemma 4 the prompt, current conversation, system instructions, and available tools.
+3. Gemma 4 returns either a final response or structured tool calls.
+4. Dream Studio executes those calls against the editor command stack or Morphus file workspace.
+5. Tool results are returned to Gemma 4 for the next step.
+6. For spatial work, Gemma 4 can call `capture_viewport_screenshot` and use the resulting image to refine the scene.
+
+With this workflow, Gemma 4 helps place objects, inspect scene state, edit topology, create behaviors, update files, and verify visible results instead of only describing what a human should do.
 
 ## Repository layout
 
@@ -94,6 +126,9 @@ Dream Studio exists to make browser game worldbuilding feel fast, inspectable, a
 |   +-- shared/                    # Shared scene types and utilities
 +-- scripts/                       # Build and publish helper scripts
 +-- ARCHITECTURE.md                # Architecture and geometry kernel reference
++-- KAGGLE_WRITEUP_DREAM_STUDIO.md # Detailed hackathon writeup draft
++-- KAGGLE_WRITEUP_DREAM_STUDIO_SUBMISSION.md # 1,500-word submission draft
++-- KAGGLE_WRITEUP_RESEARCH_NOTES.md # Kaggle/winner writeup strategy notes
 +-- RUNTIME_ARCHITECTURE.md        # Runtime architecture notes
 +-- ROADMAP.md                     # Implementation progress and known gaps
 +-- package.json                   # npm workspace root
@@ -104,13 +139,16 @@ Published packages currently use the historical `@blud/*` scope. The project and
 ## Technology stack
 
 - TypeScript
-- React
-- Vite
+- React 19
+- Vite 8
 - Three.js
 - React Three Fiber and Drei
 - Tailwind CSS
 - shadcn/Base UI-style component primitives
 - Valtio for editor UI/app state
+- Google GenAI SDK for Gemma 4-backed Copilot and Morphus generation
+- Pinecone plus Gemini embeddings for game-code memory
+- ElevenLabs for optional voice, sound-effect, and music generation
 - XState-inspired tool-state architecture
 - Web Workers and Comlink for expensive editor tasks
 - `three-mesh-bvh` for accelerated selection and spatial queries
@@ -272,10 +310,20 @@ Most core authoring features run without secrets.
 Optional provider-backed features are configured through local environment files. For Dream Studio, create `apps/editor/.env.local` when needed:
 
 ```bash
+GEMINI_API_KEY=your_google_ai_key
 FAL_KEY=your_fal_key
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_INDEX_HOST=your_pinecone_index_host
 ```
 
-Some experimental copilot, model, voice, or generation features also reference provider integrations such as ElevenLabs and Google GenAI in the editor codebase and local server routes. Treat those paths as optional alpha features unless your branch or deployment explicitly documents the required keys.
+The browser never receives the Gemma API key; Copilot and Morphus call local or hosted server routes. ElevenLabs features use a user-provided key stored in browser settings and forwarded through the editor's proxy routes.
+
+Provider-backed features are optional for core editor usage:
+
+- `GEMINI_API_KEY` or `GOOGLE_API_KEY` enables Gemma 4 Copilot, Morphus, and NPC dialogue.
+- `PINECONE_API_KEY` plus `PINECONE_INDEX_HOST` enables game-code memory upserts/search.
+- `FAL_KEY` enables optional object/texture generation paths.
+- ElevenLabs voice/audio features are configured from the editor UI.
 
 ## Core concepts
 
@@ -308,6 +356,25 @@ The render pipeline derives viewport-ready Three.js data from authoring nodes. E
 ### Runtime export
 
 Dream Studio can save `.whmap` authoring snapshots and export runtime-oriented bundles. The runtime packages are designed to load those artifacts into Three.js game projects while leaving game architecture under your control.
+
+### Copilot and Morphus
+
+Copilot and Morphus share the same agentic runtime but expose different boundaries:
+
+- Copilot edits the Dream Studio viewport through `104` live editor tools.
+- Morphus creates standalone web games through a saved file workspace and `8` project/file tools.
+- Copilot can verify visual edits with viewport screenshots.
+- Morphus can search, read, edit, create, preview, export, and preserve generated project files.
+
+## Hackathon writeups
+
+The repository includes two Gemma 4 Good Hackathon writeup drafts:
+
+- [`KAGGLE_WRITEUP_DREAM_STUDIO.md`](KAGGLE_WRITEUP_DREAM_STUDIO.md) is the detailed research-style master draft.
+- [`KAGGLE_WRITEUP_DREAM_STUDIO_SUBMISSION.md`](KAGGLE_WRITEUP_DREAM_STUDIO_SUBMISSION.md) is the shorter submission-oriented version.
+- [`KAGGLE_WRITEUP_RESEARCH_NOTES.md`](KAGGLE_WRITEUP_RESEARCH_NOTES.md) summarizes the Kaggle/winner writeup research used to shape the submission.
+
+The writeups frame the editor under Digital Equity & Inclusivity: Dream Studio lowers the skill, tooling, funding, and hardware barrier for players, solo creators, indie storytellers, modders, students, educators, and non-programmers who want to build playable interactive worlds.
 
 ## Runtime packages
 

@@ -1,0 +1,1 @@
+Millions of players carry game worlds in their heads. Engines, teams, funding, and hardware keep those worlds locked away. Dream Studio uses Gemma 4 to bridge the gap. Describe a world. Gemma 4 calls real editor tools, checks screenshots, edits files, and helps create playable prototypes. Dream Studio: AI game creation for everyone.
