@@ -44,6 +44,8 @@ type ToolsPanelProps = {
   aiModelPlacementActive: boolean;
   activeToolId: ToolId;
   currentSnapSize: GridSnapValue;
+  hasMeshTerrain: boolean;
+  onCreateMeshTerrain: () => void;
   gridSnapValues: readonly GridSnapValue[];
   meshEditMode: MeshEditMode;
   onClose: () => void;
@@ -103,6 +105,8 @@ export function ToolsPanel({
   activeToolId,
   currentSnapSize,
   gridSnapValues,
+  hasMeshTerrain,
+  onCreateMeshTerrain,
   meshEditMode,
   onClose,
   onMeshEditToolbarAction,
@@ -198,7 +202,12 @@ export function ToolsPanel({
           </PanelSection>
 
           <PanelSection title="Terrain">
-            <TerrainToolsSection activeToolId={activeToolId} onSetToolId={onSetToolId} />
+            <TerrainToolsSection
+              activeToolId={activeToolId}
+              hasMeshTerrain={hasMeshTerrain}
+              onCreateMeshTerrain={onCreateMeshTerrain}
+              onSetToolId={onSetToolId}
+            />
           </PanelSection>
 
           <PanelSection title="Details">

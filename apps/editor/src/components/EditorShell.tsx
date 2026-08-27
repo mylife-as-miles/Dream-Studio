@@ -16,6 +16,7 @@ import type {
   Vec2,
   Vec3
 } from "@blud/shared";
+import { isMeshTerrainNode } from "@blud/shared";
 import type { PrimitiveNodeData, PrimitiveShape, ProceduralWorldNodeData, SkateparkElementType } from "@blud/shared";
 import type { ToolId } from "@blud/tool-system";
 import type { FloorPresetId } from "@/lib/floor-presets";
@@ -143,6 +144,7 @@ type EditorShellProps = {
   onClipSelection: (axis: TransformAxis) => void;
   onCommitMeshTopology: (nodeId: string, mesh: EditableMesh) => void;
   onCreateBrush: () => void;
+  onCreateMeshTerrain: () => void;
   onCreateProceduralWorld: () => void;
   onDeleteSelection: () => void;
   onDuplicateSelection: () => void;
@@ -298,6 +300,7 @@ export function EditorShell({
   onClipSelection,
   onCommitMeshTopology,
   onCreateBrush,
+  onCreateMeshTerrain,
   onCreateProceduralWorld,
   onDeleteSelection,
   onDuplicateSelection,
@@ -632,6 +635,8 @@ export function EditorShell({
             mobileEditorTab === "tools" ? "block" : "hidden lg:block"
           )}>
             <ToolsPanel
+              hasMeshTerrain={nodes.some(isMeshTerrainNode)}
+              onCreateMeshTerrain={onCreateMeshTerrain}
               activeBrushShape={activeBrushShape}
               activeRightPanel={activeRightPanel}
               aiModelPlacementActive={aiModelPlacementActive || aiModelPlacementArmed}

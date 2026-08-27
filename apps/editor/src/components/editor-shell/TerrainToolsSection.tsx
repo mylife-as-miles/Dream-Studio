@@ -10,6 +10,7 @@ import {
   Focus,
   Grid3X3,
   Layers3,
+  Mountain,
   Paintbrush,
   Pickaxe,
   Sparkles,
@@ -24,6 +25,9 @@ import { setTerrainBrush, uiStore } from "@/state/ui-store";
 
 type TerrainToolsSectionProps = {
   activeToolId: ToolId;
+  /** False while the scene has no mesh terrain, so the tools have nothing to act on. */
+  hasMeshTerrain: boolean;
+  onCreateMeshTerrain: () => void;
   onSetToolId: (toolId: ToolId) => void;
 };
 
@@ -81,9 +85,34 @@ const paintChannelOptions: Array<{ channel: TerrainPaintChannelId; label: string
   { channel: "channel3", label: "CH 4" }
 ];
 
-export function TerrainToolsSection({ activeToolId, onSetToolId }: TerrainToolsSectionProps) {
+export function TerrainToolsSection({
+  activeToolId,
+  hasMeshTerrain,
+  onCreateMeshTerrain,
+  onSetToolId
+}: TerrainToolsSectionProps) {
   const brush = useSnapshot(uiStore).terrainBrush;
   const terrainToolActive = isTerrainToolId(activeToolId);
+
+  if (!hasMeshTerrain) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="editor-dock-note rounded-xl px-3 py-3 text-[11px]">
+          This scene has no mesh terrain yet. Mesh terrain sculpts along the picked
+          surface normal, so it can carry overhangs, arches and caves that heightmap
+          terrain cannot.
+        </div>
+        <button
+          className="editor-toolbar-button flex items-center justify-center gap-1.5 rounded-[10px] border px-3 py-2 text-[11px] font-medium"
+          onClick={onCreateMeshTerrain}
+          type="button"
+        >
+          <Mountain className="size-4" />
+          Create Mesh Terrain
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">

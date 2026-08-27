@@ -4,7 +4,9 @@ import {
   analyzeSceneSpatialLayout,
   axisDelta,
   createAssignMaterialCommand,
+  createMeshTerrainNode,
   createProceduralWorldNodeCommand,
+  createTerrainNodeCommand,
   createDeleteMaterialCommand,
   createUpsertAssetCommand,
   createDeleteTextureCommand,
@@ -60,6 +62,7 @@ import {
   isMeshNode,
   isModelNode,
   isPrimitiveNode,
+  isMeshTerrainNode,
   isProceduralWorldNode,
   createDefaultProceduralWorldNodeData,
   makeTransform,
@@ -2029,6 +2032,21 @@ export function App() {
     uiStore.copilotPanelOpen = !uiStore.copilotPanelOpen;
   };
 
+  const handleCreateMeshTerrain = () => {
+    const existing = Array.from(editor.scene.nodes.values()).find(isMeshTerrainNode);
+
+    if (existing) {
+      editor.select([existing.id], "object");
+      uiStore.rightPanel = "inspector";
+      return;
+    }
+
+    const node = createMeshTerrainNode({ name: "Mesh Terrain" });
+    editor.execute(createTerrainNodeCommand(node));
+    editor.select([node.id], "object");
+    setActiveToolId("terrain-sculpt");
+  };
+
   const handleCreateProceduralWorld = () => {
     const existing = Array.from(editor.scene.nodes.values()).find(isProceduralWorldNode);
     if (existing) {
@@ -2237,6 +2255,7 @@ export function App() {
         onApplyMaterial={handleApplyMaterial}
         onClipSelection={handleClipSelection}
         onCreateBrush={handleCreateBrush}
+        onCreateMeshTerrain={handleCreateMeshTerrain}
         onCreateProceduralWorld={handleCreateProceduralWorld}
         onDeleteSelection={handleDeleteSelection}
         onDuplicateSelection={handleDuplicateSelection}
