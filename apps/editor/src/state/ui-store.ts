@@ -46,6 +46,8 @@ export type TerrainBrushState = {
   paintFalloff: number;
 
   // Density (remesh / tessellate)
+  /** "remesh" retopologises to an even edge length; "tessellate" only subdivides. */
+  densityMode: "remesh" | "tessellate";
   densityRadius: number;
   densityTargetEdgeLength: number;
 
@@ -83,7 +85,8 @@ export function createDefaultTerrainBrushState(): TerrainBrushState {
     paintStrength: 0.38,
     paintFalloff: 0.55,
 
-    densityRadius: 22,
+    densityMode: "remesh",
+  densityRadius: 22,
     densityTargetEdgeLength: 2.5,
 
     tunnelRadius: 8,

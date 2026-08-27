@@ -497,6 +497,7 @@ export function EditorShell({
           onClearSelection={onClearSelection}
           onDropBlockout={onDropBlockout}
           onCommitMeshTopology={onCommitMeshTopology}
+          onExecuteTerrainCommand={(command) => editor.execute(command)}
           onFocusNode={onFocusNode}
           onPlaceAsset={onPlaceAsset}
           onPlaceAiModelPlaceholder={onPlaceAiModelPlaceholder}
