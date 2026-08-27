@@ -16,7 +16,7 @@ import type {
   Vec2,
   Vec3
 } from "@blud/shared";
-import type { PrimitiveNodeData, PrimitiveShape, SkateparkElementType } from "@blud/shared";
+import type { PrimitiveNodeData, PrimitiveShape, ProceduralWorldNodeData, SkateparkElementType } from "@blud/shared";
 import type { ToolId } from "@blud/tool-system";
 import type { FloorPresetId } from "@/lib/floor-presets";
 import type { WorkerJob } from "@blud/workers";
@@ -77,6 +77,7 @@ type EditorShellProps = {
     sendMessage: (prompt: string, images?: CopilotImageAttachment[]) => void;
     abort: () => void;
     clearHistory: () => void;
+    disableSkill: (skillId: string) => void;
     isConfigured: boolean;
     refreshConfigured: () => void;
     latestGame: { title: string; html: string } | null;
@@ -142,6 +143,7 @@ type EditorShellProps = {
   onClipSelection: (axis: TransformAxis) => void;
   onCommitMeshTopology: (nodeId: string, mesh: EditableMesh) => void;
   onCreateBrush: () => void;
+  onCreateProceduralWorld: () => void;
   onDeleteSelection: () => void;
   onDuplicateSelection: () => void;
   onGroupSelection: () => void;
@@ -228,7 +230,7 @@ type EditorShellProps = {
   onUpdateEntityHooks: (entityId: string, hooks: NonNullable<Entity["hooks"]>, beforeHooks?: NonNullable<Entity["hooks"]>) => void;
   onUpdateEntityTransform: (entityId: string, transform: Transform, beforeTransform?: Transform) => void;
   onUpdateMeshData: (nodeId: string, mesh: EditableMesh, beforeMesh?: EditableMesh) => void;
-  onUpdateNodeData: (nodeId: string, data: PrimitiveNodeData | LightNodeData) => void;
+  onUpdateNodeData: (nodeId: string, data: PrimitiveNodeData | LightNodeData | ProceduralWorldNodeData) => void;
   onUpdateNodeHooks: (nodeId: string, hooks: NonNullable<GeometryNode["hooks"]>, beforeHooks?: NonNullable<GeometryNode["hooks"]>) => void;
   onUpdateAiModelPrompt: (prompt: string) => void;
   onUpdateSceneSettings: (settings: SceneSettings, beforeSettings?: SceneSettings) => void;
@@ -297,6 +299,7 @@ export function EditorShell({
   onClipSelection,
   onCommitMeshTopology,
   onCreateBrush,
+  onCreateProceduralWorld,
   onDeleteSelection,
   onDuplicateSelection,
   onGroupSelection,
@@ -756,6 +759,7 @@ export function EditorShell({
           onApplyMaterial={onApplyMaterial}
           onChangeRightPanel={onSetRightPanel}
           onClipSelection={onClipSelection}
+          onCreateProceduralWorld={onCreateProceduralWorld}
           onDeleteMaterial={onDeleteMaterial}
           onDeleteTexture={onDeleteTexture}
           onExtrudeSelection={onExtrudeSelection}
@@ -845,6 +849,7 @@ export function EditorShell({
                 onAbort={copilot.abort}
                 onClearGame={copilot.clearLatestGame}
                 onClearHistory={copilot.clearHistory}
+                onDisableSkill={copilot.disableSkill}
                 onClose={onToggleCopilot}
                 onPlayInViewport={handlePlayInViewport}
                 onSendMessage={copilot.sendMessage}

@@ -18,6 +18,7 @@ import {
   summarizeToolResult,
   truncateText
 } from "./activity";
+import { worldbuildingStageForTool } from "./skill-service";
 
 export type AgenticLoopConfig = {
   maxIterations?: number;
@@ -26,6 +27,7 @@ export type AgenticLoopConfig = {
   providerId: CopilotProviderId;
   modeLabel: string;
   skillContext?: CopilotSkillContext;
+  disabledSkillIds?: string[];
   existingActivity?: CopilotActivityItem[];
   systemPrompt: string;
   tools: CopilotToolDeclaration[];
@@ -100,10 +102,14 @@ export async function runAgenticLoop(
     status: "thinking",
     iterationCount: 0,
     activeSkills: config.skillContext?.matchedSkills,
+    activeSkillIds: config.skillContext?.activeSkillIds,
+    availableSkillReferences: config.skillContext?.availableReferences,
+    disabledSkillIds: config.disabledSkillIds,
     providerId: config.providerId,
     modelId: config.providerConfig.model,
     modeLabel: config.modeLabel,
-    skillRootPath: config.skillContext?.rootPath
+    worldbuildingStage: config.skillContext?.activeSkillIds.includes("aaa-game-worldbuilding") ? "discovery" : undefined,
+    worldbuildingQualityPreset: config.skillContext?.activeSkillIds.includes("aaa-game-worldbuilding") ? "none" : undefined
   };
 
   const emitUpdate = () =>
@@ -127,7 +133,7 @@ export async function runAgenticLoop(
     pushActivity({
       kind: "session",
       title: "Skill context loaded",
-      detail: `${config.skillContext.matchedSkills.map((skill) => skill.name).join(", ")} from ${config.skillContext.rootPath}`,
+    detail: config.skillContext.matchedSkills.map((skill) => skill.name).join(", "),
       tone: "info"
     });
   }
@@ -326,6 +332,31 @@ export async function runAgenticLoop(
       }
 
       toolResults.push(result);
+      const stage = session.activeSkillIds?.includes("aaa-game-worldbuilding")
+        ? worldbuildingStageForTool(toolCall.name)
+        : undefined;
+      if (stage) session.worldbuildingStage = stage;
+      if (toolCall.name === "create_procedural_world" || toolCall.name === "set_procedural_world_preset") {
+        const preset = toolCall.args.preset;
+        if (preset === "low" || preset === "high" || preset === "ultra") session.worldbuildingQualityPreset = preset;
+      }
+      if (toolCall.name === "read_copilot_skill_reference") {
+        const parsedPayload = parseToolResult(result.result).payload;
+        if (typeof parsedPayload === "object" && parsedPayload !== null && "reference" in parsedPayload) {
+          const reference = (parsedPayload as { reference?: { skillId?: unknown; referenceId?: unknown; title?: unknown } }).reference;
+          if (typeof reference?.skillId === "string" && typeof reference.referenceId === "string") {
+            const referenceKey = `${reference.skillId}:${reference.referenceId}`;
+            session.consultedSkillReferenceIds = Array.from(new Set([...(session.consultedSkillReferenceIds ?? []), referenceKey]));
+            pushActivity({
+              kind: "session",
+              title: `Consulted: ${typeof reference.title === "string" ? reference.title : reference.referenceId}`,
+              detail: "Read a focused skill reference range.",
+              iteration: stepNumber,
+              tone: "info"
+            });
+          }
+        }
+      }
       pushActivity({
         kind: "tool_result",
         title: parsed.success ? `${toolCall.name} completed` : `${toolCall.name} failed`,

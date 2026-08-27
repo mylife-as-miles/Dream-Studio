@@ -11,6 +11,8 @@ import {
   isMeshNode,
   isModelNode,
   isPrimitiveNode,
+  isProceduralWorldNode,
+  normalizeProceduralWorldConfig,
   normalizeVec3,
   resolveInstancingSourceNode,
   subVec3,
@@ -232,6 +234,21 @@ export async function buildRuntimeSceneFromSnapshot(snapshot: SceneDocumentSnaps
         tags: node.tags,
         transform: node.transform
       } satisfies Extract<RuntimeScene["nodes"][number], { kind: "light" }>);
+      continue;
+    }
+
+    if (isProceduralWorldNode(node)) {
+      exportedNodes.push({
+        data: normalizeProceduralWorldConfig(node.data),
+        hooks: node.hooks,
+        id: node.id,
+        kind: "procedural-world",
+        metadata: node.metadata,
+        name: node.name,
+        parentId: node.parentId,
+        tags: node.tags,
+        transform: node.transform
+      } satisfies Extract<RuntimeScene["nodes"][number], { kind: "procedural-world" }>);
       continue;
     }
 

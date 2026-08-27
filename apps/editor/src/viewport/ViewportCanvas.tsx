@@ -40,6 +40,7 @@ import {
   type GeometryNode,
   isBrushNode,
   isMeshNode,
+  isProceduralWorldNode,
   lengthVec3,
   normalizeVec3,
   scaleVec3,
@@ -77,6 +78,7 @@ import { NodeTransformGroup } from "@/viewport/components/NodeTransformGroup";
 import { ObjectTransformGizmo } from "@/viewport/components/ObjectTransformGizmo";
 import { PreviewNpcDialogueOverlay } from "@/viewport/components/PreviewNpcDialogueOverlay";
 import { ScenePreview } from "@/viewport/components/ScenePreview";
+import { ProceduralWorldBridge, type ProceduralWorldBridgeStatus } from "@/viewport/components/ProceduralWorldBridge";
 import {
   createBrushCreateBasis,
   createBrushCreateDragPlane,
@@ -511,6 +513,8 @@ export function ViewportCanvas({
   const meshObjectsRef = useRef(new Map<string, Object3D>());
   const raycasterRef = useRef(new Raycaster());
   const glConfig = useRendererGlConfig();
+  const proceduralWorldNode = nodes.find(isProceduralWorldNode);
+  const proceduralWorldActive = Boolean(proceduralWorldNode?.data.enabled);
 
   const [brushEditHandleIds, setBrushEditHandleIds] = useState<string[]>([]);
   const [brushCreateState, setBrushCreateState] = useState<BrushCreateState | null>(null);
@@ -534,6 +538,7 @@ export function ViewportCanvas({
   const previewActive = physicsPlayback !== "stopped";
   const editorInteractionEnabled = physicsPlayback === "stopped" || (physicsPlayback === "paused" && !previewPossessed);
   const [previewMouseCaptured, setPreviewMouseCaptured] = useState(false);
+  const [proceduralWorldStatus, setProceduralWorldStatus] = useState<ProceduralWorldBridgeStatus>({ kind: "inactive" });
   const [meshEditSelectionIds, setMeshEditSelectionIds] = useState<string[]>([]);
   const [transformDragging, setTransformDragging] = useState(false);
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
@@ -3629,14 +3634,14 @@ export function ViewportCanvas({
         {showStats ? <ViewportStats /> : null}
         <ViewportWorldSettings renderMode={renderMode} sceneSettings={sceneSettings} />
         {renderMode !== "lit" || !sceneSettings.world.skybox.enabled ? <EditorSkyDome /> : null}
-        {renderMode === "lit" ? <ViewportStudioEnvironment enabled={!sceneSettings.world.skybox.enabled} sceneSettings={sceneSettings} /> : null}
-        {renderMode === "lit" ? (
+        {renderMode === "lit" && !proceduralWorldActive ? <ViewportStudioEnvironment enabled={!sceneSettings.world.skybox.enabled} sceneSettings={sceneSettings} /> : null}
+        {renderMode === "lit" && !proceduralWorldActive ? (
           <ambientLight color={sceneSettings.world.ambientColor} intensity={sceneSettings.world.ambientIntensity} />
         ) : null}
-        {renderMode === "lit" ? <hemisphereLight args={["#c7dcf8", "#07121f", 0.48]} /> : null}
-        {renderMode !== "lit" ? <hemisphereLight args={["#4a6890", "#060c14", 0.38]} /> : null}
-        {renderMode === "lit" ? <DefaultViewportSun center={renderScene.boundsCenter} /> : null}
-        {renderMode === "lit" ? (
+        {renderMode === "lit" && !proceduralWorldActive ? <hemisphereLight args={["#c7dcf8", "#07121f", 0.48]} /> : null}
+        {renderMode !== "lit" && !proceduralWorldActive ? <hemisphereLight args={["#4a6890", "#060c14", 0.38]} /> : null}
+        {renderMode === "lit" && !proceduralWorldActive ? <DefaultViewportSun center={renderScene.boundsCenter} /> : null}
+        {renderMode === "lit" && !proceduralWorldActive ? (
           <ContactShadows
             opacity={0.34}
             scale={80}
@@ -3647,6 +3652,7 @@ export function ViewportCanvas({
             position={[renderScene.boundsCenter.x, renderScene.boundsCenter.y - 0.01, renderScene.boundsCenter.z]}
           />
         ) : null}
+        <ProceduralWorldBridge node={proceduralWorldNode} onStatusChange={setProceduralWorldStatus} />
         <EditorCameraRig
           controlsEnabled={cameraControlsEnabled}
           onViewportChange={onViewportChange}
@@ -3827,6 +3833,12 @@ export function ViewportCanvas({
           />
         ) : null}
       </Canvas>
+
+      {proceduralWorldStatus.kind === "unsupported" || proceduralWorldStatus.kind === "error" ? (
+        <div className="absolute inset-x-3 top-3 z-20 border border-red-500/50 bg-red-950/90 px-3 py-2 text-xs text-red-100">
+          {proceduralWorldStatus.reason}
+        </div>
+      ) : null}
 
       <ViewportHud
         isActiveViewport={isActiveViewport}

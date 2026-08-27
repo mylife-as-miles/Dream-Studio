@@ -37,6 +37,11 @@ export * from "./modifiers/boolean/CutterVolume";
 export * from "./modifiers/boolean/MeshBooleanBackend";
 export * from "./modifiers/boolean/cutterDisplacement";
 
+// Base field, field stack, and single-shot evaluation into render buffers
+export * from "./baseField";
+export * from "./terrainField";
+export * from "./evaluate";
+
 // Material channels and level of detail
 export * from "./materialSettings";
 export * from "./lod/LodSelector";

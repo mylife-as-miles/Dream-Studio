@@ -40,6 +40,7 @@ type CopilotPanelProps = {
   onSendMessage: (prompt: string, images?: CopilotImageAttachment[]) => void;
   onAbort: () => void;
   onClearHistory: () => void;
+  onDisableSkill?: (skillId: string) => void;
   onClearGame?: () => void;
   onPlayInViewport?: () => void;
   onSettingsChanged: () => void;
@@ -56,6 +57,7 @@ export function CopilotPanel({
   onSendMessage,
   onAbort,
   onClearHistory,
+  onDisableSkill,
   onClearGame,
   onSettingsChanged,
   session,
@@ -71,6 +73,7 @@ export function CopilotPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isActive = session.status === "thinking" || session.status === "executing";
+  const activeAaaSkill = session.activeSkills?.find((skill) => skill.id === "aaa-game-worldbuilding");
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -173,6 +176,7 @@ export function CopilotPanel({
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {session.modeLabel && <HeaderChip label={session.modeLabel} />}
               {session.modelId && <HeaderChip label={session.modelId} />}
+              {activeAaaSkill && <HeaderChip label="AAA Worldbuilding" tone="success" />}
               <HeaderChip label={describeStatus(session)} tone={statusTone(session.status)} />
               {session.iterationCount > 0 && <HeaderChip label={`step ${session.iterationCount}`} />}
             </div>
@@ -217,7 +221,7 @@ export function CopilotPanel({
           </div>
         ) : (
           <div className="space-y-4">
-            {session.activity.length > 0 && <ProcessTimeline session={session} />}
+            {session.activity.length > 0 && <ProcessTimeline onDisableSkill={onDisableSkill} session={session} />}
 
             {visibleMessages.length > 0 && (
               <div className="space-y-2.5">
@@ -379,7 +383,13 @@ function SectionLabel({
   );
 }
 
-function ProcessTimeline({ session }: { session: CopilotSession }) {
+function ProcessTimeline({
+  onDisableSkill,
+  session
+}: {
+  onDisableSkill?: (skillId: string) => void;
+  session: CopilotSession;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -407,21 +417,52 @@ function ProcessTimeline({ session }: { session: CopilotSession }) {
           {session.activeSkills && session.activeSkills.length > 0 && (
             <div className="mt-3 rounded-2xl border border-white/10 bg-black/10 px-3 py-2">
               <div className="text-[10px] font-medium tracking-[0.16em] text-foreground/40 uppercase">
-                Antigravity skills
+                Active skills
               </div>
-              <p className="mt-1 text-[10px] leading-relaxed text-foreground/42">
-                {session.skillRootPath}
-              </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {session.activeSkills.map((skill) => (
                   <details
                     className="rounded-full border border-emerald-400/18 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200"
-                    key={skill.path}
+                    key={skill.id}
                   >
-                    <summary className="cursor-pointer list-none">{skill.name}</summary>
+                    <summary className="cursor-pointer list-none">
+                      {skill.id === "aaa-game-worldbuilding" ? "AAA Worldbuilding" : skill.name}
+                    </summary>
                     <div className="mt-2 max-w-[20rem] rounded-xl border border-white/10 bg-[#07120d] px-3 py-2 text-left text-[10px] leading-relaxed text-foreground/70">
                       <div className="font-medium text-foreground/86">{skill.description}</div>
-                      <div className="mt-1 text-foreground/56">{skill.excerpt}</div>
+                      <div className="mt-1 text-foreground/56">{skill.activationReason}</div>
+                      {skill.id === "aaa-game-worldbuilding" && (
+                        <>
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-foreground/58">
+                            <span>Stage: {session.worldbuildingStage ?? "discovery"}</span>
+                            <span>Preset: {session.worldbuildingQualityPreset ?? "none"}</span>
+                          </div>
+                          <div className="mt-2 border-t border-white/8 pt-2 text-foreground/58">
+                            {session.availableSkillReferences
+                              ?.filter((reference) => reference.skillId === skill.id)
+                              .map((reference) => {
+                                const consulted = session.consultedSkillReferenceIds?.includes(`${reference.skillId}:${reference.referenceId}`);
+                                return (
+                                  <div key={reference.referenceId}>
+                                    {consulted ? "Consulted: " : "Reference: "}{reference.title}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                          {onDisableSkill && (
+                            <button
+                              className="mt-2 text-amber-200/80 transition-colors hover:text-amber-100"
+                              onClick={() => onDisableSkill(skill.id)}
+                              type="button"
+                            >
+                              Disable for this session
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {skill.id !== "aaa-game-worldbuilding" && (
+                        <div className="mt-1 text-foreground/56">{skill.excerpt}</div>
+                      )}
                     </div>
                   </details>
                 ))}

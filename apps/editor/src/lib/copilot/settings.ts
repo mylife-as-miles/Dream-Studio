@@ -6,7 +6,7 @@ const CODEX_MODELS: CodexModelId[] = ["gpt-5.4", "gpt-5.3-codex", "gpt-5.1-codex
 const SERVER_GEMMA_MODEL: GeminiModelId = "gemma-4-31b-it";
 
 const DEFAULT_SETTINGS: CopilotSettings = {
-  provider: "gemini",
+  provider: "codex",
   gemini: { model: SERVER_GEMMA_MODEL },
   codex: { model: "gpt-5.4" },
   temperature: 0.3,
@@ -21,7 +21,7 @@ export function loadCopilotSettings(): CopilotSettings {
     const parsed = JSON.parse(raw);
 
     return {
-      provider: "gemini",
+      provider: "codex",
       gemini: { model: SERVER_GEMMA_MODEL },
       codex: {
         model: isCodexModel(parsed.codex?.model) ? parsed.codex.model : DEFAULT_SETTINGS.codex.model
@@ -39,7 +39,7 @@ export function saveCopilotSettings(settings: CopilotSettings): void {
     STORAGE_KEY,
     JSON.stringify({
       ...settings,
-      provider: "gemini",
+      provider: "codex",
       gemini: { model: SERVER_GEMMA_MODEL }
     })
   );

@@ -36,6 +36,6 @@
   "dependencies": {
     "@blud/runtime-format": "*",
     "@blud/shared": "*",
-    "three": "^0.181.1"
+    "three": "0.184.0"
   }
 }

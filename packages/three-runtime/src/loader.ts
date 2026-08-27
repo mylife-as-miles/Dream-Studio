@@ -541,6 +541,11 @@ async function createObjectForNode(
     return anchor;
   }
 
+  if (node.kind === "procedural-world") {
+    anchor.visible = false;
+    return anchor;
+  }
+
   if (node.kind === "group") {
     return anchor;
   }

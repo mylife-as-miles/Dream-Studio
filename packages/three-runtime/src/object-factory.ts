@@ -160,6 +160,14 @@ async function createObjectForNode(
     return anchor;
   }
 
+  if (node.kind === "procedural-world") {
+    // The LAAS renderer is WebGPU-only and requires a host renderer/camera
+    // lifecycle. Preserve this anchor for consumers to detect and mount using
+    // @blud/procedural-world rather than silently producing a WebGL substitute.
+    anchor.visible = false;
+    return anchor;
+  }
+
   if (node.kind === "model") {
     const modelObject = await createModelObject(node, resources, options);
     const lodObject = await createLodObjectForModelNode(node, modelObject, resources, options);
@@ -216,7 +224,7 @@ async function createInstancingObjects(
 
     const exportedSourceNode = engineScene.nodes.find((node) => node.id === sourceNode.id);
 
-    if (!exportedSourceNode || exportedSourceNode.kind === "group" || exportedSourceNode.kind === "instancing" || exportedSourceNode.kind === "light") {
+    if (!exportedSourceNode || exportedSourceNode.kind === "group" || exportedSourceNode.kind === "instancing" || exportedSourceNode.kind === "light" || exportedSourceNode.kind === "procedural-world") {
       continue;
     }
 

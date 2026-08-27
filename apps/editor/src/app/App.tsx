@@ -4,6 +4,7 @@ import {
   analyzeSceneSpatialLayout,
   axisDelta,
   createAssignMaterialCommand,
+  createProceduralWorldNodeCommand,
   createDeleteMaterialCommand,
   createUpsertAssetCommand,
   createDeleteTextureCommand,
@@ -59,11 +60,15 @@ import {
   isMeshNode,
   isModelNode,
   isPrimitiveNode,
+  isProceduralWorldNode,
+  createDefaultProceduralWorldNodeData,
   makeTransform,
   type Material,
   type MeshNode,
   type ModelNode,
   type PrimitiveNodeData,
+  type ProceduralWorldNodeData,
+  type ProceduralWorldNode,
   resolveSceneGraph,
   snapVec3,
   vec2,
@@ -1588,7 +1593,7 @@ export function App() {
     enqueueWorkerJob("Entity authoring", { task: "navmesh", worker: "navWorker" }, 800);
   };
 
-  const handleUpdateNodeData = (nodeId: string, data: PrimitiveNodeData | LightNodeData) => {
+  const handleUpdateNodeData = (nodeId: string, data: PrimitiveNodeData | LightNodeData | ProceduralWorldNodeData) => {
     const node = editor.scene.getNode(nodeId);
 
     if (!node) {
@@ -1614,6 +1619,15 @@ export function App() {
 
       editor.execute(createReplaceNodesCommand(editor.scene, [replacement], "update light"));
       enqueueWorkerJob("Light update", { task: "triangulation", worker: "geometryWorker" }, 500);
+      return;
+    }
+
+    if (isProceduralWorldNode(node)) {
+      const replacement = {
+        ...structuredClone(node),
+        data: structuredClone(data as ProceduralWorldNodeData)
+      };
+      editor.execute(createReplaceNodesCommand(editor.scene, [replacement], "update procedural world"));
     }
   };
 
@@ -2021,6 +2035,25 @@ export function App() {
     uiStore.copilotPanelOpen = !uiStore.copilotPanelOpen;
   };
 
+  const handleCreateProceduralWorld = () => {
+    const existing = Array.from(editor.scene.nodes.values()).find(isProceduralWorldNode);
+    if (existing) {
+      editor.select([existing.id], "object");
+      uiStore.rightPanel = "world";
+      return;
+    }
+    const node: ProceduralWorldNode = {
+      data: createDefaultProceduralWorldNodeData(),
+      id: `node:procedural-world:${crypto.randomUUID()}`,
+      kind: "procedural-world",
+      name: "LAAS Procedural World",
+      transform: makeTransform()
+    };
+    editor.execute(createProceduralWorldNodeCommand(node));
+    editor.select([node.id], "object");
+    uiStore.rightPanel = "world";
+  };
+
   const handleOpenAiLauncher = () => {
     uiStore.aiModePickerOpen = true;
   };
@@ -2210,6 +2243,7 @@ export function App() {
         onApplyMaterial={handleApplyMaterial}
         onClipSelection={handleClipSelection}
         onCreateBrush={handleCreateBrush}
+        onCreateProceduralWorld={handleCreateProceduralWorld}
         onDeleteSelection={handleDeleteSelection}
         onDuplicateSelection={handleDuplicateSelection}
         onClearSelection={handleClearSelection}

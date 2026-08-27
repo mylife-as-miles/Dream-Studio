@@ -12,7 +12,15 @@ import type {
   SceneSettings,
   TextureRecord
 } from "@blud/shared";
-import { createDefaultSceneSettings, isInstancingNode, makeTransform, normalizeSceneSettings, vec3 } from "@blud/shared";
+import {
+  createDefaultSceneSettings,
+  isInstancingNode,
+  isProceduralWorldNode,
+  makeTransform,
+  normalizeProceduralWorldConfig,
+  normalizeSceneSettings,
+  vec3,
+} from "@blud/shared";
 
 export type SceneDocument = {
   nodes: Map<NodeID, GeometryNode>;
@@ -231,7 +239,9 @@ export function createSceneDocumentSnapshot(scene: SceneDocument): SceneDocument
     entities: Array.from(scene.entities.values(), (entity) => structuredClone(entity)),
     layers: Array.from(scene.layers.values(), (layer) => structuredClone(layer)),
     materials: Array.from(scene.materials.values(), (material) => structuredClone(material)),
-    nodes: Array.from(scene.nodes.values(), (node) => structuredClone(node)),
+    nodes: Array.from(scene.nodes.values(), (node) => isProceduralWorldNode(node)
+      ? { ...structuredClone(node), data: normalizeProceduralWorldConfig(node.data) }
+      : structuredClone(node)),
     settings: structuredClone(scene.settings),
     textures: Array.from(scene.textures.values(), (texture) => structuredClone(texture))
   };
@@ -246,7 +256,9 @@ export function loadSceneDocumentSnapshot(scene: SceneDocument, snapshot: SceneD
   scene.layers.clear();
 
   snapshot.nodes.forEach((node) => {
-    scene.nodes.set(node.id, structuredClone(node));
+    scene.nodes.set(node.id, isProceduralWorldNode(node)
+      ? { ...structuredClone(node), data: normalizeProceduralWorldConfig(node.data) }
+      : structuredClone(node));
   });
   snapshot.entities.forEach((entity) => {
     scene.entities.set(entity.id, structuredClone(entity));

@@ -37,7 +37,7 @@
     "@blud/geometry-kernel": "*",
     "@blud/shared": "*",
     "earcut": "^3.0.2",
-    "three": "^0.181.1",
+    "three": "0.184.0",
     "three-mesh-bvh": "^0.9.2"
   }
 }

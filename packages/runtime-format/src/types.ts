@@ -9,6 +9,7 @@ import type {
   MaterialRenderSide,
   MeshNode,
   ModelNode,
+  ProceduralWorldNode,
   PropPhysics,
   PrimitiveNode,
   SceneSettings
@@ -104,7 +105,10 @@ export type RuntimeModelNode = ModelNode & {
 
 export type RuntimeInstancingNode = InstancingNode;
 
-export type RuntimeNode = GroupNode | RuntimeGeometryNode | RuntimeModelNode | RuntimeInstancingNode | LightNode;
+/** Persistent LAAS generation contract; GPU resources rebuild in a WebGPU host. */
+export type RuntimeProceduralWorldNode = ProceduralWorldNode;
+
+export type RuntimeNode = GroupNode | RuntimeGeometryNode | RuntimeModelNode | RuntimeInstancingNode | RuntimeProceduralWorldNode | LightNode;
 
 export type RuntimeSceneMetadata = {
   exportedAt: string;

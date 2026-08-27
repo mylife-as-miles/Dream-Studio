@@ -1,9 +1,16 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorCore } from "@blud/editor-core";
 import type { AiAssistantMode, CopilotImageAttachment, CopilotSession } from "@/lib/copilot/types";
+import { bundledCopilotSkills } from "@/generated/copilot-skills-manifest";
 import { isCopilotConfigured, loadCopilotSettings } from "@/lib/copilot/settings";
 import type { CopilotToolExecutionContext } from "@/lib/copilot/tool-executor";
 import { appendSkillContextToPrompt, discoverCopilotSkills } from "@/lib/copilot/skills";
+import {
+  listCopilotSkillReferences,
+  matchCopilotSkills,
+  readCopilotSkillReference,
+  searchCopilotSkillReferences
+} from "@/lib/copilot/skill-service";
 import {
   buildMorphusPreviewHtml,
   createMorphusFilesFromAssistantContent,
@@ -27,6 +34,9 @@ const MORPHUS_DEFAULT_READ_CHARS = 24000;
 const MORPHUS_MAX_READ_CHARS = 42000;
 const MORPHUS_RUN_READ_CHAR_BUDGET = 90000;
 const MORPHUS_RUN_UNIQUE_READ_BUDGET = 8;
+const COPILOT_SKILL_REFERENCE_DEFAULT_READ_CHARS = 24000;
+const COPILOT_SKILL_REFERENCE_RUN_CHAR_BUDGET = 80000;
+const COPILOT_SKILL_REFERENCE_RUN_UNIQUE_DOCUMENT_BUDGET = 6;
 
 type MorphusReadFileOptions = {
   endLine?: number;
@@ -281,6 +291,97 @@ function createBudgetedMorphusToolContext(baseContext: CopilotToolExecutionConte
 
       readCache.set(cacheKey, budgetedResult);
       return budgetedResult;
+    }
+  };
+}
+
+export function createBudgetedCopilotSkillToolContext(
+  baseContext: CopilotToolExecutionContext,
+  activeSkillIds: string[]
+): CopilotToolExecutionContext {
+  let readCharsUsed = 0;
+  const readCache = new Map<string, Record<string, unknown>>();
+  const uniqueDocuments = new Set<string>();
+  const catalog = { skills: bundledCopilotSkills.filter((skill) => activeSkillIds.includes(skill.id)) };
+  const inactiveSkillResult = (skillId: string) => ({
+    error: {
+      code: "inactive_skill",
+      message: `Skill ${skillId} is not active for this run. Use an active skill or start a new matching request.`
+    },
+    success: false
+  });
+
+  return {
+    ...baseContext,
+    copilotListSkillReferences: (skillId) => {
+      if (skillId && !activeSkillIds.includes(skillId)) return inactiveSkillResult(skillId);
+      return listCopilotSkillReferences(catalog, skillId);
+    },
+    copilotReadSkillReference: (skillId, referenceId, options) => {
+      if (!activeSkillIds.includes(skillId)) return inactiveSkillResult(skillId);
+      const maxChars = Math.max(1000, Math.min(Math.floor(options?.maxChars ?? COPILOT_SKILL_REFERENCE_DEFAULT_READ_CHARS), COPILOT_SKILL_REFERENCE_DEFAULT_READ_CHARS));
+      const cacheKey = JSON.stringify({ endLine: options?.endLine, maxChars, referenceId, skillId, startLine: options?.startLine });
+      if (readCache.has(cacheKey)) {
+        return {
+          cached: true,
+          message: "This skill reference range was already read during this run. Use the previous content instead of reading it again.",
+          readBudget: {
+            charsUsed: readCharsUsed,
+            maxChars: COPILOT_SKILL_REFERENCE_RUN_CHAR_BUDGET,
+            maxUniqueDocuments: COPILOT_SKILL_REFERENCE_RUN_UNIQUE_DOCUMENT_BUDGET,
+            uniqueDocumentsRead: uniqueDocuments.size
+          },
+          reference: readCache.get(cacheKey)?.reference
+        };
+      }
+
+      const documentKey = `${skillId}:${referenceId}`;
+      if (!uniqueDocuments.has(documentKey) && uniqueDocuments.size >= COPILOT_SKILL_REFERENCE_RUN_UNIQUE_DOCUMENT_BUDGET) {
+        return {
+          budgetExceeded: true,
+          message: "Copilot skill reference document budget reached for this run. Use the references already consulted to continue the task.",
+          readBudget: {
+            charsUsed: readCharsUsed,
+            maxChars: COPILOT_SKILL_REFERENCE_RUN_CHAR_BUDGET,
+            maxUniqueDocuments: COPILOT_SKILL_REFERENCE_RUN_UNIQUE_DOCUMENT_BUDGET,
+            uniqueDocumentsRead: uniqueDocuments.size
+          },
+          success: false
+        };
+      }
+      if (readCharsUsed + maxChars > COPILOT_SKILL_REFERENCE_RUN_CHAR_BUDGET) {
+        return {
+          budgetExceeded: true,
+          message: "Copilot skill reference character budget reached for this run. Use the references already consulted to continue the task.",
+          readBudget: {
+            charsUsed: readCharsUsed,
+            maxChars: COPILOT_SKILL_REFERENCE_RUN_CHAR_BUDGET,
+            maxUniqueDocuments: COPILOT_SKILL_REFERENCE_RUN_UNIQUE_DOCUMENT_BUDGET,
+            uniqueDocumentsRead: uniqueDocuments.size
+          },
+          success: false
+        };
+      }
+
+      const result = readCopilotSkillReference(catalog, skillId, referenceId, { ...options, maxChars });
+      if (result.success === false || typeof result.content !== "string") return result;
+      readCharsUsed += result.content.length;
+      uniqueDocuments.add(documentKey);
+      const budgetedResult = {
+        ...result,
+        readBudget: {
+          charsUsed: readCharsUsed,
+          maxChars: COPILOT_SKILL_REFERENCE_RUN_CHAR_BUDGET,
+          maxUniqueDocuments: COPILOT_SKILL_REFERENCE_RUN_UNIQUE_DOCUMENT_BUDGET,
+          uniqueDocumentsRead: uniqueDocuments.size
+        }
+      };
+      readCache.set(cacheKey, budgetedResult);
+      return budgetedResult;
+    },
+    copilotSearchSkillReferences: (query, options) => {
+      if (options?.skillId && !activeSkillIds.includes(options.skillId)) return inactiveSkillResult(options.skillId);
+      return searchCopilotSkillReferences(catalog, query, options);
     }
   };
 }
@@ -826,12 +927,33 @@ export function useCopilot(
           GAME_TOOL_DECLARATIONS,
           executeTool
         },
-        skillContext
-      ] = await Promise.all([loadCopilotRuntime(), discoverCopilotSkills(prompt)]);
+        discoveredSkillContext
+      ] = await Promise.all([
+        loadCopilotRuntime(),
+        mode === "copilot"
+          ? discoverCopilotSkills(prompt, {
+              activeSkillIds: session.activeSkillIds,
+              disabledSkillIds: session.disabledSkillIds
+            })
+          : Promise.resolve(undefined)
+      ]);
+
+      const skillContext = mode === "copilot"
+        ? discoveredSkillContext ?? matchCopilotSkills(prompt, { skills: bundledCopilotSkills }, {
+            activeSkillIds: session.activeSkillIds,
+            disabledSkillIds: session.disabledSkillIds
+          })
+        : undefined;
 
       const copilotProvider = createCopilotProvider(settings.provider);
       const baseSystemPrompt =
-        mode === "morphus" ? buildMorphusSystemPrompt() : buildEditorSystemPrompt(editor);
+        mode === "morphus"
+          ? buildMorphusSystemPrompt()
+          : buildEditorSystemPrompt(editor, {
+              activeSkillId: skillContext?.activeSkillIds.includes("aaa-game-worldbuilding")
+                ? "aaa-game-worldbuilding"
+                : undefined
+            });
       const audioContext =
         mode === "morphus"
           ? `\n\n## Runtime Context\n- ElevenLabs audio is ${settings.elevenlabsApiKey ? "available" : "not configured"} in this browser.\n- Existing Morphus audio files: ${
@@ -853,7 +975,7 @@ export function useCopilot(
       const tools = mode === "morphus" ? GAME_TOOL_DECLARATIONS : EDITOR_COPILOT_TOOL_DECLARATIONS;
       const runToolContext = mode === "morphus"
         ? createBudgetedMorphusToolContext(mergedToolContext)
-        : mergedToolContext;
+        : createBudgetedCopilotSkillToolContext(mergedToolContext, skillContext?.activeSkillIds ?? []);
 
       console.log(
         `[COPILOT] Mode: ${mode === "morphus" ? "morphus (1 tool)" : `editor (${tools.length} tools)`}`
@@ -876,6 +998,7 @@ export function useCopilot(
           providerId: settings.provider,
           modeLabel,
           skillContext,
+          disabledSkillIds: session.disabledSkillIds,
           threadId: codexThreadIdRef.current,
           onThreadId: (threadId) => {
             codexThreadIdRef.current = threadId;
@@ -894,6 +1017,7 @@ export function useCopilot(
             providerId: settings.provider,
             modeLabel,
             skillContext,
+            disabledSkillIds: session.disabledSkillIds,
             existingActivity: session.activity,
             systemPrompt,
             tools,
@@ -907,7 +1031,7 @@ export function useCopilot(
 
       abortRef.current = null;
     },
-    [availableMorphusAudioFiles, availableMorphusFilePaths, availableMorphusImageFiles, editor, mergedToolContext, mode, publishSession, session.activity, session.messages]
+    [availableMorphusAudioFiles, availableMorphusFilePaths, availableMorphusImageFiles, editor, mergedToolContext, mode, publishSession, session.activeSkillIds, session.activity, session.disabledSkillIds, session.messages]
   );
 
   const abort = useCallback(() => {
@@ -934,6 +1058,20 @@ export function useCopilot(
   }, [memoryKey, mode]);
 
   const clearLatestGame = useCallback(() => setLatestGame(null), []);
+
+  const disableSkill = useCallback((skillId: string) => {
+    setSession((previous) => {
+      const disabledSkillIds = Array.from(new Set([...(previous.disabledSkillIds ?? []), skillId]));
+      return {
+        ...previous,
+        activeSkillIds: (previous.activeSkillIds ?? []).filter((id) => id !== skillId),
+        activeSkills: (previous.activeSkills ?? []).filter((skill) => skill.id !== skillId),
+        availableSkillReferences: (previous.availableSkillReferences ?? []).filter((reference) => reference.skillId !== skillId),
+        consultedSkillReferenceIds: (previous.consultedSkillReferenceIds ?? []).filter((id) => !id.startsWith(`${skillId}:`)),
+        disabledSkillIds
+      };
+    });
+  }, []);
 
   const saveFile = useCallback((path: string, content: string) => {
     setFiles((previous) => {
@@ -967,6 +1105,7 @@ export function useCopilot(
     sendMessage,
     abort,
     clearHistory,
+    disableSkill,
     isConfigured: configured,
     refreshConfigured: () => setConfigured(isCopilotConfigured()),
     latestGame,

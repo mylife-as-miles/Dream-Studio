@@ -37,7 +37,7 @@
   "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/runtime-build",
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "@types/three": "^0.181.0"
+    "@types/three": "^0.184.1"
   },
   "dependencies": {
     "@blud/editor-core": "*",
@@ -45,7 +45,7 @@
     "@blud/runtime-format": "*",
     "@blud/shared": "*",
     "fflate": "^0.8.2",
-    "three": "^0.181.1",
+    "three": "0.184.0",
     "three-mesh-bvh": "^0.9.2"
   }
 }

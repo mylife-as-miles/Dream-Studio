@@ -19,7 +19,9 @@ import {
   type MeshSmoothingGroup,
   isInstancingNode,
   isLightNode,
+  isMeshTerrainNode,
   isPrimitiveNode,
+  isProceduralWorldNode,
   vec3,
   type Entity,
   type GeometryNode,
@@ -28,7 +30,9 @@ import {
   type PropBodyType,
   type PropColliderShape,
   type PrimitiveNodeData,
+  type ProceduralWorldNodeData,
   type SceneSettings,
+  type TerrainNodeData,
   type TextureRecord,
   type Transform,
   type Vec3
@@ -46,6 +50,8 @@ import { VoicesPanel } from "@/components/editor-shell/VoicesPanel";
 import { MaterialLibraryPanel } from "@/components/editor-shell/MaterialLibraryPanel";
 import { SceneHierarchyPanel } from "@/components/editor-shell/SceneHierarchyPanel";
 import { SurfaceAuthoringPanel } from "@/components/editor-shell/SurfaceAuthoringPanel";
+import { ProceduralWorldInspector } from "@/components/editor-shell/ProceduralWorldInspector";
+import { TerrainInspector } from "@/components/editor-shell/TerrainInspector";
 import { rebaseTransformPivot } from "@/viewport/utils/geometry";
 import { readFileAsDataUrl } from "@/lib/model-assets";
 import { cn } from "@/lib/utils";
@@ -69,6 +75,7 @@ type InspectorSidebarProps = {
   onApplyMaterial: (materialId: string, scope: "faces" | "object", faceIds: string[]) => void;
   onChangeRightPanel: (panel: RightPanelId | null) => void;
   onClipSelection: (axis: "x" | "y" | "z") => void;
+  onCreateProceduralWorld: () => void;
   onDeleteMaterial: (materialId: string) => void;
   onDeleteTexture: (textureId: string) => void;
   onExtrudeSelection: (axis: "x" | "y" | "z", direction: -1 | 1) => void;
@@ -92,7 +99,16 @@ type InspectorSidebarProps = {
   onUpdateEntityProperties: (entityId: string, properties: Entity["properties"]) => void;
   onUpdateEntityHooks: (entityId: string, hooks: NonNullable<Entity["hooks"]>, beforeHooks?: NonNullable<Entity["hooks"]>) => void;
   onUpdateEntityTransform: (entityId: string, transform: Transform, beforeTransform?: Transform) => void;
-  onUpdateNodeData: (nodeId: string, data: PrimitiveNodeData | LightNodeData) => void;
+  onUpdateNodeData: (nodeId: string, data: PrimitiveNodeData | LightNodeData | ProceduralWorldNodeData) => void;
+  /**
+   * Commit for mesh-terrain edits.
+   *
+   * Terrain has its own channel because `onUpdateNodeData` is contravariant in
+   * its payload: widening that union would reject the narrower handler the app
+   * already passes. Until the host wires this, terrain edits fall back through
+   * `onUpdateNodeData`, which does not yet carry a terrain branch.
+   */
+  onUpdateTerrainNodeData?: (nodeId: string, data: TerrainNodeData) => void;
   onUpdateNodeHooks: (nodeId: string, hooks: NonNullable<GeometryNode["hooks"]>, beforeHooks?: NonNullable<GeometryNode["hooks"]>) => void;
   onUpdateNodeTransform: (nodeId: string, transform: Transform, beforeTransform?: Transform) => void;
   onUpdateSceneSettings: (settings: SceneSettings, beforeSettings?: SceneSettings) => void;
@@ -527,6 +543,7 @@ export function InspectorSidebar({
   onApplyMaterial,
   onChangeRightPanel,
   onClipSelection,
+  onCreateProceduralWorld,
   onDeleteMaterial,
   onDeleteTexture,
   onExtrudeSelection,
@@ -551,6 +568,7 @@ export function InspectorSidebar({
   onUpdateEntityTransform,
   onUpdateMeshData,
   onUpdateNodeData,
+  onUpdateTerrainNodeData,
   onUpdateNodeHooks,
   onUpdateNodeTransform,
   onUpdateSceneSettings,
@@ -656,6 +674,19 @@ export function InspectorSidebar({
   const selectedInstancingNode = selectedNode && isInstancingNode(selectedNode) ? selectedNode : undefined;
   const selectedPrimitive = selectedNode && isPrimitiveNode(selectedNode) ? selectedNode : undefined;
   const selectedLight = selectedNode && isLightNode(selectedNode) ? selectedNode : undefined;
+  const selectedProceduralWorld = selectedNode && isProceduralWorldNode(selectedNode) ? selectedNode : undefined;
+  const selectedMeshTerrain = selectedNode && isMeshTerrainNode(selectedNode) ? selectedNode : undefined;
+
+  const commitTerrainNodeData = (nodeId: string, data: TerrainNodeData) => {
+    if (onUpdateTerrainNodeData) {
+      onUpdateTerrainNodeData(nodeId, data);
+      return;
+    }
+
+    // Fallback until the host adds a terrain branch. The cast is unavoidable:
+    // the shared handler's payload union does not yet include terrain data.
+    onUpdateNodeData(nodeId, data as unknown as ProceduralWorldNodeData);
+  };
 
   const updateDraftAxis = (
     group: "position" | "pivot" | "rotation" | "scale",
@@ -878,6 +909,13 @@ export function InspectorSidebar({
           <TabsContent className="min-h-0 flex-1 px-3 pb-3 pt-2" value="world">
             <ScrollArea className="h-full pr-1">
               <div className="space-y-4 px-1 pb-1">
+                {selectedProceduralWorld ? (
+                  <ProceduralWorldInspector node={selectedProceduralWorld} onUpdate={(data) => onUpdateNodeData(selectedProceduralWorld.id, data)} />
+                ) : nodes.some(isProceduralWorldNode) ? (
+                  <div className="text-xs text-foreground/55">Select the procedural-world node to edit its LAAS settings.</div>
+                ) : (
+                  <Button onClick={onCreateProceduralWorld} size="sm">Create LAAS World</Button>
+                )}
                 <ToolSection title="Physics">
                   <BooleanField
                     label="Physics Enabled"
@@ -1659,6 +1697,12 @@ export function InspectorSidebar({
                     ) : null}
                     {selectedInstancingNode ? <InstancingInspector node={selectedInstancingNode} /> : null}
                     {selectedLight ? <LightInspector node={selectedLight} onUpdateNodeData={onUpdateNodeData} /> : null}
+                    {selectedMeshTerrain ? (
+                      <TerrainInspector
+                        node={selectedMeshTerrain}
+                        onUpdate={(data) => commitTerrainNodeData(selectedMeshTerrain.id, data)}
+                      />
+                    ) : null}
                     {selectedEntity ? (
                       <EntityInspector entity={selectedEntity} onUpdateEntityProperties={onUpdateEntityProperties} />
                     ) : null}

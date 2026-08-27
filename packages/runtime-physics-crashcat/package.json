@@ -34,13 +34,13 @@
   },
   "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/runtime-physics-crashcat",
   "devDependencies": {
-    "@types/three": "^0.181.0"
+    "@types/three": "^0.184.1"
   },
   "dependencies": {
     "@blud/render-pipeline": "*",
     "@blud/runtime-format": "*",
     "@blud/shared": "*",
     "crashcat": "^0.0.3",
-    "three": "^0.181.1"
+    "three": "0.184.0"
   }
 }

@@ -16,7 +16,9 @@ import { createTextureGenerationApiPlugin } from "./server/texture-generation-ap
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
-const editorThreePath = path.resolve(__dirname, "node_modules/three");
+// Keep every workspace package on the root Three installation. WebGPU node
+// materials and renderer checks fail when Vite aliases a second package copy.
+const editorThreePath = path.resolve(repoRoot, "node_modules/three");
 const editorThreeWebGPUPath = path.resolve(editorThreePath, "build/three.webgpu.js");
 const editorThreeTSLPath = path.resolve(editorThreePath, "build/three.tsl.js");
 
@@ -27,10 +29,13 @@ const workspaceAliases = {
   "@blud/gameplay-runtime": path.resolve(repoRoot, "packages/gameplay-runtime/src/index.ts"),
   "@blud/geometry-kernel": path.resolve(repoRoot, "packages/geometry-kernel/src/index.ts"),
   "@blud/physics-backend": path.resolve(repoRoot, "packages/physics-backend/src/index.ts"),
+  "@blud/procedural-world": path.resolve(repoRoot, "packages/procedural-world/src/index.ts"),
   "@blud/render-pipeline": path.resolve(repoRoot, "packages/render-pipeline/src/index.ts"),
   "@blud/renderer-backend": path.resolve(repoRoot, "packages/renderer-backend/src/index.ts"),
   "@blud/runtime-build": path.resolve(repoRoot, "packages/runtime-build/src/index.ts"),
   "@blud/shared": path.resolve(repoRoot, "packages/shared/src/index.ts"),
+  "@blud/terrain/authoring": path.resolve(repoRoot, "packages/terrain/src/authoring.ts"),
+  "@blud/terrain": path.resolve(repoRoot, "packages/terrain/src/index.ts"),
   "@blud/three-runtime": path.resolve(repoRoot, "packages/three-runtime/src/index.ts"),
   "@blud/tool-system": path.resolve(repoRoot, "packages/tool-system/src/index.ts"),
   "@blud/workers": path.resolve(repoRoot, "packages/workers/src/index.ts")
@@ -203,7 +208,6 @@ export default defineConfig(({ mode }) => {
       tsconfigPaths: true,
       alias: {
         ...workspaceAliases,
-        three: editorThreePath,
         "three/webgpu": editorThreeWebGPUPath,
         "three/tsl": editorThreeTSLPath,
         "three/build/three.webgpu.js": editorThreeWebGPUPath,

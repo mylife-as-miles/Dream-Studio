@@ -36,9 +36,9 @@
   "dependencies": {
     "@blud/gameplay-runtime": "*",
     "@blud/shared": "*",
-    "three": "^0.181.1"
+    "three": "0.184.0"
   },
   "devDependencies": {
-    "@types/three": "^0.181.0"
+    "@types/three": "^0.184.1"
   }
 }

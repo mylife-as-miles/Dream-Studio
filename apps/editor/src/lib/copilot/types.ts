@@ -70,16 +70,28 @@ export type CopilotResponse = {
 };
 
 export type CopilotSkillMatch = {
+  activationReason: string;
   description: string;
   excerpt: string;
+  id: string;
   name: string;
-  path: string;
+  priority?: number;
+  referenceIds: string[];
   score: number;
+  source: "repository" | "external";
+};
+
+export type CopilotSkillReference = {
+  description?: string;
+  referenceId: string;
+  skillId: string;
+  title: string;
 };
 
 export type CopilotSkillContext = {
+  activeSkillIds: string[];
+  availableReferences: CopilotSkillReference[];
   matchedSkills: CopilotSkillMatch[];
-  rootPath: string;
 };
 
 export type CopilotSessionStatus =
@@ -121,10 +133,15 @@ export type CopilotSession = {
   error?: string;
   iterationCount: number;
   activeSkills?: CopilotSkillMatch[];
+  activeSkillIds?: string[];
+  availableSkillReferences?: CopilotSkillReference[];
+  consultedSkillReferenceIds?: string[];
+  disabledSkillIds?: string[];
   providerId?: CopilotProviderId;
   modelId?: string;
   modeLabel?: string;
-  skillRootPath?: string;
+  worldbuildingQualityPreset?: "low" | "high" | "ultra" | "none";
+  worldbuildingStage?: "discovery" | "foundation" | "dressing" | "gameplay" | "lighting" | "verification" | "optimization";
 };
 
 // ── Provider interfaces ───────────────────────────────────────
@@ -152,6 +169,7 @@ export type SessionBasedCopilotProvider = {
     providerId: CopilotProviderId;
     modeLabel: string;
     skillContext?: CopilotSkillContext;
+    disabledSkillIds?: string[];
     threadId?: string;
     onThreadId?: (threadId: string | undefined) => void;
     executeTool: (call: CopilotToolCall) => Promise<CopilotToolResult>;

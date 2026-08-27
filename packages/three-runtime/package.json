@@ -34,13 +34,13 @@
   },
   "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/three-runtime",
   "devDependencies": {
-    "@types/three": "^0.181.0"
+    "@types/three": "^0.184.1"
   },
   "dependencies": {
     "@blud/runtime-build": "*",
     "@blud/runtime-format": "*",
     "@blud/shared": "*",
     "earcut": "^3.0.2",
-    "three": "^0.181.1"
+    "three": "0.184.0"
   }
 }

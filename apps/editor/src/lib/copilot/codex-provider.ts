@@ -13,6 +13,7 @@ import {
   summarizeToolResult,
   truncateText
 } from "./activity";
+import { worldbuildingStageForTool } from "./skill-service";
 
 const TAG = "[AI-VIBE:CODEX]";
 
@@ -35,10 +36,14 @@ export function createCodexProvider(): SessionBasedCopilotProvider {
         status: "thinking",
         iterationCount: 0,
         activeSkills: config.skillContext?.matchedSkills,
+        activeSkillIds: config.skillContext?.activeSkillIds,
+        availableSkillReferences: config.skillContext?.availableReferences,
+        disabledSkillIds: config.disabledSkillIds,
         providerId: config.providerId,
         modelId: config.providerConfig.model,
         modeLabel: config.modeLabel,
-        skillRootPath: config.skillContext?.rootPath
+        worldbuildingStage: config.skillContext?.activeSkillIds.includes("aaa-game-worldbuilding") ? "discovery" : undefined,
+        worldbuildingQualityPreset: config.skillContext?.activeSkillIds.includes("aaa-game-worldbuilding") ? "none" : undefined
       };
 
       const emitUpdate = () =>
@@ -62,7 +67,7 @@ export function createCodexProvider(): SessionBasedCopilotProvider {
         pushActivity({
           kind: "session",
           title: "Skill context loaded",
-          detail: `${config.skillContext.matchedSkills.map((skill) => skill.name).join(", ")} from ${config.skillContext.rootPath}`,
+          detail: config.skillContext.matchedSkills.map((skill) => skill.name).join(", "),
           tone: "info"
         });
       }
@@ -208,6 +213,32 @@ export function createCodexProvider(): SessionBasedCopilotProvider {
                   toolResults: [result],
                   timestamp: Date.now()
                 });
+
+                const stage = session.activeSkillIds?.includes("aaa-game-worldbuilding")
+                  ? worldbuildingStageForTool(msg.name)
+                  : undefined;
+                if (stage) session.worldbuildingStage = stage;
+                if (msg.name === "create_procedural_world" || msg.name === "set_procedural_world_preset") {
+                  const preset = msg.args.preset;
+                  if (preset === "low" || preset === "high" || preset === "ultra") session.worldbuildingQualityPreset = preset;
+                }
+                if (msg.name === "read_copilot_skill_reference") {
+                  const referencePayload = parseToolResult(result.result).payload;
+                  if (typeof referencePayload === "object" && referencePayload !== null && "reference" in referencePayload) {
+                    const reference = (referencePayload as { reference?: { skillId?: unknown; referenceId?: unknown; title?: unknown } }).reference;
+                    if (typeof reference?.skillId === "string" && typeof reference.referenceId === "string") {
+                      const referenceKey = `${reference.skillId}:${reference.referenceId}`;
+                      session.consultedSkillReferenceIds = Array.from(new Set([...(session.consultedSkillReferenceIds ?? []), referenceKey]));
+                      pushActivity({
+                        kind: "session",
+                        title: `Consulted: ${typeof reference.title === "string" ? reference.title : reference.referenceId}`,
+                        detail: "Read a focused skill reference range.",
+                        iteration: session.iterationCount,
+                        tone: "info"
+                      });
+                    }
+                  }
+                }
 
                 pushActivity({
                   kind: "tool_result",
