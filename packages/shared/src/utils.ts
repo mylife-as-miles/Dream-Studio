@@ -11,15 +11,21 @@ import type {
   ScenePathDefinition,
   NodeID,
   PrimitiveNode,
+  ProceduralWorldNode,
+  ProceduralWorldNodeData,
   SceneSettings,
   SplineNode,
+  TerrainMode,
   TerrainNode,
+  TerrainNodeData,
   Transform,
   Vec2,
   Vec3,
   WorldSettings
 } from "./types";
 import { Euler, Matrix4, Quaternion, Vector3 } from "three";
+import type { MeshTerrainState, TerrainMaterialSettings } from "./terrain-document";
+import { createDefaultProceduralWorldConfig } from "./procedural-world-config";
 
 export function vec2(x: number, y: number): Vec2 {
   return { x, y };
@@ -357,6 +363,76 @@ export function createDefaultSceneSettings(): SceneSettings {
         source: ""
       }
     }
+  };
+}
+
+export function createDefaultProceduralWorldNodeData(seed = 1): ProceduralWorldNodeData {
+  return createDefaultProceduralWorldConfig(seed);
+}
+
+export function isProceduralWorldNode(node: GeometryNode): node is ProceduralWorldNode {
+  return node.kind === "procedural-world";
+}
+
+/** True only for terrain nodes carrying the sculptable mesh representation. */
+export function isMeshTerrainNode(node: GeometryNode): node is TerrainNode {
+  return node.kind === "terrain" && node.data.mode === "mesh" && Boolean(node.data.meshTerrain);
+}
+
+export const DEFAULT_TERRAIN_MATERIAL_CHANNELS: TerrainMaterialSettings = {
+  channels: [
+    { id: "channel0", name: "Grass", color: 0x4f7d32, roughness: 0.94 },
+    { id: "channel1", name: "Rock", color: 0x77736c, roughness: 0.82 },
+    { id: "channel2", name: "Soil", color: 0x604733, roughness: 0.91 },
+    { id: "channel3", name: "Snow", color: 0xdce4ee, roughness: 0.68 }
+  ]
+};
+
+/**
+ * A fresh mesh terrain: no strokes yet, so the surface is purely the base field.
+ *
+ * Defaults match the upstream Mesh Terrain Lab world -- a 4 km square divided
+ * into 128 m sections with five geometric LODs -- because those numbers are what
+ * its LOD thresholds and residency budgets were tuned against.
+ */
+export function createDefaultMeshTerrainState(seed = 1): MeshTerrainState {
+  return {
+    version: 1,
+    worldSize: 4096,
+    sectionSize: 128,
+    seed,
+    profile: "natural",
+    modifiers: [],
+    materialSettings: structuredClone(DEFAULT_TERRAIN_MATERIAL_CHANNELS),
+    lodLevels: 5
+  };
+}
+
+/**
+ * Terrain node payload.
+ *
+ * A mesh terrain still carries the heightmap fields so that anything reading a
+ * terrain node generically -- bounds, export, the inspector -- has something
+ * valid to read; they stay at the zero resolution a mesh terrain does not use.
+ */
+export function createDefaultTerrainNodeData(
+  mode: TerrainMode = "mesh",
+  seed = 1
+): TerrainNodeData {
+  const resolution = mode === "heightmap" ? 129 : 0;
+
+  return {
+    mode,
+    heightmap: new Float32Array(resolution * resolution),
+    resolution,
+    size: vec3(512, 128, 512),
+    splatmap: new Float32Array(resolution * resolution * 4),
+    layers: DEFAULT_TERRAIN_MATERIAL_CHANNELS.channels.map((channel) => ({
+      materialId: `material:terrain:${channel.id}`,
+      name: channel.name
+    })),
+    lodLevels: 5,
+    ...(mode === "mesh" ? { meshTerrain: createDefaultMeshTerrainState(seed) } : {})
   };
 }
 

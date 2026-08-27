@@ -1,3 +1,5 @@
+import type { MeshTerrainState } from "./terrain-document";
+
 export type NodeID = string;
 export type EntityID = string;
 export type MaterialID = string;
@@ -53,7 +55,19 @@ export type TerrainLayerDefinition = {
   name: string;
 };
 
+/**
+ * Which authoring model a terrain node uses.
+ *
+ * "heightmap" is the grid terrain: one elevation per column, holes masked out
+ * of the grid, cheap to store and sample. "mesh" is the sculptable mesh
+ * terrain, where strokes follow the picked surface normal, so it can carry
+ * lateral deformation, overhangs, and real holes cut by CSG.
+ */
+export type TerrainMode = "heightmap" | "mesh";
+
 export type TerrainNodeData = {
+  /** Defaults to "heightmap" when absent, so existing documents keep loading. */
+  mode?: TerrainMode;
   heightmap: Float32Array;
   resolution: number;
   size: Vec3;
@@ -61,7 +75,126 @@ export type TerrainNodeData = {
   layers: TerrainLayerDefinition[];
   lodLevels: number;
   holeMask?: Uint8Array;
+  /** Present only when `mode` is "mesh". Evaluated by @blud/terrain. */
+  meshTerrain?: MeshTerrainState;
 };
+
+export type ProceduralWorldPreset = "low" | "high" | "ultra" | "custom";
+
+export type ProceduralTerrainSettings = {
+  farShell: boolean;
+  heightAmplitude: number;
+  hydraulicErosion: number;
+  lakeBehavior: "connected" | "natural" | "off";
+  moisture: number;
+  noiseScale: number;
+  riverThreshold: number;
+  snow: number;
+  terrainRange: number;
+  thermalErosion: number;
+};
+
+export type ProceduralVegetationSettings = {
+  enabledSpecies: string[];
+  grassDensity: number;
+  impostorRange: number;
+  scatterSeedOffset: number;
+  slopeLimit: number;
+  treeDensity: number;
+  understoryDensity: number;
+  windResponse: number;
+};
+
+export type ProceduralLightingSettings = {
+  giEnabled: boolean;
+  shadowQuality: "low" | "high" | "ultra";
+  sunAzimuth: number;
+  sunElevation: number;
+};
+
+export type ProceduralAtmosphereSettings = {
+  cloudCoverage: number;
+  cloudSpeed: number;
+  fogDensity: number;
+  volumetrics: boolean;
+};
+
+export type ProceduralWaterSettings = {
+  caustics: boolean;
+  clipmapDistance: number;
+  enabled: boolean;
+  foam: boolean;
+  reflectionQuality: "low" | "high" | "ultra";
+  wetMargins: boolean;
+};
+
+export type ProceduralMotionSettings = {
+  cloudSpeed: number;
+  freezeSimulation: boolean;
+  particlePreset: "low" | "high" | "ultra";
+  particleTypes: Array<"leaves" | "pollen" | "snow">;
+  windDirection: number;
+  windStrength: number;
+};
+
+export type ProceduralPostSettings = {
+  autoExposure: boolean;
+  bloom: boolean;
+  debugView: "none" | "ao" | "clouds" | "velocity";
+  gtao: boolean;
+  screenSpaceBounce: boolean;
+  taa: boolean;
+};
+
+export type ProceduralWorldBookmark = {
+  id: string;
+  name: string;
+  pitch: number;
+  timeOfDay: number;
+  x: number;
+  y: number;
+  yaw: number;
+  z: number;
+};
+
+export type ProceduralExplorationSettings = {
+  flySpeed: number;
+  mode: "editor" | "fly" | "walk";
+  sprintMultiplier: number;
+  walkSpeed: number;
+};
+
+export type ProceduralTerrainConfig = ProceduralTerrainSettings;
+export type ProceduralVegetationConfig = ProceduralVegetationSettings;
+export type ProceduralLightingConfig = ProceduralLightingSettings;
+export type ProceduralAtmosphereConfig = ProceduralAtmosphereSettings;
+export type ProceduralWaterConfig = ProceduralWaterSettings;
+export type ProceduralMotionConfig = ProceduralMotionSettings;
+export type ProceduralPostConfig = ProceduralPostSettings;
+export type ProceduralExplorationConfig = ProceduralExplorationSettings;
+
+export type ProceduralWorldConfig = {
+  atmosphere: ProceduralAtmosphereSettings;
+  bookmarks: ProceduralWorldBookmark[];
+  enabled: boolean;
+  exploration: ProceduralExplorationSettings;
+  generator: "laas";
+  heightfieldResolution: number;
+  lighting: ProceduralLightingSettings;
+  motion: ProceduralMotionSettings;
+  post: ProceduralPostSettings;
+  preset: ProceduralWorldPreset;
+  seed: number;
+  terrain: ProceduralTerrainSettings;
+  timeOfDay: number;
+  vegetation: ProceduralVegetationSettings;
+  version: 2;
+  water: ProceduralWaterSettings;
+  worldSizeMeters: number;
+};
+
+/** Compatibility name retained for scene-node and command APIs. */
+export type ProceduralWorldNodeData = ProceduralWorldConfig;
 
 // --- GridMap types ---
 
@@ -478,6 +611,11 @@ export type TerrainNode = GeometryNodeBase & {
   data: TerrainNodeData;
 };
 
+export type ProceduralWorldNode = GeometryNodeBase & {
+  kind: "procedural-world";
+  data: ProceduralWorldNodeData;
+};
+
 export type GridMapNode = GeometryNodeBase & {
   kind: "gridmap";
   data: GridMapNodeData;
@@ -488,7 +626,7 @@ export type SplineNode = GeometryNodeBase & {
   data: SplineNodeData;
 };
 
-export type GeometryNode = BrushNode | GroupNode | MeshNode | ModelNode | PrimitiveNode | InstancingNode | LightNode | TerrainNode | GridMapNode | SplineNode;
+export type GeometryNode = BrushNode | GroupNode | MeshNode | ModelNode | PrimitiveNode | InstancingNode | LightNode | TerrainNode | ProceduralWorldNode | GridMapNode | SplineNode;
 
 export type Asset = {
   id: AssetID;
