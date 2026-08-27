@@ -34,6 +34,7 @@
   },
   "homepage": "https://github.com/vibe-stack/blob/tree/main/packages/terrain",
   "dependencies": {
-    "@blud/shared": "*"
+    "@blud/shared": "*",
+    "three-bvh-csg": "^0.0.18"
   }
 }

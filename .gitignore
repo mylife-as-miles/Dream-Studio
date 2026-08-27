@@ -5,3 +5,5 @@ bun.lock
 coverage
 .env
 samples
+# Upstream reference checkout for the mesh-terrain port (read-only)
+/vendor/super-terrain
