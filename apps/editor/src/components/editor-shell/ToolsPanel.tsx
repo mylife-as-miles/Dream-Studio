@@ -44,12 +44,6 @@ type ToolsPanelProps = {
   aiModelPlacementActive: boolean;
   activeToolId: ToolId;
   currentSnapSize: GridSnapValue;
-  /**
-   * Accepted but ignored. The viewport grid is permanently infinite, so there
-   * is no toggle left in this panel; the props stay so existing callers keep
-   * compiling until their plumbing is retired.
-   */
-  gridInfinite?: boolean;
   gridSnapValues: readonly GridSnapValue[];
   meshEditMode: MeshEditMode;
   onClose: () => void;
@@ -77,8 +71,6 @@ type ToolsPanelProps = {
   onStartAiModelPlacement: () => void;
   onSelectBrushShape: (shape: BrushShape) => void;
   onSetMeshEditMode: (mode: MeshEditMode) => void;
-  /** Accepted but ignored. See `gridInfinite`. */
-  onSetGridInfinite?: (infinite: boolean) => void;
   onSetSnapEnabled: (enabled: boolean) => void;
   onSetSnapSize: (snapSize: GridSnapValue) => void;
   onStopPhysics: () => void;
