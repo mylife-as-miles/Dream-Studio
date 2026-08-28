@@ -30,27 +30,27 @@ export function hash11(n: number): number {
 export type EasingFn = (t: number) => number;
 
 export const Easing: Record<string, EasingFn> = {
-  linear: (t) => t,
-  inQuad: (t) => t * t,
-  outQuad: (t) => t * (2 - t),
-  inOutQuad: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
-  inCubic: (t) => t * t * t,
-  outCubic: (t) => 1 - Math.pow(1 - t, 3),
-  inOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
-  outQuint: (t) => 1 - Math.pow(1 - t, 5),
-  outExpo: (t) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)),
-  outBack: (t) => {
+  linear: (t: number) => t,
+  inQuad: (t: number) => t * t,
+  outQuad: (t: number) => t * (2 - t),
+  inOutQuad: (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+  inCubic: (t: number) => t * t * t,
+  outCubic: (t: number) => 1 - Math.pow(1 - t, 3),
+  inOutCubic: (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  outQuint: (t: number) => 1 - Math.pow(1 - t, 5),
+  outExpo: (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+  outBack: (t: number) => {
     const c1 = 1.70158;
     const c3 = c1 + 1;
     return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
   },
-  outElastic: (t) => {
+  outElastic: (t: number) => {
     if (t === 0 || t === 1) return t;
     const c4 = (2 * Math.PI) / 3;
     return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
   },
   /** Fast rise, slow decay -- the classic VFX "pop" curve. */
-  pop: (t) => Math.sin(Math.min(1, t) * Math.PI) ** 0.6
+  pop: (t: number) => Math.sin(Math.min(1, t) * Math.PI) ** 0.6
 };
 
 /** 0 to 1 to 0 envelope with configurable attack. */

@@ -218,7 +218,7 @@ export function syncFresnelAura(
   strength: number,
   baseY = 0,
   height = 1.8,
-  config = settings.boost,
+  config: AuraConfig = settings.boost,
   key = 'boost'
 ) {
   let claim = claims.get(key);

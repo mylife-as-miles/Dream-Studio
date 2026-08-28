@@ -284,7 +284,6 @@ export type DecalSpawnOptions = {
 export class DecalSystem {
   group!: Group;
   geometry!: PlaneGeometry;
-  // TODO(port): declare `active` -- initialiser: []
   private readonly pools = new Map<number, ObjectPool<DecalRecord>>();
   private readonly active: DecalRecord[] = [];
 

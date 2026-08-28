@@ -1305,6 +1305,15 @@ export const settings = {
     groundIntensity: 0.9,
     groundBranches: 0.6, // how finely a burn splits into filaments
     colorGround: '#9fdcff',
+    /**
+     * Second colour of the shockwave decal.
+     *
+     * Upstream reads `c.colorBurstC` here but never defines it in any block, so
+     * `getColor(undefined)` fell through to three's default white. The field is
+     * declared with that same white so the port renders identically -- and is
+     * now tunable rather than silently undefined.
+     */
+    colorBurstC: '#ffffff',
     colorGroundEmber: '#4aa8ff',
 
     /* --- the crater the charge stands in --- */
@@ -1629,6 +1638,15 @@ export const settings = {
     groundLife: 1.6,
     groundIntensity: 0.55,
     colorGround: '#7b3cff',
+    /**
+     * Second colour of the shockwave decal.
+     *
+     * Upstream reads `c.colorBurstC` here but never defines it in any block, so
+     * `getColor(undefined)` fell through to three's default white. The field is
+     * declared with that same white so the port renders identically -- and is
+     * now tunable rather than silently undefined.
+     */
+    colorBurstC: '#ffffff',
     colorGroundEmber: '#d9a6ff',
 
     /* --- dynamic light --- */
@@ -1939,6 +1957,15 @@ export const settings = {
     groundLife: 2.6,
     groundIntensity: 0.9,
     colorGround: '#120806',
+    /**
+     * Second colour of the shockwave decal.
+     *
+     * Upstream reads `c.colorBurstC` here but never defines it in any block, so
+     * `getColor(undefined)` fell through to three's default white. The field is
+     * declared with that same white so the port renders identically -- and is
+     * now tunable rather than silently undefined.
+     */
+    colorBurstC: '#ffffff',
     colorGroundEmber: '#ff6a1e',
 
     /* --- dynamic light --- */
