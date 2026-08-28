@@ -17,3 +17,5 @@ export * from "./config/settings";
 export * from "./effects/LightPool";
 export * from "./effects/ScreenFlash";
 export * from "./effects/CameraShake";
+export * from "./particles/ParticleSystem";
+export * from "./particles/ParticleEngine";
