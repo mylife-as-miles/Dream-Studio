@@ -114,11 +114,11 @@ const SCRIBE_FRAGMENT = /* glsl */ `
  * the preview and the portal can never disagree about where the hole will hang.
  */
 export class ScribeIndicator {
-  group!: Group;
-  geometry!: PlaneGeometry;
-  material!: ShaderMaterial;
-  circle!: Mesh;
-  reach!: ReachRing;
+  declare group: Group;
+  declare geometry: PlaneGeometry;
+  declare material: ShaderMaterial;
+  declare circle: Mesh;
+  declare reach: ReachRing;
 
   constructor() {
     this.group = new Group();

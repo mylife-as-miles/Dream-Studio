@@ -65,18 +65,18 @@ export type RibbonBuildOptions = {
 };
 
 export class RibbonGeometry {
-  maxSegments!: number;
-  hasFrame!: boolean;
-  geometry!: BufferGeometry;
-  positions!: Float32Array;
-  normals!: Float32Array;
-  uvs!: Float32Array;
-  dists!: Float32Array;
-  sides!: Float32Array;
-  randoms!: Float32Array;
-  centers!: Float32Array | null;
-  tangents!: Float32Array | null;
-  segmentCount!: number;
+  declare maxSegments: number;
+  declare hasFrame: boolean;
+  declare geometry: BufferGeometry;
+  declare positions: Float32Array;
+  declare normals: Float32Array;
+  declare uvs: Float32Array;
+  declare dists: Float32Array;
+  declare sides: Float32Array;
+  declare randoms: Float32Array;
+  declare centers: Float32Array | null;
+  declare tangents: Float32Array | null;
+  declare segmentCount: number;
 
   constructor(maxSegments = 128, { frame = false } = {}) {
     this.maxSegments = maxSegments;

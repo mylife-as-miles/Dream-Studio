@@ -186,11 +186,11 @@ const ZONE_FRAGMENT = /* glsl */ `
  * something the caster did.
  */
 export class ZoneIndicator {
-  group!: Group;
-  discGeometry!: PlaneGeometry;
-  discMaterial!: ShaderMaterial;
-  disc!: Mesh;
-  reach!: ReachRing;
+  declare group: Group;
+  declare discGeometry: PlaneGeometry;
+  declare discMaterial: ShaderMaterial;
+  declare disc: Mesh;
+  declare reach: ReachRing;
 
   constructor() {
     this.group = new Group();

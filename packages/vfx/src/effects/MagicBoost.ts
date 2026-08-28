@@ -73,33 +73,33 @@ const _light = new Color();
  * is live against a channelling, paused character.
  */
 export class MagicBoost {
-  _state!: { base: Vector3; right: Vector3; forward: Vector3; height: number; strength: number; seed: number; count: number };
-  ctx!: BoostContext;
-  character!: BoostTarget;
-  group!: Group;
-  active!: boolean;
-  age!: number;
-  cooldown!: number;
-  strength!: number;
-  _seed!: number;
-  _ribbonCount!: number;
-  _light!: LightHandle | null;
-  _lightBoost!: number;
+  declare _state: { base: Vector3; right: Vector3; forward: Vector3; height: number; strength: number; seed: number; count: number };
+  declare ctx: BoostContext;
+  declare character: BoostTarget;
+  declare group: Group;
+  declare active: boolean;
+  declare age: number;
+  declare cooldown: number;
+  declare strength: number;
+  declare _seed: number;
+  declare _ribbonCount: number;
+  declare _light: LightHandle | null;
+  declare _lightBoost: number;
   // TODO(port): declare `_state` -- initialiser: {
-  _fieldState!: { radius: number; quadSize: number; fade: number; seed: number };
-  geometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  glowMaterial!: ReturnType<typeof createArcaneRibbonMaterial>;
-  bandMaterial!: ReturnType<typeof createArcaneRibbonMaterial>;
-  ribbonMaterials!: ShaderMaterial[];
-  meshes!: Mesh[];
-  fieldGeometry!: PlaneGeometry;
-  fieldMaterial!: ReturnType<typeof createDarkFieldMaterial>;
-  field!: Mesh;
-  smoke!: ParticleSystem;
-  motes!: ParticleSystem;
-  smokeEmitter!: RateEmitter;
-  moteEmitter!: RateEmitter;
-  groundEmitter!: RateEmitter;
+  declare _fieldState: { radius: number; quadSize: number; fade: number; seed: number };
+  declare geometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare glowMaterial: ReturnType<typeof createArcaneRibbonMaterial>;
+  declare bandMaterial: ReturnType<typeof createArcaneRibbonMaterial>;
+  declare ribbonMaterials: ShaderMaterial[];
+  declare meshes: Mesh[];
+  declare fieldGeometry: PlaneGeometry;
+  declare fieldMaterial: ReturnType<typeof createDarkFieldMaterial>;
+  declare field: Mesh;
+  declare smoke: ParticleSystem;
+  declare motes: ParticleSystem;
+  declare smokeEmitter: RateEmitter;
+  declare moteEmitter: RateEmitter;
+  declare groundEmitter: RateEmitter;
 
   /**
    * @param {object} context { scene, particles, lights, decals, bursts, shake,

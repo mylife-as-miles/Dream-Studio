@@ -276,33 +276,33 @@ const RIFT_FRAGMENT = /* glsl */ `
  * animation is a function rather than a keyframe.
  */
 export class AetherRingAbility extends Ability {
-  segmentMaterial!: ReturnType<typeof createRockMaterial>;
-  segmentGeometries!: BufferGeometry[];
-  segmentMeshes!: InstancedMesh[];
-  surfaceGeometry!: PlaneGeometry;
-  surfaceMaterial!: ShaderMaterial;
-  surface!: Mesh;
-  haloMaterial!: ShaderMaterial;
-  halo!: Mesh;
-  segmentRecords!: { active: boolean; landed: boolean; crown: boolean; variant: number; contour: number; course: number; delay: number; depthJitter: number; sizeJitter: Vector3; tiltJitter: Vector3; spinAxis: Vector3; spinAmount: number; swirl: number; swarmJitter: number; swarmSide: number }[];
-  _centre!: Vector3;
-  _ringX!: Vector3;
-  _ringY!: Vector3;
-  _ringN!: Vector3;
-  _segmentCount!: number;
-  _tideDistance!: number;
-  _buildAge!: number;
-  _riftAge!: number;
-  _closeAge!: number;
-  _ignite!: number;
-  motes!: ParticleSystem;
-  spray!: ParticleSystem;
-  mist!: ParticleSystem;
-  debris!: ParticleSystem;
-  moteEmitter!: RateEmitter;
-  sprayEmitter!: RateEmitter;
-  mistEmitter!: RateEmitter;
-  tideEmitter!: RateEmitter;
+  declare segmentMaterial: ReturnType<typeof createRockMaterial>;
+  declare segmentGeometries: BufferGeometry[];
+  declare segmentMeshes: InstancedMesh[];
+  declare surfaceGeometry: PlaneGeometry;
+  declare surfaceMaterial: ShaderMaterial;
+  declare surface: Mesh;
+  declare haloMaterial: ShaderMaterial;
+  declare halo: Mesh;
+  declare segmentRecords: { active: boolean; landed: boolean; crown: boolean; variant: number; contour: number; course: number; delay: number; depthJitter: number; sizeJitter: Vector3; tiltJitter: Vector3; spinAxis: Vector3; spinAmount: number; swirl: number; swarmJitter: number; swarmSide: number }[];
+  declare _centre: Vector3;
+  declare _ringX: Vector3;
+  declare _ringY: Vector3;
+  declare _ringN: Vector3;
+  declare _segmentCount: number;
+  declare _tideDistance: number;
+  declare _buildAge: number;
+  declare _riftAge: number;
+  declare _closeAge: number;
+  declare _ignite: number;
+  declare motes: ParticleSystem;
+  declare spray: ParticleSystem;
+  declare mist: ParticleSystem;
+  declare debris: ParticleSystem;
+  declare moteEmitter: RateEmitter;
+  declare sprayEmitter: RateEmitter;
+  declare mistEmitter: RateEmitter;
+  declare tideEmitter: RateEmitter;
 
   /** This element's own settings block, narrowed from the base getter. */
   override get config(): typeof settings.aether {

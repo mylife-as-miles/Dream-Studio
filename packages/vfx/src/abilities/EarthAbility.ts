@@ -87,30 +87,30 @@ export type EarthRockRecord = { active: boolean; emitted: boolean; ring: boolean
 export type EarthPlateRecord = { active: boolean; cracked: boolean; apron: boolean; base: Vector3; side: Vector3; lateralNorm: number; yaw: number; sizeJitter: number; thicknessJitter: number; tiltJitter: number; tiltHeading: number; liftUp: boolean; liftJitter: number; paintAge: number; crackJitter: number; crackOverride: number };
 
 export class EarthAbility extends Ability {
-  plateMaterial!: ReturnType<typeof createRockMaterial>;
-  plateGeometry!: ReturnType<typeof createSlabGeometry>;
-  plates!: InstancedMesh;
-  rockMaterial!: ReturnType<typeof createRockMaterial>;
-  rockGeometry!: ReturnType<typeof createRockGeometry>;
-  rocks!: InstancedMesh;
-  towerMaterial!: ReturnType<typeof createGlassMaterial>;
-  towerGeometry!: ReturnType<typeof createTowerGeometry>;
-  tower!: Mesh;
-  towerOutlineMaterial!: ShaderMaterial;
-  towerOutline!: Mesh;
-  rockRecords!: EarthRockRecord[];
-  plateRecords!: EarthPlateRecord[];
-  _rockCursor!: number;
-  _plateCursor!: number;
-  _towerAge!: number;
-  dust!: ParticleSystem;
-  debris!: ParticleSystem;
-  dustEmitter!: RateEmitter;
-  debrisEmitter!: RateEmitter;
-  _nextRockDistance!: number;
-  _nextPlateDistance!: number;
-  _plateAcross!: number;
-  _plateRowSpacing!: number;
+  declare plateMaterial: ReturnType<typeof createRockMaterial>;
+  declare plateGeometry: ReturnType<typeof createSlabGeometry>;
+  declare plates: InstancedMesh;
+  declare rockMaterial: ReturnType<typeof createRockMaterial>;
+  declare rockGeometry: ReturnType<typeof createRockGeometry>;
+  declare rocks: InstancedMesh;
+  declare towerMaterial: ReturnType<typeof createGlassMaterial>;
+  declare towerGeometry: ReturnType<typeof createTowerGeometry>;
+  declare tower: Mesh;
+  declare towerOutlineMaterial: ShaderMaterial;
+  declare towerOutline: Mesh;
+  declare rockRecords: EarthRockRecord[];
+  declare plateRecords: EarthPlateRecord[];
+  declare _rockCursor: number;
+  declare _plateCursor: number;
+  declare _towerAge: number;
+  declare dust: ParticleSystem;
+  declare debris: ParticleSystem;
+  declare dustEmitter: RateEmitter;
+  declare debrisEmitter: RateEmitter;
+  declare _nextRockDistance: number;
+  declare _nextPlateDistance: number;
+  declare _plateAcross: number;
+  declare _plateRowSpacing: number;
 
   /** This element's own settings block, narrowed from the base getter. */
   override get config(): typeof settings.earth {

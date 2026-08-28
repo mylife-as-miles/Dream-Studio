@@ -190,9 +190,9 @@ const AIM_FRAGMENT = /* glsl */ `
  * slider in the editor reshapes the arrow under the cursor immediately.
  */
 export class AimIndicator {
-  geometry!: PlaneGeometry;
-  material!: ShaderMaterial;
-  mesh!: Mesh;
+  declare geometry: PlaneGeometry;
+  declare material: ShaderMaterial;
+  declare mesh: Mesh;
 
   constructor() {
     // Unit space: x ∈ [-0.5, 0.5], z ∈ [0, 1], facing up. Local +Z is the aim

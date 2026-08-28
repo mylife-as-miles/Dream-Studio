@@ -94,31 +94,31 @@ const TAU = Math.PI * 2;
  * inside the update loop, which is what makes the editor live.
  */
 export class ElectricalSphereAbility extends Ability {
-  _state!: { center: Vector3; sphereCenter: Vector3; sphereRadius: number; shellRadius: number; seed: number; fade: number; pulse: number };
-  sphereGeometry!: SphereGeometry;
-  sphereMaterial!: ReturnType<typeof createSphereBodyMaterial>;
-  sphere!: Mesh;
-  platformGeometry!: PlaneGeometry;
-  platformMaterial!: ReturnType<typeof createPlatformMaterial>;
-  platform!: Mesh;
-  boltGeometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  coreBoltMaterial!: ReturnType<typeof createRadialBoltMaterial>;
-  haloBoltMaterial!: ReturnType<typeof createRadialBoltMaterial>;
-  boltMaterials!: ShaderMaterial[];
-  boltMeshes!: InstancedMesh[];
-  _seed!: number;
-  _bloomTime!: number;
-  _pulse!: number;
-  _platformDistance!: number;
+  declare _state: { center: Vector3; sphereCenter: Vector3; sphereRadius: number; shellRadius: number; seed: number; fade: number; pulse: number };
+  declare sphereGeometry: SphereGeometry;
+  declare sphereMaterial: ReturnType<typeof createSphereBodyMaterial>;
+  declare sphere: Mesh;
+  declare platformGeometry: PlaneGeometry;
+  declare platformMaterial: ReturnType<typeof createPlatformMaterial>;
+  declare platform: Mesh;
+  declare boltGeometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare coreBoltMaterial: ReturnType<typeof createRadialBoltMaterial>;
+  declare haloBoltMaterial: ReturnType<typeof createRadialBoltMaterial>;
+  declare boltMaterials: ShaderMaterial[];
+  declare boltMeshes: InstancedMesh[];
+  declare _seed: number;
+  declare _bloomTime: number;
+  declare _pulse: number;
+  declare _platformDistance: number;
   // TODO(port): declare `_state` -- initialiser: {
-  sparks!: ParticleSystem;
-  motes!: ParticleSystem;
-  embers!: ParticleSystem;
-  smoke!: ParticleSystem;
-  sparkEmitter!: RateEmitter;
-  moteEmitter!: RateEmitter;
-  emberEmitter!: RateEmitter;
-  smokeEmitter!: RateEmitter;
+  declare sparks: ParticleSystem;
+  declare motes: ParticleSystem;
+  declare embers: ParticleSystem;
+  declare smoke: ParticleSystem;
+  declare sparkEmitter: RateEmitter;
+  declare moteEmitter: RateEmitter;
+  declare emberEmitter: RateEmitter;
+  declare smokeEmitter: RateEmitter;
 
   /** This element's own settings block, narrowed from the base getter. */
   override get config(): typeof settings.electrical {

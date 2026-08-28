@@ -252,14 +252,14 @@ const GHOST_FRAGMENT = /* glsl */ `
  * the preview and the built ring can never disagree.
  */
 export class RingIndicator {
-  group!: Group;
-  sigilGeometry!: PlaneGeometry;
-  sigilMaterial!: ShaderMaterial;
-  sigil!: Mesh;
-  ghostGeometry!: PlaneGeometry;
-  ghostMaterial!: ShaderMaterial;
-  ghost!: Mesh;
-  reach!: ReachRing;
+  declare group: Group;
+  declare sigilGeometry: PlaneGeometry;
+  declare sigilMaterial: ShaderMaterial;
+  declare sigil: Mesh;
+  declare ghostGeometry: PlaneGeometry;
+  declare ghostMaterial: ShaderMaterial;
+  declare ghost: Mesh;
+  declare reach: ReachRing;
 
   constructor() {
     this.group = new Group();

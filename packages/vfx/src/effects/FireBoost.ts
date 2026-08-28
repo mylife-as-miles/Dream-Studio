@@ -120,46 +120,46 @@ const _away = new Vector3();
  * which no history buffer could do.
  */
 export class FireBoost {
-  orbMaterials!: ShaderMaterial[];
-  trailMaterials!: ShaderMaterial[];
-  _state!: { base: Vector3; right: Vector3; forward: Vector3; height: number; strength: number; seed: number; boneA: Vector4[]; boneB: Vector4[]; boneCount: number };
-  ctx!: BoostContext;
-  character!: BoostTarget;
-  group!: Group;
-  active!: boolean;
-  age!: number;
-  cooldown!: number;
-  strength!: number;
-  _seed!: number;
-  _tongueCount!: number;
-  _orbCount!: number;
-  _boneA!: Vector4[];
-  _boneB!: Vector4[];
-  _boneCount!: number;
-  _light!: LightHandle | null;
-  _lightBoost!: number;
+  declare orbMaterials: ShaderMaterial[];
+  declare trailMaterials: ShaderMaterial[];
+  declare _state: { base: Vector3; right: Vector3; forward: Vector3; height: number; strength: number; seed: number; boneA: Vector4[]; boneB: Vector4[]; boneCount: number };
+  declare ctx: BoostContext;
+  declare character: BoostTarget;
+  declare group: Group;
+  declare active: boolean;
+  declare age: number;
+  declare cooldown: number;
+  declare strength: number;
+  declare _seed: number;
+  declare _tongueCount: number;
+  declare _orbCount: number;
+  declare _boneA: Vector4[];
+  declare _boneB: Vector4[];
+  declare _boneCount: number;
+  declare _light: LightHandle | null;
+  declare _lightBoost: number;
   // TODO(port): declare `_state` -- initialiser: {
-  _fieldState!: { radius: number; quadSize: number; fade: number; front: number; seed: number };
-  flameGeometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  glowMaterial!: ReturnType<typeof createFireBodyMaterial>;
-  flameMaterial!: ReturnType<typeof createFireBodyMaterial>;
-  flameMaterials!: ShaderMaterial[];
-  flameMeshes!: Mesh[];
-  trailGeometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  orbGeometry!: ReturnType<typeof createOrbFieldGeometry>;
+  declare _fieldState: { radius: number; quadSize: number; fade: number; front: number; seed: number };
+  declare flameGeometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare glowMaterial: ReturnType<typeof createFireBodyMaterial>;
+  declare flameMaterial: ReturnType<typeof createFireBodyMaterial>;
+  declare flameMaterials: ShaderMaterial[];
+  declare flameMeshes: Mesh[];
+  declare trailGeometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare orbGeometry: ReturnType<typeof createOrbFieldGeometry>;
   // TODO(port): declare `trailMaterials` -- initialiser: [
-  trailMeshes!: Mesh[];
+  declare trailMeshes: Mesh[];
   // TODO(port): declare `orbMaterials` -- initialiser: [
-  orbMeshes!: Mesh[];
-  fieldGeometry!: PlaneGeometry;
-  fieldMaterial!: ReturnType<typeof createCinderFieldMaterial>;
-  field!: Mesh;
-  embers!: ParticleSystem;
-  smoke!: ParticleSystem;
-  emberEmitter!: RateEmitter;
-  orbEmitter!: RateEmitter;
-  smokeEmitter!: RateEmitter;
-  groundEmitter!: RateEmitter;
+  declare orbMeshes: Mesh[];
+  declare fieldGeometry: PlaneGeometry;
+  declare fieldMaterial: ReturnType<typeof createCinderFieldMaterial>;
+  declare field: Mesh;
+  declare embers: ParticleSystem;
+  declare smoke: ParticleSystem;
+  declare emberEmitter: RateEmitter;
+  declare orbEmitter: RateEmitter;
+  declare smokeEmitter: RateEmitter;
+  declare groundEmitter: RateEmitter;
 
   /**
    * @param {object} context { scene, particles, lights, decals, bursts, shake,

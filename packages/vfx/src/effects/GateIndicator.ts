@@ -238,14 +238,14 @@ const GHOST_FRAGMENT = /* glsl */ `
  * you are about to build it edge-on.
  */
 export class GateIndicator {
-  group!: Group;
-  thresholdGeometry!: PlaneGeometry;
-  thresholdMaterial!: ShaderMaterial;
-  threshold!: Mesh;
-  ghostGeometry!: PlaneGeometry;
-  ghostMaterial!: ShaderMaterial;
-  ghost!: Mesh;
-  reach!: ReachRing;
+  declare group: Group;
+  declare thresholdGeometry: PlaneGeometry;
+  declare thresholdMaterial: ShaderMaterial;
+  declare threshold: Mesh;
+  declare ghostGeometry: PlaneGeometry;
+  declare ghostMaterial: ShaderMaterial;
+  declare ghost: Mesh;
+  declare reach: ReachRing;
 
   constructor() {
     this.group = new Group();

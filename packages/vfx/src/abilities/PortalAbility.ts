@@ -249,29 +249,29 @@ const PORTAL_FRAGMENT = /* glsl */ `
  * and the span can change without anything being rebuilt.
  */
 export class PortalAbility extends Ability {
-  stoneMaterial!: ReturnType<typeof createRockMaterial>;
-  stoneGeometries!: BufferGeometry[];
-  stoneMeshes!: InstancedMesh[];
-  surfaceGeometry!: PlaneGeometry;
-  surfaceMaterial!: ShaderMaterial;
-  surface!: Mesh;
-  haloMaterial!: ShaderMaterial;
-  halo!: Mesh;
-  stoneRecords!: { active: boolean; landed: boolean; keystone: boolean; variant: number; contour: number; course: number; delay: number; depthJitter: number; sizeJitter: Vector3; tiltJitter: Vector3; spinAxis: Vector3; spinAmount: number; arcJitter: number; startJitter: number }[];
-  _stoneCount!: number;
-  _seamDistance!: number;
-  _buildAge!: number;
-  _portalAge!: number;
-  _closeAge!: number;
-  _yaw!: number;
-  motes!: ParticleSystem;
-  mist!: ParticleSystem;
-  dust!: ParticleSystem;
-  debris!: ParticleSystem;
-  moteEmitter!: RateEmitter;
-  mistEmitter!: RateEmitter;
-  seamEmitter!: RateEmitter;
-  _ignite!: number;
+  declare stoneMaterial: ReturnType<typeof createRockMaterial>;
+  declare stoneGeometries: BufferGeometry[];
+  declare stoneMeshes: InstancedMesh[];
+  declare surfaceGeometry: PlaneGeometry;
+  declare surfaceMaterial: ShaderMaterial;
+  declare surface: Mesh;
+  declare haloMaterial: ShaderMaterial;
+  declare halo: Mesh;
+  declare stoneRecords: { active: boolean; landed: boolean; keystone: boolean; variant: number; contour: number; course: number; delay: number; depthJitter: number; sizeJitter: Vector3; tiltJitter: Vector3; spinAxis: Vector3; spinAmount: number; arcJitter: number; startJitter: number }[];
+  declare _stoneCount: number;
+  declare _seamDistance: number;
+  declare _buildAge: number;
+  declare _portalAge: number;
+  declare _closeAge: number;
+  declare _yaw: number;
+  declare motes: ParticleSystem;
+  declare mist: ParticleSystem;
+  declare dust: ParticleSystem;
+  declare debris: ParticleSystem;
+  declare moteEmitter: RateEmitter;
+  declare mistEmitter: RateEmitter;
+  declare seamEmitter: RateEmitter;
+  declare _ignite: number;
 
   /** This element's own settings block, narrowed from the base getter. */
   override get config(): typeof settings.portal {

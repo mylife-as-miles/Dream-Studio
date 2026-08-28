@@ -217,21 +217,21 @@ const PORTAL_FRAGMENT = /* glsl */ `
  * been standing for a minute — with the clock paused.
  */
 export class FirePortalAbility extends Ability {
-  quadGeometry!: PlaneGeometry;
-  voidMaterial!: ShaderMaterial;
-  voidMesh!: Mesh;
-  ringMaterial!: ShaderMaterial;
-  ringMesh!: Mesh;
-  _centre!: Vector3;
-  _ringX!: Vector3;
-  _ringY!: Vector3;
-  _ringN!: Vector3;
-  _openAge!: number;
-  _closeAge!: number;
-  _lastScribe!: number;
-  _headSpeed!: number;
-  sparks!: ParticleSystem;
-  sparkEmitter!: RateEmitter;
+  declare quadGeometry: PlaneGeometry;
+  declare voidMaterial: ShaderMaterial;
+  declare voidMesh: Mesh;
+  declare ringMaterial: ShaderMaterial;
+  declare ringMesh: Mesh;
+  declare _centre: Vector3;
+  declare _ringX: Vector3;
+  declare _ringY: Vector3;
+  declare _ringN: Vector3;
+  declare _openAge: number;
+  declare _closeAge: number;
+  declare _lastScribe: number;
+  declare _headSpeed: number;
+  declare sparks: ParticleSystem;
+  declare sparkEmitter: RateEmitter;
 
   /** This element's own settings block, narrowed from the base getter. */
   override get config(): typeof settings.firePortal {

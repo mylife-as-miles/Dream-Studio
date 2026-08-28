@@ -111,13 +111,13 @@ export type ReachRingConfig = {
 
 export class ReachRing {
 
-  config!: ReachRingConfig;
+  declare config: ReachRingConfig;
 
-  geometry!: ReturnType<typeof createBoltRibbonGeometry>;
+  declare geometry: ReturnType<typeof createBoltRibbonGeometry>;
 
-  material!: ShaderMaterial;
+  declare material: ShaderMaterial;
 
-  mesh!: Mesh;
+  declare mesh: Mesh;
 
   /**
    * @param {object} config the indicator block this ring belongs to. Read live,

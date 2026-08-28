@@ -85,42 +85,42 @@ const _light = new Color();
  * against a charged, paused character.
  */
 export class ElectricBoost {
-  _state!: { base: Vector3; right: Vector3; forward: Vector3; height: number; strength: number; seed: number };
-  ctx!: BoostContext;
-  character!: BoostTarget;
-  group!: Group;
-  active!: boolean;
-  age!: number;
-  cooldown!: number;
-  strength!: number;
-  _seed!: number;
-  _arcCount!: number;
-  _ringCount!: number;
-  _spireCount!: number;
-  _light!: LightHandle | null;
-  _lightBoost!: number;
+  declare _state: { base: Vector3; right: Vector3; forward: Vector3; height: number; strength: number; seed: number };
+  declare ctx: BoostContext;
+  declare character: BoostTarget;
+  declare group: Group;
+  declare active: boolean;
+  declare age: number;
+  declare cooldown: number;
+  declare strength: number;
+  declare _seed: number;
+  declare _arcCount: number;
+  declare _ringCount: number;
+  declare _spireCount: number;
+  declare _light: LightHandle | null;
+  declare _lightBoost: number;
   // TODO(port): declare `_state` -- initialiser: {
-  _fieldState!: { radius: number; quadSize: number; fade: number; seed: number };
-  _coilState!: { base: Vector3; radius: number; strength: number; seed: number; count: number };
-  geometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  glowMaterial!: ReturnType<typeof createBodyArcMaterial>;
-  coreMaterial!: ReturnType<typeof createBodyArcMaterial>;
-  arcMaterials!: ShaderMaterial[];
-  meshes!: Mesh[];
-  fieldGeometry!: PlaneGeometry;
-  fieldMaterial!: ReturnType<typeof createChargeFieldMaterial>;
-  field!: Mesh;
-  ringGeometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  spireGeometry!: ReturnType<typeof createBoltRibbonGeometry>;
-  coilMaterials!: ReturnType<typeof createChargeCoilMaterial>[];
-  coilMeshes!: Mesh[];
-  ringMaterials!: ShaderMaterial[];
-  spireMaterials!: ShaderMaterial[];
-  sparks!: ParticleSystem;
-  motes!: ParticleSystem;
-  sparkEmitter!: RateEmitter;
-  moteEmitter!: RateEmitter;
-  groundEmitter!: RateEmitter;
+  declare _fieldState: { radius: number; quadSize: number; fade: number; seed: number };
+  declare _coilState: { base: Vector3; radius: number; strength: number; seed: number; count: number };
+  declare geometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare glowMaterial: ReturnType<typeof createBodyArcMaterial>;
+  declare coreMaterial: ReturnType<typeof createBodyArcMaterial>;
+  declare arcMaterials: ShaderMaterial[];
+  declare meshes: Mesh[];
+  declare fieldGeometry: PlaneGeometry;
+  declare fieldMaterial: ReturnType<typeof createChargeFieldMaterial>;
+  declare field: Mesh;
+  declare ringGeometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare spireGeometry: ReturnType<typeof createBoltRibbonGeometry>;
+  declare coilMaterials: ReturnType<typeof createChargeCoilMaterial>[];
+  declare coilMeshes: Mesh[];
+  declare ringMaterials: ShaderMaterial[];
+  declare spireMaterials: ShaderMaterial[];
+  declare sparks: ParticleSystem;
+  declare motes: ParticleSystem;
+  declare sparkEmitter: RateEmitter;
+  declare moteEmitter: RateEmitter;
+  declare groundEmitter: RateEmitter;
 
   /**
    * @param {object} context { scene, particles, lights, decals, bursts, shake,
