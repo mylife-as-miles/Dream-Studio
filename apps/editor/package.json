@@ -33,6 +33,7 @@
     "@blud/terrain": "*",
     "@blud/three-runtime": "*",
     "@blud/tool-system": "*",
+    "@blud/vfx": "*",
     "@blud/workers": "*",
     "@dagrejs/dagre": "^2.0.0",
     "@elevenlabs/elevenlabs-js": "^2.44.0",

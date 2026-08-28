@@ -37,6 +37,7 @@
       "@blud/terrain/authoring": ["packages/terrain/src/authoring.ts"],
       "@blud/three-runtime": ["packages/three-runtime/src/index.ts"],
       "@blud/tool-system": ["packages/tool-system/src/index.ts"],
+      "@blud/vfx": ["packages/vfx/src/index.ts"],
       "@blud/workers": ["packages/workers/src/index.ts"]
     },
     "types": ["vite/client", "node"]

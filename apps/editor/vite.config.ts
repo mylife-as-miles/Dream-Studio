@@ -38,6 +38,7 @@ const workspaceAliases = {
   "@blud/terrain": path.resolve(repoRoot, "packages/terrain/src/index.ts"),
   "@blud/three-runtime": path.resolve(repoRoot, "packages/three-runtime/src/index.ts"),
   "@blud/tool-system": path.resolve(repoRoot, "packages/tool-system/src/index.ts"),
+  "@blud/vfx": path.resolve(repoRoot, "packages/vfx/src/index.ts"),
   "@blud/workers": path.resolve(repoRoot, "packages/workers/src/index.ts")
 } as const;
 
