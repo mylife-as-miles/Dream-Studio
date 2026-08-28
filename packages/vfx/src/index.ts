@@ -12,3 +12,8 @@ export * from "./core/FrameUniforms";
 export * from "./utils/math";
 export * from "./utils/color";
 export * from "./utils/ObjectPool";
+
+export * from "./config/settings";
+export * from "./effects/LightPool";
+export * from "./effects/ScreenFlash";
+export * from "./effects/CameraShake";
