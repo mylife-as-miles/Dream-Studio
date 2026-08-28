@@ -19,3 +19,6 @@ export * from "./effects/ScreenFlash";
 export * from "./effects/CameraShake";
 export * from "./particles/ParticleSystem";
 export * from "./particles/ParticleEngine";
+export * from "./geometry/ProceduralGeometry";
+export * from "./effects/BurstSphere";
+export * from "./effects/GroundDecals";
