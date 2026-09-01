@@ -142,6 +142,24 @@ export function treePrototypeId(species: TreeSpecies, variation: number): string
   return `${species}:${variation}`
 }
 
+/**
+ * Reads a prototype id back into the pair that produced it.
+ *
+ * The id format is this module's business, so unpacking it is too -- a consumer
+ * that splits on ':' itself is a consumer that breaks silently the day a
+ * species id contains one.
+ */
+export function parseTreePrototypeId(
+  prototypeId: string,
+): { species: TreeSpecies; variation: number } | undefined {
+  const separator = prototypeId.lastIndexOf(':')
+  if (separator <= 0) return undefined
+  const species = prototypeId.slice(0, separator) as TreeSpecies
+  const variation = Number(prototypeId.slice(separator + 1))
+  if (!Number.isFinite(variation)) return undefined
+  return { species, variation }
+}
+
 /** Nine deterministic topology recipes per species, not cosmetic presets. */
 export function parametersForTreeVariation(
   species: TreeSpecies,
