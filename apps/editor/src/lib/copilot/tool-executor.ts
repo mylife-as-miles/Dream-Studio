@@ -127,7 +127,7 @@ import {
   createTunnelModifier,
   createWeightPaintStroke
 } from "@blud/terrain/authoring";
-import { isVfxViewportReady, requestVfxCast } from "@/state/vfx-runtime";
+import { isVfxViewportReady, pendingVfxCastCount, requestVfxCast } from "@/state/vfx-runtime";
 import { ELEMENT_META, ELEMENTS, castShapeOf, type ElementId } from "@blud/vfx";
 import { forestStore } from "@/state/forest-store";
 import { FOREST_PRESETS, type ForestField, type ForestPresetId } from "@blud/forest";
@@ -2648,10 +2648,6 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
       if (!(ELEMENTS as readonly string[]).includes(element)) {
         return fail(`element must be one of ${ELEMENTS.join(", ")}.`);
       }
-      if (!isVfxViewportReady()) {
-        return fail("The viewport is not running, so there is nothing to cast into.");
-      }
-
       const distance = Math.max(1, Math.min(400, finiteArg(args, "distance", 20)));
       const outcome = requestVfxCast({
         direction: { x: finiteArg(args, "directionX", 0), z: finiteArg(args, "directionZ", 1) },
@@ -2672,7 +2668,12 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
         castShape: castShapeOf(element as ElementId),
         distanceMeters: distance,
         element,
-        note: "The cast plays once in the viewport and is not saved with the scene."
+        // Deferred means no viewport is mounted yet. The cast is held rather
+        // than refused, and plays as soon as one appears.
+        pending: outcome.deferred,
+        note: outcome.deferred
+          ? "No viewport is running yet, so the cast is queued and will play as soon as one is. It expires after 10 seconds if none appears."
+          : "The cast plays once in the viewport and is not saved with the scene."
       });
     }
 
@@ -2684,6 +2685,7 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
           key: ELEMENT_META[element].key,
           label: ELEMENT_META[element].label
         })),
+        pendingCasts: pendingVfxCastCount(),
         viewportReady: isVfxViewportReady()
       });
     }

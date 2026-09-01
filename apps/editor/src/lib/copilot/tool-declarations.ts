@@ -2190,7 +2190,7 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
   {
     name: "cast_vfx_ability",
     description:
-      "Fires one of the seven combat abilities in the viewport. Each is a skillshot: it travels out from an origin along a flat heading, erupts at the far end, then burns down and clears itself. Use this to show the user what an ability looks like, or to dress a scene for a screenshot. The cast plays once and is not saved with the scene. Abilities are hand-written GLSL and draw on the WebGL backend, so nothing appears if the editor has been switched to WebGPU.",
+      "Fires one of the seven combat abilities in the viewport. Each is a skillshot: it travels out from an origin along a flat heading, erupts at the far end, then burns down and clears itself. Use this to show the user what an ability looks like, or to dress a scene for a screenshot. The cast plays once and is not saved with the scene. A cast asked for before the viewport is running is held and plays as soon as it is, so this does not have to be ordered after opening one. Abilities are hand-written GLSL and draw on the WebGL backend, so nothing appears if the editor has been switched to WebGPU.",
     parameters: {
       type: "object",
       properties: {
