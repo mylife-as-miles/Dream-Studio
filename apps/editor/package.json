@@ -20,6 +20,7 @@
     "@blud/architecture": "*",
     "@blud/dev-sync": "*",
     "@blud/editor-core": "*",
+    "@blud/forest": "*",
     "@blud/engine-config": "*",
     "@blud/gameplay-runtime": "^0.1.11",
     "@blud/geometry-kernel": "*",
