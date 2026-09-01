@@ -81,6 +81,7 @@ import { PreviewNpcDialogueOverlay } from "@/viewport/components/PreviewNpcDialo
 import { ScenePreview } from "@/viewport/components/ScenePreview";
 import { MeshTerrainObject } from "@/viewport/components/MeshTerrainObject";
 import { ForestLayer } from "@/viewport/components/ForestLayer";
+import { VfxLayer } from "@/viewport/components/VfxLayer";
 import { useForestGrowth } from "@/viewport/hooks/useForestGrowth";
 import { forestStore, useForestSnapshot } from "@/state/forest-store";
 import { isForestToolId } from "@blud/tool-system";
@@ -3740,6 +3741,7 @@ export function ViewportCanvas({
           />
         ) : null}
         <ForestLayer bakes={forestBakes} visible={!forest.interacting} />
+        <VfxLayer enabled={isActiveViewport} />
         <MeshTerrainObject
           hovered={false}
           interactive={editorInteractionEnabled}

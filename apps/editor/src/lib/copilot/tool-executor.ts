@@ -127,6 +127,10 @@ import {
   createTunnelModifier,
   createWeightPaintStroke
 } from "@blud/terrain/authoring";
+import { isVfxViewportReady, requestVfxCast } from "@/state/vfx-runtime";
+import { ELEMENT_META, ELEMENTS, castShapeOf, type ElementId } from "@blud/vfx";
+import { forestStore } from "@/state/forest-store";
+import { FOREST_PRESETS, type ForestField, type ForestPresetId } from "@blud/forest";
 import { getProceduralWorldRuntimeStatus } from "@/lib/procedural-world/runtime-diagnostics";
 import { requestProceduralWorldRuntimeAction } from "@/lib/procedural-world/runtime-actions";
 import type {
@@ -1563,6 +1567,39 @@ function updateBehaviorTreeNodeData(tree: BehaviorTree, nodeId: string, args: Ar
   return found ? { ...tree, nodes } : null;
 }
 
+function isForestPreset(value: string): value is ForestPresetId {
+  return FOREST_PRESETS.some((preset) => preset.id === value);
+}
+
+function findForestField(fieldId: string): ForestField | undefined {
+  return forestStore.getSnapshot().fields.find((field) => field.id === fieldId);
+}
+
+/**
+ * Resolves the field a forest tool acts on, or an error string to return.
+ *
+ * Omitting the id is allowed only when there is exactly one field, matching how
+ * the terrain tools treat a single mesh terrain: convenient in the common case,
+ * and explicitly ambiguous rather than silently arbitrary once there are two.
+ */
+function resolveForestField(fieldId: string | undefined): ForestField | string {
+  const fields = forestStore.getSnapshot().fields;
+  if (fieldId) {
+    const match = fields.find((field) => field.id === fieldId);
+    return match ?? fail(`Forest field "${fieldId}" was not found.`);
+  }
+  if (fields.length === 1) return fields[0]!;
+  if (fields.length === 0) return fail("No forest fields exist. Call create_forest_field first.");
+  return fail(`The scene has ${fields.length} forest fields; pass fieldId to say which one.`);
+}
+
+/** Ground-plane control points from a tool argument. */
+function forestPoints(args: Args): Array<{ x: number; z: number }> {
+  return recordArray(args, "points")
+    .map((record) => ({ x: numFromRecord(record, "x"), z: numFromRecord(record, "z") }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+}
+
 function finiteArg(args: Args, key: string, fallback: number): number {
   const value = args[key];
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -2444,6 +2481,210 @@ async function executeToolInner(editor: EditorCore, name: string, args: Args, co
 
         state.materialSettings = { channels };
         return { channels };
+      });
+    }
+
+    // -- Forests -----------------------------------------------------------
+
+    case "create_forest_field": {
+      const preset = str(args, "preset", "mossy-old-growth");
+      if (!isForestPreset(preset)) {
+        return fail(`preset must be one of ${FOREST_PRESETS.map((entry) => entry.id).join(", ")}.`);
+      }
+
+      const fieldId = forestStore.createField(preset);
+      const patch: Partial<ForestField> = {};
+      const name = optionalStr(args, "name");
+      if (name) patch.name = name;
+      const closed = bool(args, "closed");
+      if (closed !== undefined) patch.closed = closed;
+      if (Object.keys(patch).length > 0) forestStore.patchField(fieldId, patch);
+
+      const points = forestPoints(args);
+      for (const point of points) forestStore.appendNode(fieldId, point);
+      if (points.length > 0) forestStore.finishDrawing();
+
+      // Growing is normally its own step, but a field created with its whole
+      // shape in one call has nothing left to wait for.
+      const shouldGrow = bool(args, "grow") ?? points.length >= 2;
+      if (shouldGrow && points.length >= 2) forestStore.requestGrow(fieldId);
+
+      const field = findForestField(fieldId);
+      return ok({
+        closed: field?.closed ?? true,
+        density: field?.density,
+        feather: field?.feather,
+        fieldId,
+        growRequested: shouldGrow && points.length >= 2,
+        name: field?.name,
+        points: points.length,
+        preset,
+        note:
+          points.length < 2
+            ? "Add at least two points with add_forest_points, then call grow_forest_field."
+            : undefined
+      });
+    }
+
+    case "add_forest_points": {
+      const field = resolveForestField(optionalStr(args, "fieldId"));
+      if (typeof field === "string") return field;
+
+      const points = forestPoints(args);
+      if (points.length === 0) return fail("points must contain at least one { x, z } entry.");
+      for (const point of points) forestStore.appendNode(field.id, point);
+      forestStore.finishDrawing();
+
+      const updated = findForestField(field.id);
+      return ok({
+        added: points.length,
+        fieldId: field.id,
+        readyToGrow: (updated?.nodes.length ?? 0) >= 2,
+        totalPoints: updated?.nodes.length ?? points.length
+      });
+    }
+
+    case "configure_forest_field": {
+      const field = resolveForestField(optionalStr(args, "fieldId"));
+      if (typeof field === "string") return field;
+
+      const patch: Partial<ForestField> = {};
+      const preset = optionalStr(args, "preset");
+      if (preset) {
+        if (!isForestPreset(preset)) {
+          return fail(`preset must be one of ${FOREST_PRESETS.map((entry) => entry.id).join(", ")}.`);
+        }
+        patch.preset = preset;
+      }
+      if (typeof args.density === "number") patch.density = Math.max(0.01, Math.min(4, args.density));
+      if (typeof args.feather === "number") patch.feather = Math.max(0, Math.min(400, args.feather));
+      if (typeof args.width === "number") patch.width = Math.max(1, Math.min(1000, args.width));
+      if (typeof args.seed === "number") patch.seed = Math.floor(args.seed);
+      const closed = bool(args, "closed");
+      if (closed !== undefined) patch.closed = closed;
+      const visible = bool(args, "visible");
+      if (visible !== undefined) patch.visible = visible;
+      const name = optionalStr(args, "name");
+      if (name) patch.name = name;
+
+      if (Object.keys(patch).length === 0) return fail("No settings were supplied to change.");
+      forestStore.patchField(field.id, patch);
+
+      const updated = findForestField(field.id);
+      return ok({
+        changed: Object.keys(patch),
+        closed: updated?.closed,
+        density: updated?.density,
+        feather: updated?.feather,
+        fieldId: field.id,
+        note: "The stand is marked dirty. Call grow_forest_field to rebuild it.",
+        preset: updated?.preset
+      });
+    }
+
+    case "grow_forest_field": {
+      const requestedId = optionalStr(args, "fieldId");
+      if (requestedId) {
+        const field = resolveForestField(requestedId);
+        if (typeof field === "string") return field;
+        if (field.nodes.length < 2) {
+          return fail(`Field ${field.id} has ${field.nodes.length} point(s); a stand needs at least two.`);
+        }
+      }
+      forestStore.requestGrow(requestedId);
+
+      // The viewport growth driver does the bake, one field per tick, so the
+      // stems are not counted here -- get_forest_state reports them once it has.
+      return ok({
+        fieldId: requestedId ?? "all dirty fields",
+        note: "Growing runs in the viewport. Call get_forest_state to read the stem count.",
+        requested: true
+      });
+    }
+
+    case "get_forest_state": {
+      const snapshot = forestStore.getSnapshot();
+      return ok({
+        fieldCount: snapshot.fields.length,
+        fields: snapshot.fields.map((field) => {
+          const bake = snapshot.bakes[field.id];
+          return {
+            closed: field.closed,
+            density: field.density,
+            feather: field.feather,
+            fieldId: field.id,
+            name: field.name,
+            needsGrow: field.dirty,
+            points: field.nodes.length,
+            preset: field.preset,
+            seed: field.seed,
+            visible: field.visible,
+            width: field.closed ? undefined : field.width,
+            ...(bake
+              ? {
+                  boulders: bake.rocks.length,
+                  growMs: Math.round(bake.elapsedMs),
+                  stems: bake.placements.length,
+                  treePrototypes: bake.prototypeIds
+                }
+              : {})
+          };
+        }),
+        status: snapshot.status
+      });
+    }
+
+    case "delete_forest_field": {
+      const field = resolveForestField(str(args, "fieldId"));
+      if (typeof field === "string") return field;
+      forestStore.removeField(field.id);
+      return ok({ deleted: true, fieldId: field.id, name: field.name });
+    }
+
+    // -- Combat VFX --------------------------------------------------------
+
+    case "cast_vfx_ability": {
+      const element = str(args, "element");
+      if (!(ELEMENTS as readonly string[]).includes(element)) {
+        return fail(`element must be one of ${ELEMENTS.join(", ")}.`);
+      }
+      if (!isVfxViewportReady()) {
+        return fail("The viewport is not running, so there is nothing to cast into.");
+      }
+
+      const distance = Math.max(1, Math.min(400, finiteArg(args, "distance", 20)));
+      const outcome = requestVfxCast({
+        direction: { x: finiteArg(args, "directionX", 0), z: finiteArg(args, "directionZ", 1) },
+        distance,
+        element: element as ElementId,
+        origin: {
+          x: finiteArg(args, "x", 0),
+          y: finiteArg(args, "y", 0),
+          z: finiteArg(args, "z", 0)
+        }
+      });
+
+      if (!outcome.accepted) return fail(outcome.reason ?? "The cast was refused.");
+
+      const meta = ELEMENT_META[element as ElementId];
+      return ok({
+        cast: meta.label,
+        castShape: castShapeOf(element as ElementId),
+        distanceMeters: distance,
+        element,
+        note: "The cast plays once in the viewport and is not saved with the scene."
+      });
+    }
+
+    case "list_vfx_abilities": {
+      return ok({
+        abilities: ELEMENTS.map((element) => ({
+          castShape: castShapeOf(element),
+          element,
+          key: ELEMENT_META[element].key,
+          label: ELEMENT_META[element].label
+        })),
+        viewportReady: isVfxViewportReady()
       });
     }
 

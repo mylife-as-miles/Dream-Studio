@@ -2090,6 +2090,131 @@ export const COPILOT_TOOL_DECLARATIONS: CopilotToolDeclaration[] = [
       required: ["channels"]
     }
   },
+  // -- Forests -------------------------------------------------------------
+  {
+    name: "create_forest_field",
+    description:
+      "Creates a forest field: a stand described as a spline on the ground rather than a list of trees. Nothing grows until the shape has at least two control points and `grow_forest_field` runs, so the normal sequence is create, add points, then grow. Returns the field ID every other forest_* tool takes. Forests sit on the terrain's height field, so make the terrain first when the user wants both.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Display name for the field, for example \"North Woods\"" },
+        preset: {
+          type: "string",
+          enum: ["mossy-old-growth", "temperate-mixed", "ancient-oak-grove", "boreal-conifer", "primeval-redwood", "tropical-wet", "palm-oasis", "savanna", "arid-woodland"],
+          description: "The stand type. This decides the species mix, the floor, and the stems per hectare. Pick by climate and age: boreal-conifer for cold spruce/fir, temperate-mixed for ordinary broadleaf, primeval-redwood or mossy-old-growth for a tall closed interior, tropical-wet or palm-oasis for jungle and coast, savanna or arid-woodland for open dry ground. Defaults to mossy-old-growth."
+        },
+        points: {
+          type: "array",
+          description: "Optional control points to lay down immediately, so a field can be created and shaped in one call. Each is a point on the ground plane in world meters; height comes from the terrain.",
+          items: {
+            type: "object",
+            properties: { x: { type: "number" }, z: { type: "number" } },
+            required: ["x", "z"]
+          }
+        },
+        closed: { type: "boolean", description: "True (default) makes the spline a closed loop enclosing an area. False makes it an open belt of `width` either side, for a treeline, hedgerow, or river margin." },
+        grow: { type: "boolean", description: "Grow the stand immediately after creating it. Only meaningful when `points` supplies at least two points. Defaults to true when points are given." }
+      }
+    }
+  },
+  {
+    name: "add_forest_points",
+    description:
+      "Appends control points to a forest field's spline, in order. The curve through them is a centripetal Catmull-Rom, so points may be placed close together without the shape cusping. Adding points marks the field dirty; it does not regrow until `grow_forest_field` runs.",
+    parameters: {
+      type: "object",
+      properties: {
+        fieldId: { type: "string", description: "Forest field ID. Omit when exactly one field exists." },
+        points: {
+          type: "array",
+          description: "Ground-plane points in world meters, in the order they should join.",
+          items: {
+            type: "object",
+            properties: { x: { type: "number" }, z: { type: "number" } },
+            required: ["x", "z"]
+          }
+        }
+      },
+      required: ["points"]
+    }
+  },
+  {
+    name: "configure_forest_field",
+    description:
+      "Changes a forest field's shape and stand settings. `feather` is the number that matters most: it is the depth in meters over which the stand thins out at its boundary, and a hard edge is what makes a painted forest read as a decal rather than a place. Twenty to forty meters reads as a real wood; zero reads as a surveyed line. Marks the field dirty.",
+    parameters: {
+      type: "object",
+      properties: {
+        fieldId: { type: "string", description: "Forest field ID. Omit when exactly one field exists." },
+        preset: { type: "string", enum: ["mossy-old-growth", "temperate-mixed", "ancient-oak-grove", "boreal-conifer", "primeval-redwood", "tropical-wet", "palm-oasis", "savanna", "arid-woodland"], description: "Change the stand type." },
+        density: { type: "number", description: "Multiplier on the preset's stems per hectare. 1 is the preset's own figure; fields open at 0.6 because a full-density stand over a couple of hundred meters is several hundred stems. Above about 180 stems the editor is measured to struggle." },
+        feather: { type: "number", description: "Meters the stand fades across at its boundary. 20-40 for a natural wood." },
+        width: { type: "number", description: "Half-width in meters of an open belt. Ignored when the field is a closed loop." },
+        closed: { type: "boolean", description: "Whether the spline encloses an area (true) or is a belt (false)." },
+        seed: { type: "number", description: "Layout seed. Change it to reshuffle the same stand into a different arrangement." },
+        visible: { type: "boolean", description: "Whether the stand draws in the viewport." },
+        name: { type: "string", description: "Rename the field." }
+      }
+    }
+  },
+  {
+    name: "grow_forest_field",
+    description:
+      "Grows a forest field: lays out the stems, scatters the boulders, and reports what was produced. This is the expensive step in the whole forest system, so it is explicit and never implied by editing the shape. Growing again after a change replaces the previous stand.",
+    parameters: {
+      type: "object",
+      properties: {
+        fieldId: { type: "string", description: "Forest field ID. Omit to grow every dirty field." }
+      }
+    }
+  },
+  {
+    name: "get_forest_state",
+    description:
+      "Lists every forest field with its shape, stand settings, and — where it has been grown — the stem count, boulder count, and which tree prototypes it uses. Read this before a follow-up edit so a change lands relative to what is already standing.",
+    parameters: { type: "object", properties: {} }
+  },
+  {
+    name: "delete_forest_field",
+    description: "Removes a forest field and the stand grown from it.",
+    parameters: {
+      type: "object",
+      properties: {
+        fieldId: { type: "string", description: "Forest field ID." }
+      },
+      required: ["fieldId"]
+    }
+  },
+  // -- Combat VFX ----------------------------------------------------------
+  {
+    name: "cast_vfx_ability",
+    description:
+      "Fires one of the seven combat abilities in the viewport. Each is a skillshot: it travels out from an origin along a flat heading, erupts at the far end, then burns down and clears itself. Use this to show the user what an ability looks like, or to dress a scene for a screenshot. The cast plays once and is not saved with the scene. Abilities are hand-written GLSL and draw on the WebGL backend, so nothing appears if the editor has been switched to WebGPU.",
+    parameters: {
+      type: "object",
+      properties: {
+        element: {
+          type: "string",
+          enum: ["pyre", "kraken", "electrical", "earth", "portal", "aether", "firePortal"],
+          description: "Which ability. pyre is a ring of burning blades over a molten crater; kraken is cephalopod arms hauling out of a rift and hammering the ground; electrical is a dark sphere hovering in a containment platform with arcs tearing off it; earth is the one line cast, laying stone plates along the aimed line and raising a tower at the end; portal is a standing verdant gate that stays lit; aether is a hoop forged lying down then hinged upright; firePortal is a black disc struck into the air with sparks thrown off its ring."
+        },
+        x: { type: "number", description: "World X the cast starts from, in meters. Defaults to 0." },
+        y: { type: "number", description: "World Y of the cast origin, in meters. Ground level unless the ability hangs in the air. Defaults to 0." },
+        z: { type: "number", description: "World Z the cast starts from, in meters. Defaults to 0." },
+        directionX: { type: "number", description: "Flat heading X. Need not be unit length; it is normalised. Defaults to 0." },
+        directionZ: { type: "number", description: "Flat heading Z. Defaults to 1, i.e. straight along +Z." },
+        distance: { type: "number", description: "How far the cast reaches, in meters. 20 is a natural skillshot range; clamped to 1-400." }
+      },
+      required: ["element"]
+    }
+  },
+  {
+    name: "list_vfx_abilities",
+    description:
+      "Lists the combat abilities available to cast, with the key each is bound to in the editor and how each is aimed (a line cast travels along the aimed line; a far cast lands its footprint at the far end; gate, ring and scribe casts build a structure). Read this before casting so the ability matches what the user described.",
+    parameters: { type: "object", properties: {} }
+  },
   {
     name: "get_terrain_state",
     description:
