@@ -9,6 +9,7 @@ import { CreationToolBar } from "@/components/editor-shell/CreationToolBar";
 import { FloorPresetsPanel } from "@/components/editor-shell/FloorPresetsPanel";
 import { MeshEditToolBars } from "@/components/editor-shell/MeshEditToolBars";
 import { SculptToolBar } from "@/components/editor-shell/SculptToolBar";
+import { ForestToolsSection } from "@/components/editor-shell/ForestToolsSection";
 import { TerrainToolsSection } from "@/components/editor-shell/TerrainToolsSection";
 import { PhysicsPlaybackControl } from "@/components/editor-shell/PhysicsPlaybackControl";
 import { GridSnapControl } from "@/components/editor-shell/GridSnapControl";
@@ -208,6 +209,10 @@ export function ToolsPanel({
               onCreateMeshTerrain={onCreateMeshTerrain}
               onSetToolId={onSetToolId}
             />
+          </PanelSection>
+
+          <PanelSection title="Forest">
+            <ForestToolsSection activeToolId={activeToolId} onSetToolId={onSetToolId} />
           </PanelSection>
 
           <PanelSection title="Details">

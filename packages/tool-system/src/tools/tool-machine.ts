@@ -32,7 +32,17 @@ export type TerrainToolId =
   | "terrain-tunnel"
   | "terrain-dig";
 
-export type ToolId = CoreToolId | TerrainToolId;
+/**
+ * Forest authoring tools.
+ *
+ * A forest here is a shape on the ground, not a list of trees: `forest-field`
+ * draws the spline that bounds a stand, and growing it is a separate, explicit
+ * step. That split is the whole point -- dragging a control point has to stay
+ * cheap, so nothing regenerates until the field is grown.
+ */
+export type ForestToolId = "forest-field" | "forest-paint";
+
+export type ToolId = CoreToolId | TerrainToolId | ForestToolId;
 
 export const terrainToolIds = [
   "terrain-sculpt",
@@ -44,6 +54,15 @@ export const terrainToolIds = [
 
 export function isTerrainToolId(toolId: ToolId): toolId is TerrainToolId {
   return (terrainToolIds as readonly string[]).includes(toolId);
+}
+
+export const forestToolIds = [
+  "forest-field",
+  "forest-paint"
+] as const satisfies readonly ForestToolId[];
+
+export function isForestToolId(toolId: ToolId): toolId is ForestToolId {
+  return (forestToolIds as readonly string[]).includes(toolId);
 }
 
 export const defaultToolId: ToolId = "select";

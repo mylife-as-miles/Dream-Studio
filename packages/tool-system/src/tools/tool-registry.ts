@@ -1,4 +1,10 @@
-import { isTerrainToolId, type TerrainToolId, type ToolId } from "./tool-machine";
+import {
+  isForestToolId,
+  isTerrainToolId,
+  type ForestToolId,
+  type TerrainToolId,
+  type ToolId
+} from "./tool-machine";
 
 /**
  * Which rail a tool belongs to.
@@ -7,7 +13,7 @@ import { isTerrainToolId, type TerrainToolId, type ToolId } from "./tool-machine
  * handful of generic geometry verbs, so the panels group them separately
  * instead of stretching one flat grid to fourteen entries.
  */
-export type ToolGroupId = "core" | "terrain";
+export type ToolGroupId = "core" | "terrain" | "forest";
 
 export type ToolDefinition = {
   id: ToolId;
@@ -29,11 +35,17 @@ export const defaultTools: ToolDefinition[] = [
   { id: "terrain-paint", label: "Terrain Paint", group: "terrain" },
   { id: "terrain-density", label: "Terrain Density", group: "terrain" },
   { id: "terrain-tunnel", label: "Terrain Tunnel", group: "terrain" },
-  { id: "terrain-dig", label: "Terrain Dig", group: "terrain" }
+  { id: "terrain-dig", label: "Terrain Dig", group: "terrain" },
+  { id: "forest-field", label: "Forest Field", group: "forest" },
+  { id: "forest-paint", label: "Forest Paint", group: "forest" }
 ];
 
 export const coreTools: ToolDefinition[] = defaultTools.filter((tool) => tool.group === "core");
 
 export const terrainTools = defaultTools.filter(
   (tool): tool is ToolDefinition & { id: TerrainToolId } => isTerrainToolId(tool.id)
+);
+
+export const forestTools = defaultTools.filter(
+  (tool): tool is ToolDefinition & { id: ForestToolId } => isForestToolId(tool.id)
 );
