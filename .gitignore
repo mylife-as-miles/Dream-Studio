@@ -6,5 +6,6 @@ coverage
 .env
 samples
 # Upstream reference checkout for the mesh-terrain port (read-only)
-/vendor/super-terrain
-/vendor/linear-ability-ext
+# Upstream reference checkouts and the one-shot codemods used to port from them.
+# Read-only working material, ~300MB of it -- none of it belongs in the repo.
+/vendor/
